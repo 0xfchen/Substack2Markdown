@@ -5,10 +5,12 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 from time import sleep
 
-from bs4 import BeautifulSoup
+
 import html2text
 import markdown
 import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
 from tqdm import tqdm
 from xml.etree import ElementTree as ET
 
@@ -16,11 +18,12 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.common.exceptions import SessionNotCreatedException
 from selenium.webdriver.chrome.service import Service
 from urllib.parse import urlparse
 from config import EMAIL, PASSWORD
 
-USE_PREMIUM: bool = False  # Set to True if you want to login to Substack and convert paid for posts
+USE_PREMIUM: bool = True  # Set to True if you want to login to Substack and convert paid for posts
 BASE_SUBSTACK_URL: str = "https://www.thefitzwilliam.com/"  # Substack you want to convert to markdown
 BASE_MD_DIR: str = "substack_md_files"  # Name of the directory we'll save the .md essay files
 BASE_HTML_DIR: str = "substack_html_pages"  # Name of the directory we'll save the .html essay files
@@ -388,31 +391,50 @@ class SubstackScraper(BaseSubstackScraper):
 
 class PremiumSubstackScraper(BaseSubstackScraper):
     def __init__(
-            self,
-            base_substack_url: str,
-            md_save_dir: str,
-            html_save_dir: str,
-            headless: bool = False,
-            edge_path: str = '',
-            edge_driver_path: str = '',
-            user_agent: str = ''
+        self,
+        base_substack_url: str,
+        md_save_dir: str,
+        html_save_dir: str,
+        headless: bool = False,
+        edge_path: str = '',
+        edge_driver_path: str = '',
+        user_agent: str = ''
     ) -> None:
         super().__init__(base_substack_url, md_save_dir, html_save_dir)
 
         options = EdgeOptions()
         if headless:
-            options.add_argument("--headless")
+            # modern headless flag (works better with recent Edge/Chromium)
+            options.add_argument("--headless=new")
         if edge_path:
             options.binary_location = edge_path
         if user_agent:
-            options.add_argument(f'user-agent={user_agent}')  # Pass this if running headless and blocked by captcha
+            options.add_argument(f"user-agent={user_agent}")
 
-        if edge_driver_path:
+        self.driver = None
+
+        # 1) Prefer an explicit driver path (manual download)
+        if edge_driver_path and os.path.exists(edge_driver_path):
             service = Service(executable_path=edge_driver_path)
+            self.driver = webdriver.Edge(service=service, options=options)
         else:
-            service = Service(EdgeChromiumDriverManager().install())
+            # 2) Try webdriver_manager (needs network/DNS)
+            try:
+                service = Service(EdgeChromiumDriverManager().install())
+                self.driver = webdriver.Edge(service=service, options=options)
+            except Exception as e:
+                print("webdriver_manager could not download msedgedriver (network/DNS). Falling back to Selenium Manager.")
+                # 3) Selenium Manager fallback (still needs network; but avoids webdriver_manager)
+                try:
+                    # IMPORTANT: ensure no stale driver in PATH (e.g. C:\Windows\msedgedriver.exe v138)
+                    self.driver = webdriver.Edge(options=options)
+                except SessionNotCreatedException as se:
+                    raise RuntimeError(
+                        "Selenium Manager fallback failed due to driver/browser mismatch.\n"
+                        "Fix by either: (a) removing stale msedgedriver in PATH (e.g. C:\\Windows\\msedgedriver.exe) and replace with a fresh one downloaded from https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver, "
+                        "or (b) pass --edge-driver-path to a manually downloaded driver that matches your Edge version."
+                    ) from se
 
-        self.driver = webdriver.Edge(service=service, options=options)
         self.login()
 
     def login(self) -> None:
