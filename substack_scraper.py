@@ -250,34 +250,40 @@ class BaseSubstackScraper(ABC):
 
     def extract_post_data(self, soup: BeautifulSoup) -> Tuple[str, str, str, str, str]:
         """
-        Converts substack post soup to markdown, returns metadata and content
+        Converts a Substack post soup to markdown, returning metadata and content.
+        Returns (title, subtitle, like_count, date, md_content).
         """
-        # Extract title
-        title = soup.select_one("h1.post-title, h2").text.strip()  # When a video is present, the title is demoted to h2
+        # Title (sometimes h2 if video present)
+        title_element = soup.select_one("h1.post-title, h2")
+        title = title_element.text.strip() if title_element else "Untitled"
 
-        # Extract subtitle
+        # Subtitle
         subtitle_element = soup.select_one("h3.subtitle")
         subtitle = subtitle_element.text.strip() if subtitle_element else ""
 
-        # Extract date
-        date_element = soup.select_one("div.pencraft.pc-reset.color-pub-secondary-text-hGQ02T.line-height-20-t4M0El.font-meta-MWBumP.size-11-NuY2Zx.weight-medium-fw81nC.transform-uppercase-yKDgcq.reset-IxiVJZ.meta-EgzBVA")
-        date = date_element.text.strip() if date_element else ""
+        # Date — try CSS selector first
+        date = ""
+        date_element = soup.select_one("div.pencraft.pc-reset.color-pub-secondary-text-hGQ02T")
+        if date_element and date_element.text.strip():
+            date = date_element.text.strip()
+
+        # Fallback: JSON-LD metadata
         if not date:
-            # Try to find date in the metadata
-            script_tag = soup.find('script', {'type': 'application/ld+json'})
+            script_tag = soup.find("script", {"type": "application/ld+json"})
             if script_tag and script_tag.string:
                 try:
-                    import json
-                    from datetime import datetime
                     metadata = json.loads(script_tag.string)
-                    if 'datePublished' in metadata:
-                        date_str = metadata['datePublished']
-                        date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                        date = date_obj.strftime('%b %d, %Y')
+                    if "datePublished" in metadata:
+                        date_str = metadata["datePublished"]
+                        date_obj = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                        date = date_obj.strftime("%b %d, %Y")
                 except (json.JSONDecodeError, ValueError, KeyError):
-                    date = "Date not found"
-        
-        # Extract like count
+                    pass
+
+        if not date:
+            date = "Date not found"
+
+        # Like count
         like_count_element = soup.select_one("a.post-ufi-button .label")
         like_count = (
             like_count_element.text.strip()
@@ -285,11 +291,14 @@ class BaseSubstackScraper(ABC):
             else "0"
         )
 
-        # Extract and convert content
-        content = str(soup.select_one("div.available-content"))
-        md = self.html_to_md(content)
+        # Post content
+        content_element = soup.select_one("div.available-content")
+        content_html = str(content_element) if content_element else ""
+        md = self.html_to_md(content_html)
+
+        # Combine metadata + content
         md_content = self.combine_metadata_and_content(title, subtitle, date, like_count, md)
-        
+
         return title, subtitle, like_count, date, md_content
 
 
