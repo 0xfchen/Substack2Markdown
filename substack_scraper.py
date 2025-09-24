@@ -410,7 +410,13 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             options.binary_location = edge_path
         if user_agent:
             options.add_argument(f"user-agent={user_agent}")
+    
+        if isinstance(options, EdgeOptions):
+            os.environ.setdefault("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com")
+        elif isinstance(options, ChromeOptions):
+            os.environ.setdefault("SE_DRIVER_MIRROR_URL", "https://chromedriver.storage.googleapis.com")
 
+        
         self.driver = None
 
         # 1) Prefer an explicit driver path (manual download)
