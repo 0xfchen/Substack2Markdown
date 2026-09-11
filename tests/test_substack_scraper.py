@@ -408,3 +408,36 @@ def test_download_image_uses_timeout(monkeypatch, tmp_path):
     mock_get.assert_called_once()
     assert mock_get.call_args[1]["timeout"] == 12
 
+
+# 15. Custom Domains & Output Directories
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://niallferguson.substack.com/", "niallferguson"),
+        ("https://example.substack.com/p/my-post", "example"),
+        ("https://thefp.com", "thefp"),
+        ("https://news.thefp.com", "thefp"),
+        ("https://www.astralcodexten.com", "astralcodexten"),
+        ("https://blog.samharris.org", "samharris"),
+    ],
+)
+def test_extract_main_part_supports_custom_domains(url, expected):
+    assert ss.extract_main_part(url) == expected
+
+
+def test_generate_html_file_honors_custom_directories(tmp_path):
+    custom_data = tmp_path / "custom_data"
+    custom_html = tmp_path / "custom_html"
+    custom_data.mkdir()
+    custom_html.mkdir()
+
+    import json
+    with open(custom_data / "custom_author.json", "w", encoding="utf-8") as f:
+        json.dump([{"title": "Custom Post", "subtitle": "", "date": "2026-01-01", "like_count": 0, "file_link": "a.md", "html_link": "a.html"}], f)
+
+    ss.generate_html_file("custom_author", html_dir=str(custom_html), data_dir=str(custom_data))
+
+    output_file = custom_html / "custom_author.html"
+    assert output_file.exists()
+    assert "Custom Post" in output_file.read_text(encoding="utf-8")
+

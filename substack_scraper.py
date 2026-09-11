@@ -169,8 +169,18 @@ def process_markdown_images(md_content: str, author: str, post_slug: str, pbar=N
 
 
 def extract_main_part(url: str) -> str:
-    parts = urlparse(url).netloc.split('.')
-    return parts[1] if parts[0] == 'www' else parts[0]
+    netloc = urlparse(url).netloc.lower().split(':')[0]
+    if not netloc:
+        netloc = urlparse("https://" + url).netloc.lower().split(':')[0]
+    if netloc.endswith(".substack.com"):
+        sub = netloc[:-len(".substack.com")]
+        return sub.split('.')[-1] if sub else "substack"
+    parts = [p for p in netloc.split('.') if p]
+    if len(parts) >= 2:
+        if parts[0] in ('www', 'blog', 'news', 'newsletter'):
+            return parts[1]
+        return parts[0]
+    return parts[0] if parts else "substack"
 
 
 def safe_json_embed(data) -> str:
@@ -183,12 +193,19 @@ def safe_json_embed(data) -> str:
     )
 
 
-def generate_html_file(author_name: str) -> None:
+def generate_html_file(
+    author_name: str,
+    html_dir: Optional[str] = None,
+    data_dir: Optional[str] = None,
+) -> None:
     """Generates a HTML file for the given author."""
-    if not os.path.exists(BASE_HTML_DIR):
-        os.makedirs(BASE_HTML_DIR)
+    target_html_dir = html_dir or BASE_HTML_DIR
+    target_data_dir = data_dir or JSON_DATA_DIR
 
-    json_path = os.path.join(JSON_DATA_DIR, f'{author_name}.json')
+    if not os.path.exists(target_html_dir):
+        os.makedirs(target_html_dir)
+
+    json_path = os.path.join(target_data_dir, f'{author_name}.json')
     with open(json_path, 'r', encoding='utf-8') as file:
         essays_data = json.load(file)
 
@@ -204,7 +221,7 @@ def generate_html_file(author_name: str) -> None:
     )
     html_with_author = html_with_data.replace('author_name', safe_author)
 
-    html_output_path = os.path.join(BASE_HTML_DIR, f'{author_name}.html')
+    html_output_path = os.path.join(target_html_dir, f'{author_name}.html')
     with open(html_output_path, 'w', encoding='utf-8') as file:
         file.write(html_with_author)
 
@@ -787,6 +804,8 @@ class BaseSubstackScraper(ABC):
         self.base_substack_url: str = base_substack_url
 
         self.writer_name: str = extract_main_part(base_substack_url)
+        self.base_md_dir: str = md_save_dir
+        self.base_html_dir: str = html_save_dir
         md_save_dir: str = f"{md_save_dir}/{self.writer_name}"
 
         self.md_save_dir: str = md_save_dir
@@ -1180,7 +1199,7 @@ class BaseSubstackScraper(ABC):
                 if num_posts_to_scrape != 0 and count == num_posts_to_scrape:
                     break
         self.save_essays_data_to_json(essays_data=essays_data)
-        generate_html_file(author_name=self.writer_name)
+        generate_html_file(author_name=self.writer_name, html_dir=self.base_html_dir)
 
 
 # =============================================================================
