@@ -41,6 +41,7 @@ BASE_IMAGE_DIR: str = "substack_images"
 HTML_TEMPLATE: str = "author_template.html"
 JSON_DATA_DIR: str = "data"
 NUM_POSTS_TO_SCRAPE: int = 0
+DEFAULT_REQUEST_TIMEOUT: int = 30
 
 
 def resolve_image_url(url: str) -> str:
@@ -95,7 +96,7 @@ def get_post_slug(url: str) -> str:
     return match.group(1) if match else 'unknown_post'
 
 
-def sanitize_image_filename(url: str) -> str:
+def sanitize_image_filename(url: str, timeout: int = 5) -> str:
     """Create a safe filename from an image URL."""
     url = resolve_image_url(url)
     filename = url.split("/")[-1]
@@ -104,18 +105,27 @@ def sanitize_image_filename(url: str) -> str:
 
     if len(filename) > 100 or not filename:
         hash_object = hashlib.md5(url.encode())
-        ext = mimetypes.guess_extension(
-            requests.head(url).headers.get('content-type', '')
-        ) or '.jpg'
+        ext = None
+        try:
+            resp = requests.head(url, timeout=timeout)
+            ext = mimetypes.guess_extension(resp.headers.get('content-type', ''))
+        except Exception:
+            pass
+        ext = ext or '.jpg'
         filename = f"{hash_object.hexdigest()}{ext}"
 
     return filename
 
 
-def download_image(url: str, save_path: Path, pbar=None) -> Optional[str]:
+def download_image(
+    url: str,
+    save_path: Path,
+    pbar=None,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT
+) -> Optional[str]:
     """Download image from URL and save to path."""
     try:
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, timeout=timeout)
         if response.status_code == 200:
             save_path.parent.mkdir(parents=True, exist_ok=True)
             with open(save_path, 'wb') as f:
@@ -145,9 +155,13 @@ def process_markdown_images(md_content: str, author: str, post_slug: str, pbar=N
         filename = sanitize_image_filename(url)
         save_path = image_dir / filename
         if not save_path.exists():
-            download_image(resolved_url, save_path, pbar)
+            downloaded = download_image(resolved_url, save_path, pbar)
+            if not downloaded:
+                # If download failed, preserve the original remote URL
+                return match.group(0)
 
         rel_path = os.path.relpath(save_path, Path(BASE_MD_DIR) / author)
+        rel_path = rel_path.replace("\\", "/")
         return f"({rel_path})"
 
     pattern = r'\(https://substackcdn\.com/image/fetch/[^\s\)]+\)'
@@ -804,7 +818,7 @@ class BaseSubstackScraper(ABC):
     def fetch_urls_from_sitemap(self) -> List[str]:
         """Fetches URLs from sitemap.xml."""
         sitemap_url = f"{self.base_substack_url}sitemap.xml"
-        response = requests.get(sitemap_url)
+        response = requests.get(sitemap_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         if not response.ok:
             print(f'Error fetching sitemap at {sitemap_url}: {response.status_code}')
@@ -818,7 +832,7 @@ class BaseSubstackScraper(ABC):
         """Fetches URLs from feed.xml."""
         print('Falling back to feed.xml. This will only contain up to the 22 most recent posts.')
         feed_url = f"{self.base_substack_url}feed.xml"
-        response = requests.get(feed_url)
+        response = requests.get(feed_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         if not response.ok:
             print(f'Error fetching feed at {feed_url}: {response.status_code}')
@@ -1190,7 +1204,7 @@ class SubstackScraper(BaseSubstackScraper):
         """Gets soup from URL using requests, with retry on rate limiting."""
         for attempt in range(1, max_attempts + 1):
             try:
-                page = requests.get(url, headers=None)
+                page = requests.get(url, headers=None, timeout=DEFAULT_REQUEST_TIMEOUT)
                 soup = BeautifulSoup(page.content, "html.parser")
 
                 if soup.find("h2", class_="paywall-title"):

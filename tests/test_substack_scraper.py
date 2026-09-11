@@ -385,3 +385,26 @@ def test_main_exits_when_no_url_and_empty_base_url(monkeypatch):
         ss.main()
     assert exc_info.value.code == 1
 
+
+# 14. Network Timeouts & Reliability
+def test_process_markdown_images_preserves_remote_url_on_download_failure(monkeypatch):
+    # Mock download_image to fail (return None)
+    monkeypatch.setattr(ss, "download_image", lambda *args, **kwargs: None)
+
+    md = "![alt](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2Ffailed.jpg)"
+    result = ss.process_markdown_images(md, "test_author", "test_slug")
+
+    # URL should be retained rather than replaced with broken local path
+    assert "https://substackcdn.com/image/fetch/" in result
+    assert "substack_images" not in result
+
+
+def test_download_image_uses_timeout(monkeypatch, tmp_path):
+    mock_get = Mock(side_effect=Exception("Connection timed out"))
+    monkeypatch.setattr(ss.requests, "get", mock_get)
+
+    result = ss.download_image("https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12)
+    assert result is None
+    mock_get.assert_called_once()
+    assert mock_get.call_args[1]["timeout"] == 12
+
