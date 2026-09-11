@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import html
 import json
 import mimetypes
 import os
@@ -158,6 +159,16 @@ def extract_main_part(url: str) -> str:
     return parts[1] if parts[0] == 'www' else parts[0]
 
 
+def safe_json_embed(data) -> str:
+    """Safely serializes data to JSON for embedding inside an HTML <script> tag."""
+    json_str = json.dumps(data, ensure_ascii=False, indent=4)
+    return (
+        json_str.replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+    )
+
+
 def generate_html_file(author_name: str) -> None:
     """Generates a HTML file for the given author."""
     if not os.path.exists(BASE_HTML_DIR):
@@ -167,16 +178,17 @@ def generate_html_file(author_name: str) -> None:
     with open(json_path, 'r', encoding='utf-8') as file:
         essays_data = json.load(file)
 
-    embedded_json_data = json.dumps(essays_data, ensure_ascii=False, indent=4)
+    embedded_json_data = safe_json_embed(essays_data)
 
     with open(HTML_TEMPLATE, 'r', encoding='utf-8') as file:
         html_template = file.read()
 
-    html_with_data = html_template.replace('<!-- AUTHOR_NAME -->', author_name).replace(
+    safe_author = html.escape(author_name)
+    html_with_data = html_template.replace('<!-- AUTHOR_NAME -->', safe_author).replace(
         '<script type="application/json" id="essaysData"></script>',
         f'<script type="application/json" id="essaysData">{embedded_json_data}</script>'
     )
-    html_with_author = html_with_data.replace('author_name', author_name)
+    html_with_author = html_with_data.replace('author_name', safe_author)
 
     html_output_path = os.path.join(BASE_HTML_DIR, f'{author_name}.html')
     with open(html_output_path, 'w', encoding='utf-8') as file:
