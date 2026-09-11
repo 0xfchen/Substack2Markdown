@@ -441,3 +441,28 @@ def test_generate_html_file_honors_custom_directories(tmp_path):
     assert output_file.exists()
     assert "Custom Post" in output_file.read_text(encoding="utf-8")
 
+
+# 16. Concurrency & Performance
+def test_process_markdown_images_concurrent_downloads(monkeypatch):
+    downloaded_urls = []
+
+    def mock_download(url, save_path, pbar=None, timeout=None):
+        downloaded_urls.append(url)
+        return str(save_path)
+
+    monkeypatch.setattr(ss, "download_image", mock_download)
+
+    md = (
+        "![img1](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2F1.jpg)\n"
+        "![img2](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2F2.jpg)\n"
+        "![img3](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2F3.jpg)\n"
+    )
+
+    result = ss.process_markdown_images(md, "author", "post", max_workers=3)
+
+    assert len(downloaded_urls) == 3
+    assert "https://example.com/1.jpg" in downloaded_urls
+    assert "https://example.com/2.jpg" in downloaded_urls
+    assert "https://example.com/3.jpg" in downloaded_urls
+    assert "substackcdn.com" not in result
+
