@@ -335,3 +335,40 @@ def test_clean_linked_images_preserves_youtube_thumbnail_links():
     )
 
     assert ss.clean_linked_images(md) == md
+
+
+# 12. Security & XSS Prevention
+def test_safe_json_embed_escapes_html_tags():
+    payload = {"title": "</script><script>alert(1)</script>", "data": "a & b < c > d"}
+    embedded = ss.safe_json_embed(payload)
+
+    assert "</script>" not in embedded
+    assert "<" not in embedded
+    assert ">" not in embedded
+    assert "\\u003c/script\\u003e" in embedded
+    assert "\\u0026" in embedded
+
+
+def test_generate_html_file_escapes_author_and_embeds_safely(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    html_dir = tmp_path / "html"
+    data_dir.mkdir()
+    html_dir.mkdir()
+
+    author = "Hacker & Friends"
+    fake_essays = [{"title": "Post </script><script>alert(1)</script>", "subtitle": "sub", "like_count": 5, "date": "2026-01-01", "file_link": "f.md", "html_link": "f.html"}]
+
+    import json
+    with open(data_dir / f"{author}.json", "w", encoding="utf-8") as f:
+        json.dump(fake_essays, f)
+
+    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(data_dir))
+    monkeypatch.setattr(ss, "BASE_HTML_DIR", str(html_dir))
+
+    ss.generate_html_file(author)
+
+    output_html = (html_dir / f"{author}.html").read_text(encoding="utf-8")
+    assert "</script><script>" not in output_html
+    assert "\\u003c/script\\u003e" in output_html
+    assert "Hacker &amp; Friends" in output_html
+

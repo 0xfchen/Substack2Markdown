@@ -17,14 +17,37 @@ function sortEssaysByLikes(data) {
 }
 function populateEssays(data) {
     const essaysContainer = document.getElementById('essays-container');
-    const list = data.map(essay => `
-        <li>
-            <a href="../${showHTML ? essay.html_link : essay.file_link}" target="_blank">${essay.title}</a>
-            <div class="subtitle">${essay.subtitle}</div>
-            <div class="metadata">${essay.like_count} Likes - ${essay.date}</div>
-        </li>
-    `).join('');
-    essaysContainer.innerHTML = `<ul>${list}</ul>`;
+    const ul = document.createElement('ul');
+
+    data.forEach(essay => {
+        const li = document.createElement('li');
+
+        const a = document.createElement('a');
+        const targetLink = showHTML ? essay.html_link : essay.file_link;
+        a.href = targetLink && (targetLink.startsWith('http') || targetLink.startsWith('/'))
+            ? targetLink
+            : `../${targetLink || ''}`;
+        a.target = '_blank';
+        a.textContent = essay.title || 'Untitled';
+        li.appendChild(a);
+
+        if (essay.subtitle) {
+            const subtitle = document.createElement('div');
+            subtitle.className = 'subtitle';
+            subtitle.textContent = essay.subtitle;
+            li.appendChild(subtitle);
+        }
+
+        const metadata = document.createElement('div');
+        metadata.className = 'metadata';
+        metadata.textContent = `${essay.like_count || 0} Likes - ${essay.date || 'Date not found'}`;
+        li.appendChild(metadata);
+
+        ul.appendChild(li);
+    });
+
+    essaysContainer.innerHTML = '';
+    essaysContainer.appendChild(ul);
 }
 
 
