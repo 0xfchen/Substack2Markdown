@@ -372,3 +372,16 @@ def test_generate_html_file_escapes_author_and_embeds_safely(tmp_path, monkeypat
     assert "\\u003c/script\\u003e" in output_html
     assert "Hacker &amp; Friends" in output_html
 
+
+# 13. CLI & Defaults
+def test_default_use_premium_is_false():
+    assert ss.USE_PREMIUM is False
+
+
+def test_main_exits_when_no_url_and_empty_base_url(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["substack_scraper.py"])
+    monkeypatch.setattr(ss, "BASE_SUBSTACK_URL", "")
+    with pytest.raises(SystemExit) as exc_info:
+        ss.main()
+    assert exc_info.value.code == 1
+

@@ -33,7 +33,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import SessionNotCreatedException, TimeoutException, WebDriverException
 
-USE_PREMIUM: bool = True
+USE_PREMIUM: bool = False
 BASE_SUBSTACK_URL: str = "https://niallferguson.substack.com/"
 BASE_MD_DIR: str = "substack_md_files"
 BASE_HTML_DIR: str = "substack_html_pages"
@@ -1546,6 +1546,10 @@ def main():
 
     else:
         # Use hardcoded values
+        if not BASE_SUBSTACK_URL:
+            print("Error: No Substack URL provided. Please specify --url <URL> or set BASE_SUBSTACK_URL in the script.")
+            sys.exit(1)
+        print(f"No --url specified. Using script default URL: {BASE_SUBSTACK_URL}")
         if USE_PREMIUM:
             scraper = PremiumSubstackScraper(
                 base_substack_url=BASE_SUBSTACK_URL,
