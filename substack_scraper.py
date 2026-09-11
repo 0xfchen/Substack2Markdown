@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from typing import List, Optional, Tuple
@@ -42,6 +43,7 @@ HTML_TEMPLATE: str = "author_template.html"
 JSON_DATA_DIR: str = "data"
 NUM_POSTS_TO_SCRAPE: int = 0
 DEFAULT_REQUEST_TIMEOUT: int = 30
+MAX_IMAGE_WORKERS: int = 6
 
 
 def resolve_image_url(url: str) -> str:
@@ -144,27 +146,61 @@ def download_image(
     return None
 
 
-def process_markdown_images(md_content: str, author: str, post_slug: str, pbar=None) -> str:
-    """Process markdown content to download images and update references."""
+def process_markdown_images(
+    md_content: str,
+    author: str,
+    post_slug: str,
+    pbar=None,
+    max_workers: int = MAX_IMAGE_WORKERS,
+) -> str:
+    """Process markdown content to download images concurrently and update references."""
     image_dir = Path(BASE_IMAGE_DIR) / author / post_slug
     md_content = clean_linked_images(md_content)
+    pattern = r'\(https://substackcdn\.com/image/fetch/[^\s\)]+\)'
+
+    matches = [m.group(0).strip('()') for m in re.finditer(pattern, md_content)]
+    unique_urls = list(dict.fromkeys(matches))
+
+    download_tasks = []
+    for raw_url in unique_urls:
+        resolved_url = resolve_image_url(raw_url)
+        filename = sanitize_image_filename(raw_url)
+        save_path = image_dir / filename
+        if not save_path.exists():
+            download_tasks.append((resolved_url, save_path))
+        elif pbar:
+            pbar.update(1)
+
+    download_results = {}
+    if download_tasks:
+        workers = min(len(download_tasks), max(1, max_workers))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_path = {
+                executor.submit(download_image, res_url, sp, pbar): sp
+                for res_url, sp in download_tasks
+            }
+            for future in future_to_path:
+                sp = future_to_path[future]
+                try:
+                    res = future.result()
+                    if res:
+                        download_results[sp] = res
+                except Exception:
+                    pass
 
     def replace_image(match):
         url = match.group(0).strip('()')
         resolved_url = resolve_image_url(url)
         filename = sanitize_image_filename(url)
         save_path = image_dir / filename
-        if not save_path.exists():
-            downloaded = download_image(resolved_url, save_path, pbar)
-            if not downloaded:
-                # If download failed, preserve the original remote URL
-                return match.group(0)
+        if not save_path.exists() and save_path not in download_results:
+            # If download failed or file does not exist, keep original URL
+            return match.group(0)
 
         rel_path = os.path.relpath(save_path, Path(BASE_MD_DIR) / author)
         rel_path = rel_path.replace("\\", "/")
         return f"({rel_path})"
 
-    pattern = r'\(https://substackcdn\.com/image/fetch/[^\s\)]+\)'
     return re.sub(pattern, replace_image, md_content)
 
 
