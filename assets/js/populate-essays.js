@@ -23,10 +23,13 @@ function populateEssays(data) {
         const li = document.createElement('li');
 
         const a = document.createElement('a');
-        const targetLink = showHTML ? essay.html_link : essay.file_link;
-        a.href = targetLink && (targetLink.startsWith('http') || targetLink.startsWith('/'))
-            ? targetLink
-            : `../${targetLink || ''}`;
+        let targetLink = showHTML ? essay.html_link : essay.file_link;
+        if (!targetLink) {
+            targetLink = '#';
+        } else if (!targetLink.startsWith('http') && !targetLink.startsWith('/') && !targetLink.startsWith('../')) {
+            targetLink = `../${targetLink}`;
+        }
+        a.href = targetLink;
         a.target = '_blank';
         a.textContent = essay.title || 'Untitled';
         li.appendChild(a);
