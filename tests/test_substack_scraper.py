@@ -466,3 +466,17 @@ def test_process_markdown_images_concurrent_downloads(monkeypatch):
     assert "https://example.com/3.jpg" in downloaded_urls
     assert "substackcdn.com" not in result
 
+
+# 17. Credentials & .env loading
+def test_get_credentials_loads_from_env_file(tmp_path, monkeypatch):
+    monkeypatch.delenv("SUBSTACK_EMAIL", raising=False)
+    monkeypatch.delenv("SUBSTACK_PASSWORD", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("SUBSTACK_EMAIL=env_user@example.com\nSUBSTACK_PASSWORD=env_pass\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    email, password = ss.get_credentials()
+    assert email == "env_user@example.com"
+    assert password == "env_pass"
+
+

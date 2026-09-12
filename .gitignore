@@ -1,6 +1,8 @@
 # Ignore Python-related files
+.env
 config.py
 setup.py
+*egg-info/
 **/__pycache__/
 
 # Ignore virtual environment directories

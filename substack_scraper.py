@@ -1292,10 +1292,18 @@ class SubstackScraper(BaseSubstackScraper):
 def get_credentials() -> Tuple[str, str]:
     """Substack login credentials for premium scraping.
 
-    The SUBSTACK_EMAIL and SUBSTACK_PASSWORD environment variables take
-    precedence over an optional config.py in the project root containing
-    EMAIL and PASSWORD strings.
+    The SUBSTACK_EMAIL and SUBSTACK_PASSWORD environment variables (or values
+    from a .env file if present) take precedence over an optional config.py
+    in the project root containing EMAIL and PASSWORD strings.
     """
+    try:
+        from dotenv import find_dotenv, load_dotenv
+        dotenv_path = find_dotenv(usecwd=True)
+        if dotenv_path:
+            load_dotenv(dotenv_path)
+    except ImportError:
+        pass
+
     try:
         from config import EMAIL, PASSWORD
     except ImportError:
