@@ -10,9 +10,9 @@ installation required! (Works for free Substacks only.)
 
 ![Substack2Markdown Interface](./assets/images/screenshot.png)
 
-Once you run the script, it will create a folder named after the substack in `/substack_md_files`,
+Once you run the script, it will create a folder named after the substack in `data/md_files`,
 and then begin to scrape the substack URL, converting the blog posts into markdown files. Once all the posts have been
-saved, it will generate an HTML file in `/substack_html_pages` directory that allows you to browse the posts.
+saved, it will generate an HTML file in `data/html_pages` directory that allows you to browse the posts.
 
 You can either hardcode the substack URL and the number of posts you'd like to save into the top of the file, or 
 specify them as command line arguments.
