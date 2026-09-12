@@ -39,7 +39,7 @@ substack2markdown = "substack_scraper:main"
 substack_scraper = "substack_scraper:main"
 
 [tool.setuptools]
-py-modules = ["substack_scraper"]
+packages = ["substack_scraper"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
