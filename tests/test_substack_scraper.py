@@ -181,7 +181,7 @@ def test_get_post_slug(url, expected):
 @patch("substack_scraper.download_image")
 def test_process_markdown_images(mock_download):
     """Mock requests.get and verify image download + path rewriting."""
-    mock_download.return_value = "substack_images/testauthor/test-post/photo.jpg"
+    mock_download.return_value = "data/images/testauthor/test-post/photo.jpg"
 
     md_content = (
         "Some text\n"
@@ -398,7 +398,7 @@ def test_process_markdown_images_preserves_remote_url_on_download_failure(monkey
 
     # URL should be retained rather than replaced with broken local path
     assert "https://substackcdn.com/image/fetch/" in result
-    assert "substack_images" not in result
+    assert "images" not in result
 
 
 def test_download_image_uses_timeout(monkeypatch, tmp_path):

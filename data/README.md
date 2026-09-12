@@ -1,3 +1,5 @@
-This directory will be used to store `.json` files for each writer 
-containing metadata that is used to populate a `.html` file for that
-author. 
+This directory contains scraped newsletter assets:
+- `<author>.json`: Metadata used to populate author listing pages.
+- `md_files/<author>/`: Scraped markdown posts (`.md`).
+- `html_pages/<author>.html`: Rendered HTML archives and viewer pages.
+- `images/<author>/<post_slug>/`: Downloaded post images. 
