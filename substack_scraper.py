@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import html
 import json
+import logging
 import mimetypes
 import os
 import random
@@ -44,6 +45,8 @@ JSON_DATA_DIR: str = "data"
 NUM_POSTS_TO_SCRAPE: int = 0
 DEFAULT_REQUEST_TIMEOUT: int = 30
 MAX_IMAGE_WORKERS: int = 6
+
+logger = logging.getLogger("substack_scraper")
 
 
 def resolve_image_url(url: str) -> str:
@@ -1579,6 +1582,11 @@ Examples:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
     args = parse_args()
 
     if args.directory is None:
@@ -1624,9 +1632,9 @@ def main():
     else:
         # Use hardcoded values
         if not BASE_SUBSTACK_URL:
-            print("Error: No Substack URL provided. Please specify --url <URL> or set BASE_SUBSTACK_URL in the script.")
+            logger.error("No Substack URL provided. Please specify --url <URL> or set BASE_SUBSTACK_URL in the script.")
             sys.exit(1)
-        print(f"No --url specified. Using script default URL: {BASE_SUBSTACK_URL}")
+        logger.info(f"No --url specified. Using script default URL: {BASE_SUBSTACK_URL}")
         if USE_PREMIUM:
             scraper = PremiumSubstackScraper(
                 base_substack_url=BASE_SUBSTACK_URL,

@@ -378,12 +378,14 @@ def test_default_use_premium_is_false():
     assert ss.USE_PREMIUM is False
 
 
-def test_main_exits_when_no_url_and_empty_base_url(monkeypatch):
+def test_main_exits_when_no_url_and_empty_base_url(monkeypatch, caplog):
     monkeypatch.setattr(sys, "argv", ["substack_scraper.py"])
     monkeypatch.setattr(ss, "BASE_SUBSTACK_URL", "")
     with pytest.raises(SystemExit) as exc_info:
         ss.main()
     assert exc_info.value.code == 1
+    assert "No Substack URL provided" in caplog.text
+
 
 
 # 14. Network Timeouts & Reliability
