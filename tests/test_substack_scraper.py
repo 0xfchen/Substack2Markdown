@@ -415,12 +415,24 @@ def test_download_image_uses_timeout(monkeypatch, tmp_path):
 @pytest.mark.parametrize(
     "url, expected",
     [
-        ("https://niallferguson.substack.com/", "niallferguson"),
-        ("https://example.substack.com/p/my-post", "example"),
-        ("https://thefp.com", "thefp"),
-        ("https://news.thefp.com", "thefp"),
-        ("https://www.astralcodexten.com", "astralcodexten"),
-        ("https://blog.samharris.org", "samharris"),
+        # ByteByteGo
+        ("https://blog.bytebytego.com/", "bytebytego"),
+        ("https://blog.bytebytego.com", "bytebytego"),
+        ("https://blog.bytebytego.com/p/ep1-system-design", "bytebytego"),
+        ("http://blog.bytebytego.com/archive", "bytebytego"),
+        ("blog.bytebytego.com", "bytebytego"),
+        # The Pragmatic Engineer
+        ("https://newsletter.pragmaticengineer.com/", "pragmaticengineer"),
+        ("https://newsletter.pragmaticengineer.com", "pragmaticengineer"),
+        ("https://newsletter.pragmaticengineer.com/p/the-pulse-100", "pragmaticengineer"),
+        ("http://newsletter.pragmaticengineer.com/about", "pragmaticengineer"),
+        ("newsletter.pragmaticengineer.com", "pragmaticengineer"),
+        # SemiAnalysis
+        ("https://newsletter.semianalysis.com/", "semianalysis"),
+        ("https://newsletter.semianalysis.com", "semianalysis"),
+        ("https://newsletter.semianalysis.com/p/ai-datacenter-scale", "semianalysis"),
+        ("http://newsletter.semianalysis.com/archive", "semianalysis"),
+        ("newsletter.semianalysis.com", "semianalysis"),
     ],
 )
 def test_extract_main_part_supports_custom_domains(url, expected):
