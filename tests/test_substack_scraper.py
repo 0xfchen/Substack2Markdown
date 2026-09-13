@@ -357,13 +357,14 @@ def test_default_use_premium_is_false():
     assert ss.USE_PREMIUM is False
 
 
-def test_main_exits_when_no_url_and_empty_base_url(monkeypatch, caplog):
+def test_main_bare_command_shows_help_and_exits(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["substack_scraper.py"])
-    monkeypatch.setattr(ss, "BASE_SUBSTACK_URL", "")
     with pytest.raises(SystemExit) as exc_info:
         ss.main()
-    assert exc_info.value.code == 1
-    assert "No Substack URL provided" in caplog.text
+    assert exc_info.value.code != 0
+    captured = capsys.readouterr()
+    assert "--url" in captured.err or "--url" in captured.out
+    assert "--premium" in captured.err or "--premium" in captured.out
 
 
 
