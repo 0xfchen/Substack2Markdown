@@ -1,7 +1,7 @@
 import os
 
 USE_PREMIUM: bool = False
-BASE_SUBSTACK_URL: str = "https://niallferguson.substack.com/"
+BASE_SUBSTACK_URL: str = "https://substack.com/"
 BASE_MD_DIR: str = "data/md_files"
 BASE_HTML_DIR: str = "data/html_pages"
 BASE_IMAGE_DIR: str = "data/images"
