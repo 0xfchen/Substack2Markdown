@@ -32,6 +32,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         storage_state: str = "",
         cdp_url: str = "",
         frontmatter_format: FrontmatterFormat = "mdx",
+        overwrite: bool = False,
     ) -> None:
         """Initialize the premium scraper with Playwright browser automation.
 
@@ -49,6 +50,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             storage_state: Optional path to storage state JSON file for saved cookies.
             cdp_url: Optional remote debugging URL (CDP) to attach to an active browser.
             frontmatter_format: Header format ('legacy' or 'mdx').
+            overwrite: Whether to re-scrape and overwrite existing markdown and HTML files.
 
         Raises:
             ValueError: If credentials are missing when login is required.
@@ -107,6 +109,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             html_save_dir,
             download_images,
             frontmatter_format,
+            overwrite,
         )
 
     def _save_session_state(self) -> None:

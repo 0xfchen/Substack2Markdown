@@ -80,6 +80,13 @@ Examples:
         "(title, subtitle, date, author, image, source_url) suitable for MDX/static site generators. "
         "'legacy' uses the original '# title / **date** / **Likes:** N' header block.",
     )
+    parser.add_argument(
+        "--force",
+        "--overwrite",
+        dest="overwrite",
+        action="store_true",
+        help="Force rescraping and overwrite existing markdown and HTML files.",
+    )
 
     # Premium scraping options
     premium_group = parser.add_argument_group("Premium scraping options")
@@ -178,6 +185,7 @@ def main() -> None:
             storage_state=args.storage_state,
             cdp_url=args.cdp_url,
             frontmatter_format=args.frontmatter,
+            overwrite=args.overwrite,
         )
     else:
         scraper = SubstackScraper(
@@ -186,6 +194,7 @@ def main() -> None:
             html_save_dir=args.html_directory,
             download_images=args.images,
             frontmatter_format=args.frontmatter,
+            overwrite=args.overwrite,
         )
     scraper.scrape_posts(args.number)
 
