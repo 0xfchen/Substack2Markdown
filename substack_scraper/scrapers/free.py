@@ -29,7 +29,11 @@ class SubstackScraper(BaseSubstackScraper):
             frontmatter_format: Frontmatter format ('legacy' or 'mdx').
         """
         super().__init__(
-            base_substack_url, md_save_dir, html_save_dir, download_images, frontmatter_format
+            base_substack_url,
+            md_save_dir,
+            html_save_dir,
+            download_images,
+            frontmatter_format,
         )
 
     def get_url_soup(self, url: str, max_attempts: int = 5) -> BeautifulSoup | None:
@@ -58,18 +62,21 @@ class SubstackScraper(BaseSubstackScraper):
                 pre = soup.select_one("body > pre")
                 if pre and "too many requests" in pre.text.lower():
                     if attempt == max_attempts:
-                        raise RuntimeError(f"Max attempts reached for URL: {url}. Too many requests.")
-                    base = 2 ** attempt
+                        raise RuntimeError(
+                            f"Max attempts reached for URL: {url}. Too many requests."
+                        )
+                    base = 2**attempt
                     delay = base + random.uniform(-0.2 * base, 0.2 * base)
-                    print(f"[{attempt}/{max_attempts}] Too many requests. Retrying in {delay:.2f} seconds...")
+                    print(
+                        f"[{attempt}/{max_attempts}] Too many requests. Retrying in {delay:.2f} seconds..."
+                    )
                     sleep(delay)
                     continue
 
                 return soup
             except RuntimeError:
                 raise
-            except Exception as e:
+            except requests.RequestException as e:
                 raise ValueError(f"Error fetching page: {e}") from e
 
         raise RuntimeError(f"Failed to fetch page after {max_attempts} attempts: {url}")
-

@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import mimetypes
 import os
 import re
@@ -9,7 +10,14 @@ from urllib.parse import unquote
 
 import requests
 
-from .config import BASE_IMAGE_DIR, BASE_MD_DIR, DEFAULT_REQUEST_TIMEOUT, MAX_IMAGE_WORKERS
+from .config import (
+    BASE_IMAGE_DIR,
+    BASE_MD_DIR,
+    DEFAULT_REQUEST_TIMEOUT,
+    MAX_IMAGE_WORKERS,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _get_requests():
@@ -47,12 +55,12 @@ def clean_linked_images(md_content: str) -> str:
     Returns:
         str: Markdown with redundant image link wrappers removed.
     """
-    pattern = r'\[!\[(.*?)\]\((.*?)\)\]\((.*?)\)'
+    pattern = r"\[!\[(.*?)\]\((.*?)\)\]\((.*?)\)"
 
     def replace(match):
         alt, src, target = match.groups()
         if target == src or target.startswith("https://substackcdn.com/"):
-            return f'![{alt}]({src})'
+            return f"![{alt}]({src})"
         return match.group(0)
 
     return re.sub(pattern, replace, md_content)
@@ -68,7 +76,7 @@ def count_images_in_markdown(md_content: str) -> int:
         int: Number of unique or repeated markdown image references.
     """
     cleaned_content = clean_linked_images(md_content)
-    pattern = r'!\[.*?\]\((.*?)\)'
+    pattern = r"!\[.*?\]\((.*?)\)"
     matches = re.findall(pattern, cleaned_content)
     return len(matches)
 
@@ -87,7 +95,7 @@ def sanitize_image_filename(url: str, timeout: int = 5) -> str:
     url = resolve_image_url(url)
     filename = url.split("/")[-1]
     filename = filename.split("?")[0]
-    filename = re.sub(r'[<>:"/\\|?*]', '', filename)
+    filename = re.sub(r'[<>:"/\\|?*]', "", filename)
 
     if len(filename) > 100 or not filename:
         hash_object = hashlib.md5(url.encode())
@@ -95,10 +103,10 @@ def sanitize_image_filename(url: str, timeout: int = 5) -> str:
         req = _get_requests()
         try:
             resp = req.head(url, timeout=timeout)
-            ext = mimetypes.guess_extension(resp.headers.get('content-type', ''))
-        except Exception:
-            pass
-        ext = ext or '.jpg'
+            ext = mimetypes.guess_extension(resp.headers.get("content-type", ""))
+        except (requests.RequestException, OSError) as exc:
+            logger.debug("Failed to determine extension for image URL %s: %s", url, exc)
+        ext = ext or ".jpg"
         filename = f"{hash_object.hexdigest()}{ext}"
 
     return filename
@@ -126,19 +134,18 @@ def download_image(
         response = req.get(url, stream=True, timeout=timeout)
         if response.status_code == 200:
             save_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(save_path, 'wb') as f:
+            with open(save_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
             if pbar:
                 pbar.update(1)
             return str(save_path)
-    except Exception as e:
-        msg = f"Error downloading image {url}: {str(e)}"
+    except (requests.RequestException, OSError) as e:
+        msg = f"Error downloading image {url}: {e!s}"
+        logger.warning(msg)
         if pbar:
             pbar.write(msg)
-        else:
-            print(msg)
     return None
 
 
@@ -170,9 +177,9 @@ def process_markdown_images(
     """
     image_dir = Path(BASE_IMAGE_DIR) / author / post_slug
     md_content = clean_linked_images(md_content)
-    pattern = r'\(https://substackcdn\.com/image/fetch/[^\s\)]+\)'
+    pattern = r"\(https://substackcdn\.com/image/fetch/[^\s\)]+\)"
 
-    matches = [m.group(0).strip('()') for m in re.finditer(pattern, md_content)]
+    matches = [m.group(0).strip("()") for m in re.finditer(pattern, md_content)]
     unique_urls = list(dict.fromkeys(matches))
 
     download_tasks = []
@@ -199,12 +206,11 @@ def process_markdown_images(
                     res = future.result()
                     if res:
                         download_results[sp] = res
-                except Exception:
-                    pass
+                except (requests.RequestException, OSError) as exc:
+                    logger.debug("Failed image task for %s: %s", sp, exc)
 
     def replace_image(match):
-        url = match.group(0).strip('()')
-        resolved_url = resolve_image_url(url)
+        url = match.group(0).strip("()")
         filename = sanitize_image_filename(url)
         save_path = image_dir / filename
         if not save_path.exists() and save_path not in download_results:
@@ -215,4 +221,3 @@ def process_markdown_images(
         return f"({rel_path})"
 
     return re.sub(pattern, replace_image, md_content)
-

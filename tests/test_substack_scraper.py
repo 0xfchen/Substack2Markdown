@@ -1,11 +1,9 @@
 import os
 import sys
-import shutil
 import types
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 import substack_scraper as ss
 
@@ -402,7 +400,7 @@ def test_process_markdown_images_preserves_remote_url_on_download_failure(monkey
 
 
 def test_download_image_uses_timeout(monkeypatch, tmp_path):
-    mock_get = Mock(side_effect=Exception("Connection timed out"))
+    mock_get = Mock(side_effect=ss.requests.Timeout("Connection timed out"))
     monkeypatch.setattr(ss.requests, "get", mock_get)
 
     result = ss.download_image("https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12)
@@ -494,3 +492,63 @@ def test_get_credentials_loads_from_env_file(tmp_path, monkeypatch):
     assert password == "env_pass"
 
 
+
+
+# 18. Playwright BrowserManager & PremiumScraper Tests
+def test_browser_manager_get_user_data_dir():
+    profile_dir = ss.BrowserManager.get_user_data_dir('chrome')
+    assert 'chrome_profile' in profile_dir
+    assert '.substack_scraper' in profile_dir
+
+
+def test_browser_manager_resolve_channel():
+    mock_pw = MagicMock()
+    mock_browser = MagicMock()
+    mock_pw.chromium.launch.return_value = mock_browser
+
+    resolved = ss.BrowserManager.resolve_channel('chrome', mock_pw)
+    assert resolved in ('chrome', 'msedge')
+    assert mock_browser.close.called
+
+
+def test_browser_manager_launch_cdp():
+    mock_pw_instance = MagicMock()
+    mock_cdp_browser = MagicMock()
+    mock_context = MagicMock()
+    mock_cdp_browser.contexts = [mock_context]
+    mock_pw_instance.chromium.connect_over_cdp.return_value = mock_cdp_browser
+
+    with patch('substack_scraper.browser.sync_playwright') as mock_sync_pw:
+        mock_sync_pw.return_value.start.return_value = mock_pw_instance
+        session = ss.BrowserManager.launch(cdp_url='http://localhost:9222')
+        assert session.context == mock_context
+        mock_pw_instance.chromium.connect_over_cdp.assert_called_once_with('http://localhost:9222')
+
+
+def test_premium_scraper_requires_credentials_when_not_skipping():
+    with patch('substack_scraper.scrapers.premium.get_credentials', return_value=('', '')):
+        with pytest.raises(ValueError, match='Premium scraping requires credentials'):
+            ss.PremiumSubstackScraper(
+                base_substack_url='https://example.substack.com',
+                md_save_dir='data/md_files',
+                html_save_dir='data/html_pages',
+                skip_login=False,
+            )
+
+
+def test_premium_scraper_init_with_skip_login():
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_page = MagicMock()
+    mock_context.pages = [mock_page]
+    mock_session.context = mock_context
+
+    with patch('substack_scraper.scrapers.premium.BrowserManager.launch', return_value=mock_session):
+        scraper = ss.PremiumSubstackScraper(
+            base_substack_url='https://example.substack.com',
+            md_save_dir='data/md_files',
+            html_save_dir='data/html_pages',
+            skip_login=True,
+        )
+        assert scraper.skip_login is True
+        mock_page.goto.assert_called_once_with('https://example.substack.com', wait_until='domcontentloaded')

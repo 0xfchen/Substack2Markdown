@@ -1,18 +1,21 @@
+import logging
+import os
 import random
 from time import sleep
 
 from bs4 import BeautifulSoup
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from ..browser import BrowserManager
+from ..browser import BrowserManager, PlaywrightSession
 from ..config import get_credentials
 from .base import BaseSubstackScraper
 
+logger = logging.getLogger(__name__)
+
 
 class PremiumSubstackScraper(BaseSubstackScraper):
-    """Scraper implementation for subscriber-only / premium Substack posts using Selenium."""
+    """Scraper implementation for subscriber-only / premium Substack posts using Playwright."""
 
     def __init__(
         self,
@@ -20,16 +23,17 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         md_save_dir: str,
         html_save_dir: str,
         download_images: bool = False,
-        browser: str = 'chrome',
+        browser: str = "chrome",
         headless: bool = False,
-        driver_path: str = '',
-        browser_path: str = '',
-        user_agent: str = '',
+        browser_path: str = "",
+        user_agent: str = "",
         use_persistent_profile: bool = False,
         skip_login: bool = False,
+        storage_state: str = "",
+        cdp_url: str = "",
         frontmatter_format: str = "legacy",
     ) -> None:
-        """Initialize the premium scraper with browser automation.
+        """Initialize the premium scraper with Playwright browser automation.
 
         Args:
             base_substack_url: Target Substack publication or post URL.
@@ -38,95 +42,133 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             download_images: Whether to download images locally.
             browser: Automation browser ('chrome' or 'edge').
             headless: Whether to execute browser headlessly.
-            driver_path: Optional explicit path to driver executable.
             browser_path: Optional explicit path to browser executable.
             user_agent: Custom browser user agent string.
-            use_persistent_profile: Whether to save/load browser session state.
-            skip_login: Whether to bypass login when reusing authenticated profile.
+            use_persistent_profile: Whether to save/load browser session state in profile folder.
+            skip_login: Whether to bypass login when reusing authenticated profile or session.
+            storage_state: Optional path to storage state JSON file for saved cookies.
+            cdp_url: Optional remote debugging URL (CDP) to attach to an active browser.
             frontmatter_format: Header format ('legacy' or 'mdx').
 
         Raises:
-            ValueError: If credentials are missing when skip_login is False.
+            ValueError: If credentials are missing when login is required.
         """
         self.email, self.password = get_credentials()
-        if not skip_login and not (self.email and self.password):
+        has_storage = bool(
+            storage_state
+            or (
+                os.path.exists(BrowserManager.DEFAULT_STORAGE_STATE_PATH)
+                and os.path.getsize(BrowserManager.DEFAULT_STORAGE_STATE_PATH) > 0
+            )
+        )
+        if not (skip_login or has_storage or cdp_url) and not (
+            self.email and self.password
+        ):
             raise ValueError(
                 "Premium scraping requires credentials. Set the SUBSTACK_EMAIL "
                 "and SUBSTACK_PASSWORD environment variables, or create a "
                 "config.py in the project root containing your Substack login:\n"
                 '    EMAIL = "your-email@domain.com"\n'
                 '    PASSWORD = "your-password"\n'
-                "If you've already logged in with a persistent browser profile, "
-                "pass --persistent-profile --skip-login instead."
+                "If you've already logged in with a persistent profile or storage state, "
+                "pass --persistent-profile --skip-login (or --storage-state) instead."
             )
 
-        self.driver = BrowserManager.create_driver(
+        self.session: PlaywrightSession = BrowserManager.launch(
             browser=browser,
             headless=headless,
-            driver_path=driver_path,
             browser_path=browser_path,
             user_agent=user_agent,
             use_persistent_profile=use_persistent_profile,
+            storage_state=storage_state,
+            cdp_url=cdp_url,
         )
 
+        self.context = self.session.context
+        self.page = (
+            self.context.pages[0] if self.context.pages else self.context.new_page()
+        )
         self.skip_login = skip_login
         self.use_persistent_profile = use_persistent_profile
+        self.storage_state = storage_state or BrowserManager.DEFAULT_STORAGE_STATE_PATH
 
-        if not skip_login:
+        if not skip_login and not cdp_url:
             self._login()
         else:
-            print("Skipping login (using existing profile authentication)")
-            self.driver.get(base_substack_url)
-            sleep(3)
+            logger.info(
+                "Skipping login (using existing profile or active browser session)"
+            )
+            self.page.goto(base_substack_url, wait_until="domcontentloaded")
+            sleep(2)
 
         super().__init__(
-            base_substack_url, md_save_dir, html_save_dir, download_images, frontmatter_format
+            base_substack_url,
+            md_save_dir,
+            html_save_dir,
+            download_images,
+            frontmatter_format,
         )
 
-    def _is_login_failed(self) -> bool:
-        """Check for the presence of the error container indicating failed authentication."""
-        error_container = self.driver.find_elements(By.ID, 'error-container')
-        return len(error_container) > 0 and error_container[0].is_displayed()
-
-    def _login(self) -> None:
-        """Log into Substack via Selenium browser automation."""
-        print("Logging into Substack...")
-        self.driver.get("https://substack.com/sign-in")
-        sleep(3)
-
-        signin_with_password = self.driver.find_element(
-            By.XPATH, "//a[@class='login-option substack-login__login-option']"
-        )
-        signin_with_password.click()
-        sleep(3)
-
-        email = self.driver.find_element(By.NAME, "email")
-        password = self.driver.find_element(By.NAME, "password")
-        email.send_keys(self.email)
-        password.send_keys(self.password)
-
-        submit = self.driver.find_element(By.XPATH, "//*[@id=\"substack-login\"]/div[2]/div[2]/form/button")
-        submit.click()
-
-        print("Waiting for login to complete (this may take up to 30 seconds)...")
-        sleep(30)
-
-        if self._is_login_failed():
-            raise Exception(
-                "Login unsuccessful. Please check your email and password, or your account status.\n"
-                "If you're seeing a CAPTCHA, try:\n"
-                "  1. Run without --headless to complete CAPTCHA manually\n"
-                "  2. Use --persistent-profile to save your session\n"
-                "  3. Then run with --skip-login on subsequent runs"
+    def _save_session_state(self) -> None:
+        """Persist session cookies and localStorage to storage_state.json."""
+        try:
+            os.makedirs(os.path.dirname(self.storage_state), exist_ok=True)
+            self.context.storage_state(path=self.storage_state)
+            logger.info("Session state saved to %s", self.storage_state)
+        except (OSError, PlaywrightError) as exc:
+            logger.warning(
+                "Could not save storage state to %s: %s", self.storage_state, exc
             )
 
-        print("[OK] Login successful!")
+    def _login(self) -> None:
+        """Log into Substack via Playwright browser automation."""
+        logger.info("Logging into Substack...")
+        self.page.goto("https://substack.com/sign-in", wait_until="domcontentloaded")
+        sleep(2)
 
-        if self.use_persistent_profile:
-            print("[OK] Session saved to persistent profile")
+        # Click "Sign in with password" if available
+        try:
+            pw_button = self.page.locator(
+                "//a[contains(@class, 'substack-login__login-option')]"
+            )
+            if pw_button.count() > 0:
+                pw_button.first.click()
+                sleep(1)
+        except PlaywrightError as exc:
+            logger.debug("Password login button interaction notice: %s", exc)
+
+        # Fill credentials
+        try:
+            self.page.fill("input[name='email']", self.email)
+            self.page.fill("input[name='password']", self.password)
+            self.page.click("button[type='submit']")
+        except PlaywrightError as exc:
+            logger.warning("Notice during form fill: %s", exc)
+
+        logger.info("Waiting for login to complete (this may take up to 30 seconds)...")
+        for _ in range(30):
+            sleep(1)
+            # Check for error container
+            if (
+                self.page.locator("#error-container").count() > 0
+                and self.page.locator("#error-container").is_visible()
+            ):
+                raise RuntimeError(
+                    "Login unsuccessful. Please check your email and password, or your account status.\n"
+                    "If you're seeing a CAPTCHA, try:\n"
+                    "  1. Run without --headless to complete CAPTCHA manually\n"
+                    "  2. Use --persistent-profile to save your session\n"
+                    "  3. Then run with --skip-login on subsequent runs"
+                )
+            # Check if navigated away from sign-in
+            if "sign-in" not in self.page.url:
+                break
+
+        logger.info("Login successful!")
+        self._save_session_state()
 
     def get_url_soup(self, url: str, max_attempts: int = 5) -> BeautifulSoup | None:
-        """Fetch and parse post HTML using authenticated Selenium session.
+        """Fetch and parse post HTML using authenticated Playwright session.
 
         Args:
             url: Post URL to fetch.
@@ -141,47 +183,55 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         """
         for attempt in range(1, max_attempts + 1):
             try:
-                self.driver.get(url)
+                self.page.goto(url, wait_until="domcontentloaded")
 
+                # Wait for content or paywall selectors to be present
                 try:
-                    WebDriverWait(self.driver, 20).until(
-                        lambda d: d.find_elements(By.CSS_SELECTOR, "div.available-content")
-                        or d.find_elements(By.CSS_SELECTOR, "h1.post-title")
-                        or d.find_elements(By.CSS_SELECTOR, "h2.paywall-title")
-                        or d.find_elements(By.CSS_SELECTOR, "body > pre")
+                    self.page.wait_for_selector(
+                        "div.available-content, h1.post-title, h2.paywall-title, body > pre",
+                        timeout=20000,
                     )
-                except TimeoutException:
-                    print(f"[WARN] Timeout waiting for post content to render: {url}")
+                except PlaywrightTimeoutError:
+                    logger.warning(
+                        "Timeout waiting for post content to render: %s", url
+                    )
 
-                soup = BeautifulSoup(self.driver.page_source, "html.parser")
+                html_content = self.page.content()
+                soup = BeautifulSoup(html_content, "html.parser")
 
                 pre = soup.select_one("body > pre")
                 if pre and "too many requests" in pre.text.lower():
                     if attempt == max_attempts:
-                        raise RuntimeError(f"Max attempts reached for URL: {url}. Too many requests.")
-                    base = 2 ** attempt
+                        raise RuntimeError(
+                            f"Max attempts reached for URL: {url}. Too many requests."
+                        )
+                    base = 2**attempt
                     delay = base + random.uniform(-0.2 * base, 0.2 * base)
-                    print(f"[{attempt}/{max_attempts}] Too many requests. Retrying in {delay:.2f} seconds...")
+                    logger.warning(
+                        "[%s/%s] Too many requests. Retrying in %.2f seconds...",
+                        attempt,
+                        max_attempts,
+                        delay,
+                    )
                     sleep(delay)
                     continue
 
                 if soup.find("h2", class_="paywall-title"):
-                    print(f"Skipping premium article (no access): {url}")
+                    logger.info("Skipping premium article (no access): %s", url)
                     return None
 
                 return soup
             except RuntimeError:
                 raise
-            except Exception as e:
-                raise ValueError(f"Error fetching page: {url}. Error: {e}") from e
+            except PlaywrightError as exc:
+                raise ValueError(f"Error fetching page: {url}. Error: {exc}") from exc
 
         raise RuntimeError(f"Failed to fetch page after {max_attempts} attempts: {url}")
 
     def __del__(self) -> None:
-        """Clean up the driver when done."""
-        if hasattr(self, 'driver') and self.driver:
+        """Clean up the browser session when done."""
+        if hasattr(self, "session") and self.session:
             try:
-                self.driver.quit()
-            except Exception:
-                pass
-
+                self.session.close()
+            except PlaywrightError as exc:
+                logger.debug("Error closing session on cleanup: %s", exc)

@@ -4,6 +4,6 @@ from .premium import PremiumSubstackScraper
 
 __all__ = [
     "BaseSubstackScraper",
-    "SubstackScraper",
     "PremiumSubstackScraper",
+    "SubstackScraper",
 ]

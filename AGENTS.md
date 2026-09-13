@@ -6,7 +6,7 @@ Substack2Markdown is a modular Python package designed to scrape and archive Sub
 ## Tech Stack & Architecture
 - **Language & Standards**: Python 3.11+, PEP 8, PEP 585 (built-in generics), PEP 604 (union syntax `|`)
 - **HTTP & Parsing**: `requests`, `BeautifulSoup` (bs4), `html2text`, `markdown`, `python-dotenv`
-- **Automation / Headless Browser**: `selenium`, `webdriver_manager` (supports Chrome and Edge)
+- **Automation / Headless Browser**: `playwright` (native Chrome and Edge channels, persistent sessions, CDP)
 - **Testing**: `pytest`
 - **Progress Tracking & Concurrency**: `tqdm`, `concurrent.futures.ThreadPoolExecutor`
 - **Package Management**: `uv` with `pyproject.toml` and `uv.lock`
@@ -20,12 +20,12 @@ flowchart TD
     URLUtils["URL Parsing & Slug Utilities<br/><code>substack_scraper/url_utils.py</code>"]
     Images["Image Pipeline & ThreadPoolExecutor<br/><code>substack_scraper/images.py</code>"]
     Catalog["Catalog & Safe JSON Embed<br/><code>substack_scraper/catalog.py</code>"]
-    Browser["WebDriver Manager & Caching<br/><code>substack_scraper/browser.py</code>"]
+    Browser["Playwright Browser Manager<br/><code>substack_scraper/browser.py</code>"]
 
     subgraph Scrapers ["Scraper Subpackage (substack_scraper/scrapers/)"]
         BaseScraper["BaseSubstackScraper (ABC)<br/><code>scrapers/base.py</code>"]
         FreeScraper["SubstackScraper (Free/Public)<br/><code>scrapers/free.py</code>"]
-        PremiumScraper["PremiumSubstackScraper (Selenium)<br/><code>scrapers/premium.py</code>"]
+        PremiumScraper["PremiumSubstackScraper (Playwright)<br/><code>scrapers/premium.py</code>"]
     end
 
     CLI --> Config
@@ -57,7 +57,7 @@ flowchart LR
     subgraph CoreEngine ["Scraping Engine"]
         base["scrapers/base.py<br/>BaseSubstackScraper (ABC)"]
         free["scrapers/free.py<br/>SubstackScraper (Requests)"]
-        prem["scrapers/premium.py<br/>PremiumSubstackScraper (Selenium)"]
+        prem["scrapers/premium.py<br/>PremiumSubstackScraper (Playwright)"]
     end
 
     subgraph Services ["Support Modules"]
@@ -65,7 +65,7 @@ flowchart LR
         url["url_utils.py<br/>Domain & Slug Parsing"]
         img["images.py<br/>Async Download Pipeline"]
         cat["catalog.py<br/>HTML & JSON Archiving"]
-        brw["browser.py<br/>Driver & Profile Manager"]
+        brw["browser.py<br/>Playwright Session Manager"]
     end
 
     main --> cli
@@ -83,13 +83,13 @@ flowchart LR
 - [`substack_scraper/url_utils.py`](substack_scraper/url_utils.py): URL validation, publication URL extraction, and `extract_main_part()` supporting custom Substack domains (e.g. `blog.bytebytego.com`, `newsletter.pragmaticengineer.com`).
 - [`substack_scraper/catalog.py`](substack_scraper/catalog.py): `safe_json_embed()` (mitigating XSS vulnerabilities) and `generate_html_file()` for compiling author HTML archives.
 - [`substack_scraper/images.py`](substack_scraper/images.py): Image URL resolution, filename sanitization, linked image cleanup, and parallel downloads via `ThreadPoolExecutor`.
-- [`substack_scraper/browser.py`](substack_scraper/browser.py): `BrowserManager` handling Chrome/Edge driver discovery, version detection, explicit path overrides, local caching (`~/.substack_scraper/drivers`), and multi-tier fallback logic.
+- [`substack_scraper/browser.py`](substack_scraper/browser.py): `BrowserManager` launching system Chrome and Edge directly via Playwright channels (`channel="chrome"`, `channel="msedge"`), persistent profiles, and CDP attach.
 - [`substack_scraper/scrapers/base.py`](substack_scraper/scrapers/base.py): Abstract base class implementing URL discovery (sitemap.xml and feed.xml fallback), YouTube embed transformations, HTML-to-Markdown conversion, frontmatter emission (`legacy` and `mdx`), and orchestrating post exports.
 - [`substack_scraper/scrapers/free.py`](substack_scraper/scrapers/free.py): Public post scraper using `requests` and `BeautifulSoup` with jittered exponential backoff on HTTP 429 errors.
-- [`substack_scraper/scrapers/premium.py`](substack_scraper/scrapers/premium.py): Authenticated scraper for paid posts using Selenium WebDriver, supporting persistent profiles to retain login and solve CAPTCHA interactively.
+- [`substack_scraper/scrapers/premium.py`](substack_scraper/scrapers/premium.py): Authenticated scraper for paid posts using Playwright, supporting persistent profiles, storage_state.json, and interactive CAPTCHA completion.
 - [`substack_scraper/cli.py`](substack_scraper/cli.py): CLI argument parser and execution coordinator.
 - [`author_template.html`](author_template.html): HTML template with embedded viewer script for browsing scraped essays.
-- [`tests/test_substack_scraper.py`](tests/test_substack_scraper.py): Comprehensive unit and integration test suite (59 tests).
+- [`tests/test_substack_scraper.py`](tests/test_substack_scraper.py): Comprehensive unit and integration test suite (64 tests).
 
 ## Project Structure & Outputs
 - `data/md_files/<author>/`: Scraped markdown files (`.md`).
@@ -143,6 +143,11 @@ flowchart LR
   # Subsequent runs:
   uv run substack_scraper --url https://example.substack.com --premium --persistent-profile --skip-login
   ```
+- **Scrape premium by attaching directly to active browser (CDP)**:
+  ```bash
+  # Start Chrome with remote debugging: chrome.exe --remote-debugging-port=9222
+  uv run substack_scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
+  ```
 
 ### Running Tests
 - Execute test suite with pytest:
@@ -153,7 +158,7 @@ flowchart LR
   ```
 
 ## Development Guidelines & Rules
-1. **Preserve Compatibility**: Support both Chrome and Edge drivers, and both Windows and Unix path handling.
+1. **Preserve Compatibility**: Support both Chrome and Edge browser channels with automatic fallback, and both Windows and Unix path handling.
 2. **Rate Limiting & Resilience**: Respect exponential backoff on HTTP 429 errors when requesting Substack endpoints.
 3. **Security & Credentials**: Never hardcode or commit credentials. Maintain `.env` and `config.py` in `.gitignore`.
 4. **Code Quality & Typing**: Follow PEP 8 guidelines, PEP 585 built-in generics (`list`, `dict`, `tuple`), and PEP 604 union types (`T | None`).

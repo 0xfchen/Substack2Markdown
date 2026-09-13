@@ -93,18 +93,42 @@ uv run substack_scraper --url https://example.substack.com --directory /path/to/
 
 ### Premium Scraping (Subscriber-Only Content)
 
+Premium posts require subscriber access. Automation uses **Playwright** with zero driver setup, launching your desktop **Google Chrome** or **Microsoft Edge** directly.
+
 Scrape premium content using Chrome or Edge:
 ```bash
 uv run substack_scraper --url https://example.substack.com --premium --browser chrome
 ```
 
-Use a persistent browser profile to save login sessions and solve CAPTCHA interactively:
+#### Reusing Existing Sessions (No Repeated Logins)
+
+**Option 1: Persistent Profile (Recommended)**
+Saves your logged-in state to `~/.substack_scraper/<browser>_profile`:
 ```bash
-# First run: solves CAPTCHA or logs in interactively once
+# First run: logs in or solve CAPTCHA interactively once
 uv run substack_scraper --url https://example.substack.com --premium --persistent-profile
 
-# Subsequent runs: reuse the existing logged-in session
+# Subsequent runs: reuse the session automatically
 uv run substack_scraper --url https://example.substack.com --premium --persistent-profile --skip-login
+```
+
+**Option 2: Storage State JSON**
+Playwright automatically exports auth tokens and cookies to `~/.substack_scraper/storage_state.json` upon successful login:
+```bash
+# Run headlessly reusing saved cookies
+uv run substack_scraper --url https://example.substack.com --premium --headless --skip-login
+# Or specify a custom state file:
+uv run substack_scraper --url https://example.substack.com --premium --storage-state path/to/state.json
+```
+
+**Option 3: Attach Directly to Active Browser (CDP)**
+Connect directly to an already-open personal Chrome/Edge window without logging in again:
+```bash
+# 1. Start Chrome with remote debugging:
+chrome.exe --remote-debugging-port=9222
+
+# 2. Scrape directly using the active browser's tabs and cookies:
+uv run substack_scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
 ```
 
 ## Viewing Markdown Files in Browser

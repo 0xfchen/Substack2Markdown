@@ -1,6 +1,5 @@
 import os
 
-
 USE_PREMIUM: bool = False
 BASE_SUBSTACK_URL: str = "https://niallferguson.substack.com/"
 BASE_MD_DIR: str = "data/md_files"
@@ -25,6 +24,7 @@ def get_credentials() -> tuple[str, str]:
     """
     try:
         from dotenv import find_dotenv, load_dotenv
+
         dotenv_path = find_dotenv(usecwd=True)
         if dotenv_path:
             load_dotenv(dotenv_path)
@@ -39,4 +39,3 @@ def get_credentials() -> tuple[str, str]:
         os.environ.get("SUBSTACK_EMAIL", EMAIL),
         os.environ.get("SUBSTACK_PASSWORD", PASSWORD),
     )
-
