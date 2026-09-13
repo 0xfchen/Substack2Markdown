@@ -3,7 +3,8 @@ import json
 import os
 import sys
 from typing import Any
-from .config import BASE_HTML_DIR, JSON_DATA_DIR, HTML_TEMPLATE
+
+from .config import BASE_HTML_DIR, HTML_TEMPLATE, JSON_DATA_DIR
 
 
 def safe_json_embed(data: Any) -> str:
@@ -20,9 +21,7 @@ def safe_json_embed(data: Any) -> str:
     """
     json_str = json.dumps(data, ensure_ascii=False, indent=4)
     return (
-        json_str.replace("&", "\\u0026")
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
+        json_str.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
     )
 
 
@@ -44,8 +43,12 @@ def generate_html_file(
             JSON_DATA_DIR.
     """
     ss = sys.modules.get("substack_scraper")
-    current_html_dir = getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
-    current_data_dir = getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
+    current_html_dir = (
+        getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
+    )
+    current_data_dir = (
+        getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
+    )
 
     target_html_dir = html_dir or current_html_dir
     target_data_dir = data_dir or current_data_dir
@@ -53,22 +56,22 @@ def generate_html_file(
     if not os.path.exists(target_html_dir):
         os.makedirs(target_html_dir)
 
-    json_path = os.path.join(target_data_dir, f'{author_name}.json')
-    with open(json_path, 'r', encoding='utf-8') as file:
+    json_path = os.path.join(target_data_dir, f"{author_name}.json")
+    with open(json_path, encoding="utf-8") as file:
         essays_data = json.load(file)
 
     embedded_json_data = safe_json_embed(essays_data)
 
-    with open(HTML_TEMPLATE, 'r', encoding='utf-8') as file:
+    with open(HTML_TEMPLATE, encoding="utf-8") as file:
         html_template = file.read()
 
     safe_author = html.escape(author_name)
-    html_with_data = html_template.replace('<!-- AUTHOR_NAME -->', safe_author).replace(
+    html_with_data = html_template.replace("<!-- AUTHOR_NAME -->", safe_author).replace(
         '<script type="application/json" id="essaysData"></script>',
-        f'<script type="application/json" id="essaysData">{embedded_json_data}</script>'
+        f'<script type="application/json" id="essaysData">{embedded_json_data}</script>',
     )
-    html_with_author = html_with_data.replace('author_name', safe_author)
+    html_with_author = html_with_data.replace("author_name", safe_author)
 
-    html_output_path = os.path.join(target_html_dir, f'{author_name}.html')
-    with open(html_output_path, 'w', encoding='utf-8') as file:
+    html_output_path = os.path.join(target_html_dir, f"{author_name}.html")
+    with open(html_output_path, "w", encoding="utf-8") as file:
         file.write(html_with_author)

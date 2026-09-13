@@ -15,7 +15,12 @@ from tqdm import tqdm
 from ..catalog import generate_html_file
 from ..config import BASE_IMAGE_DIR, DEFAULT_REQUEST_TIMEOUT, JSON_DATA_DIR
 from ..images import count_images_in_markdown, process_markdown_images
-from ..url_utils import extract_main_part, get_post_slug, get_publication_url, is_post_url
+from ..url_utils import (
+    extract_main_part,
+    get_post_slug,
+    get_publication_url,
+    is_post_url,
+)
 
 
 class BaseSubstackScraper(ABC):
@@ -49,7 +54,9 @@ class BaseSubstackScraper(ABC):
             raise ValueError("frontmatter_format must be 'legacy' or 'mdx'")
         self.frontmatter_format: str = frontmatter_format
         self.is_single_post: bool = is_post_url(base_substack_url)
-        self.post_slug: str | None = get_post_slug(base_substack_url) if self.is_single_post else None
+        self.post_slug: str | None = (
+            get_post_slug(base_substack_url) if self.is_single_post else None
+        )
         original_url = base_substack_url
 
         if self.is_single_post:
@@ -104,11 +111,14 @@ class BaseSubstackScraper(ABC):
         response = requests.get(sitemap_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         if not response.ok:
-            print(f'Error fetching sitemap at {sitemap_url}: {response.status_code}')
+            print(f"Error fetching sitemap at {sitemap_url}: {response.status_code}")
             return []
 
         root = ET.fromstring(response.content)
-        urls = [element.text for element in root.iter('{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
+        urls = [
+            element.text
+            for element in root.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")
+        ]
         return urls
 
     def fetch_urls_from_feed(self) -> list[str]:
@@ -117,18 +127,20 @@ class BaseSubstackScraper(ABC):
         Returns:
             list[str]: URLs extracted from RSS items (typically up to 22 posts).
         """
-        print('Falling back to feed.xml. This will only contain up to the 22 most recent posts.')
+        print(
+            "Falling back to feed.xml. This will only contain up to the 22 most recent posts."
+        )
         feed_url = f"{self.base_substack_url}feed.xml"
         response = requests.get(feed_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         if not response.ok:
-            print(f'Error fetching feed at {feed_url}: {response.status_code}')
+            print(f"Error fetching feed at {feed_url}: {response.status_code}")
             return []
 
         root = ET.fromstring(response.content)
         urls = []
-        for item in root.findall('.//item'):
-            link = item.find('link')
+        for item in root.findall(".//item"):
+            link = item.find("link")
             if link is not None and link.text:
                 urls.append(link.text)
 
@@ -216,7 +228,7 @@ class BaseSubstackScraper(ABC):
         if os.path.exists(filepath):
             print(f"File already exists: {filepath}")
             return
-        with open(filepath, 'w', encoding='utf-8') as file:
+        with open(filepath, "w", encoding="utf-8") as file:
             file.write(content)
 
     @staticmethod
@@ -229,7 +241,7 @@ class BaseSubstackScraper(ABC):
         Returns:
             str: Generated HTML.
         """
-        return markdown.markdown(md_content, extensions=['extra'])
+        return markdown.markdown(md_content, extensions=["extra"])
 
     def save_to_html_file(self, filepath: str, content: str) -> None:
         """Wrap HTML content in stylesheet skeleton and write to disk.
@@ -267,7 +279,7 @@ class BaseSubstackScraper(ABC):
             </html>
         """
 
-        with open(filepath, 'w', encoding='utf-8') as file:
+        with open(filepath, "w", encoding="utf-8") as file:
             file.write(html_content)
 
     @staticmethod
@@ -333,7 +345,7 @@ class BaseSubstackScraper(ABC):
             safe_subtitle = subtitle.replace('"', '\\"') if subtitle else ""
             safe_author = author.replace('"', '\\"') if author else ""
 
-            frontmatter = '---\n'
+            frontmatter = "---\n"
             frontmatter += f'title: "{safe_title}"\n'
             if safe_subtitle:
                 frontmatter += f'subtitle: "{safe_subtitle}"\n'
@@ -343,7 +355,7 @@ class BaseSubstackScraper(ABC):
                 frontmatter += f'source_url: "{source_url}"\n'
             if cover_image:
                 frontmatter += f'image: "{cover_image}"\n'
-            frontmatter += '---\n\n'
+            frontmatter += "---\n\n"
             return frontmatter + content
 
         # legacy format
@@ -404,7 +416,9 @@ class BaseSubstackScraper(ABC):
                     images = ld_json["image"]
                     if isinstance(images, list) and images:
                         img = images[0]
-                        cover_image = img.get("url", "") if isinstance(img, dict) else str(img)
+                        cover_image = (
+                            img.get("url", "") if isinstance(img, dict) else str(img)
+                        )
                     elif isinstance(images, dict):
                         cover_image = images.get("url", "")
             except (json.JSONDecodeError, ValueError, KeyError):
@@ -413,7 +427,9 @@ class BaseSubstackScraper(ABC):
         if not date:
             date = "Date not found"
 
-        like_count_element = soup.select_one('div.like-button-container button div.label')
+        like_count_element = soup.select_one(
+            "div.like-button-container button div.label"
+        )
         like_count = (
             like_count_element.text.strip()
             if like_count_element and like_count_element.text.strip().isdigit()
@@ -434,18 +450,32 @@ class BaseSubstackScraper(ABC):
             print(f"  ld_json_present={ld_script is not None}")
             print(f"  date={date!r} author={author!r}")
             try:
-                debug_dir = os.path.join(os.path.dirname(self.md_save_dir), "_debug", self.writer_name)
+                debug_dir = os.path.join(
+                    os.path.dirname(self.md_save_dir), "_debug", self.writer_name
+                )
                 os.makedirs(debug_dir, exist_ok=True)
-                slug = (get_post_slug(url) if url and is_post_url(url) else (url.rstrip('/').split('/')[-1] or "unknown"))
+                slug = (
+                    get_post_slug(url)
+                    if url and is_post_url(url)
+                    else (url.rstrip("/").split("/")[-1] or "unknown")
+                )
                 debug_path = os.path.join(debug_dir, f"{slug}.html")
                 with open(debug_path, "w", encoding="utf-8") as f:
                     f.write(str(soup))
                 print(f"  dumped raw HTML -> {debug_path}")
-            except Exception as dump_err:
+            except OSError as dump_err:
                 print(f"  failed to dump debug HTML: {dump_err}")
 
         md_content = self.combine_metadata_and_content(
-            title, subtitle, date, author, cover_image, like_count, md, self.frontmatter_format, url
+            title,
+            subtitle,
+            date,
+            author,
+            cover_image,
+            like_count,
+            md,
+            self.frontmatter_format,
+            url,
         )
         return title, subtitle, author, date, cover_image, like_count, md_content
 
@@ -461,16 +491,20 @@ class BaseSubstackScraper(ABC):
             essays_data: List of post metadata dictionaries to serialize.
         """
         ss = sys.modules.get("substack_scraper")
-        target_data_dir = getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
+        target_data_dir = (
+            getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
+        )
         if not os.path.exists(target_data_dir):
             os.makedirs(target_data_dir)
 
-        json_path = os.path.join(target_data_dir, f'{self.writer_name}.json')
+        json_path = os.path.join(target_data_dir, f"{self.writer_name}.json")
         if os.path.exists(json_path):
-            with open(json_path, 'r', encoding='utf-8') as file:
+            with open(json_path, encoding="utf-8") as file:
                 existing_data = json.load(file)
-            essays_data = existing_data + [data for data in essays_data if data not in existing_data]
-        with open(json_path, 'w', encoding='utf-8') as file:
+            essays_data = existing_data + [
+                data for data in essays_data if data not in existing_data
+            ]
+        with open(json_path, "w", encoding="utf-8") as file:
             json.dump(essays_data, file, ensure_ascii=False, indent=4)
 
     def scrape_posts(self, num_posts_to_scrape: int = 0) -> None:
@@ -480,8 +514,16 @@ class BaseSubstackScraper(ABC):
             num_posts_to_scrape: Number of posts to download (0 = scrape all).
         """
         ss = sys.modules.get("substack_scraper")
-        gen_html = getattr(ss, "generate_html_file", generate_html_file) if ss else generate_html_file
-        proc_imgs = getattr(ss, "process_markdown_images", process_markdown_images) if ss else process_markdown_images
+        gen_html = (
+            getattr(ss, "generate_html_file", generate_html_file)
+            if ss
+            else generate_html_file
+        )
+        proc_imgs = (
+            getattr(ss, "process_markdown_images", process_markdown_images)
+            if ss
+            else process_markdown_images
+        )
 
         essays_data = []
         count = 0
@@ -502,20 +544,31 @@ class BaseSubstackScraper(ABC):
                             pbar.refresh()
                             continue
 
-                        title, subtitle, author, date, cover_image, like_count, md = self.extract_post_data(soup, url)
+                        title, subtitle, author, date, cover_image, like_count, md = (
+                            self.extract_post_data(soup, url)
+                        )
 
                         content_element = soup.select_one("div.available-content")
                         if title == "Untitled" or content_element is None:
-                            pbar.write(f"[SKIP] Extraction failed for {url} (title={title!r}, content_present={content_element is not None}). See _debug dump.")
+                            pbar.write(
+                                f"[SKIP] Extraction failed for {url} (title={title!r}, content_present={content_element is not None}). See _debug dump."
+                            )
                             count += 1
                             pbar.update(1)
-                            if num_posts_to_scrape != 0 and count == num_posts_to_scrape:
+                            if (
+                                num_posts_to_scrape != 0
+                                and count == num_posts_to_scrape
+                            ):
                                 break
                             continue
 
                         if self.download_images:
                             total_images = count_images_in_markdown(md)
-                            slug = get_post_slug(url) if is_post_url(url) else url.rstrip('/').split('/')[-1]
+                            slug = (
+                                get_post_slug(url)
+                                if is_post_url(url)
+                                else url.rstrip("/").split("/")[-1]
+                            )
                             with tqdm(
                                 total=total_images,
                                 desc=f"Downloading images for {slug}",
@@ -527,16 +580,18 @@ class BaseSubstackScraper(ABC):
                         html_content = self.md_to_html(md)
                         self.save_to_html_file(html_filepath, html_content)
 
-                        essays_data.append({
-                            "title": title,
-                            "subtitle": subtitle,
-                            "author": author,
-                            "date": date,
-                            "cover_image": cover_image,
-                            "like_count": like_count,
-                            "file_link": md_filepath,
-                            "html_link": html_filepath
-                        })
+                        essays_data.append(
+                            {
+                                "title": title,
+                                "subtitle": subtitle,
+                                "author": author,
+                                "date": date,
+                                "cover_image": cover_image,
+                                "like_count": like_count,
+                                "file_link": md_filepath,
+                                "html_link": html_filepath,
+                            }
+                        )
                     else:
                         pbar.write(f"File already exists: {md_filepath}")
                 except Exception as e:
@@ -548,4 +603,3 @@ class BaseSubstackScraper(ABC):
                     break
         self.save_essays_data_to_json(essays_data=essays_data)
         gen_html(author_name=self.writer_name, html_dir=self.base_html_dir)
-

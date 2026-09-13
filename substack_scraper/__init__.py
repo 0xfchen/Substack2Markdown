@@ -3,7 +3,24 @@
 Provides tools to scrape and archive Substack newsletters into Markdown and HTML formats.
 """
 
-import sys
+# Re-export requests so monkeypatches like `monkeypatch.setattr(ss.requests, ...)` work
+import requests  # noqa: F401
+
+# Import browser manager
+from .browser import BrowserManager
+
+# Import catalog & HTML generator
+from .catalog import (
+    generate_html_file,
+    safe_json_embed,
+)
+
+# Import CLI
+from .cli import (
+    logger,
+    main,
+    parse_args,
+)
 
 # Import config constants & credentials
 from .config import (
@@ -20,20 +37,6 @@ from .config import (
     get_credentials,
 )
 
-# Import URL helpers
-from .url_utils import (
-    extract_main_part,
-    get_post_slug,
-    get_publication_url,
-    is_post_url,
-)
-
-# Import catalog & HTML generator
-from .catalog import (
-    generate_html_file,
-    safe_json_embed,
-)
-
 # Import image processing helpers
 from .images import (
     clean_linked_images,
@@ -44,9 +47,6 @@ from .images import (
     sanitize_image_filename,
 )
 
-# Import browser manager
-from .browser import BrowserManager
-
 # Import scraper classes
 from .scrapers import (
     BaseSubstackScraper,
@@ -54,15 +54,13 @@ from .scrapers import (
     SubstackScraper,
 )
 
-# Import CLI
-from .cli import (
-    logger,
-    main,
-    parse_args,
+# Import URL helpers
+from .url_utils import (
+    extract_main_part,
+    get_post_slug,
+    get_publication_url,
+    is_post_url,
 )
-
-# Re-export requests so monkeypatches like `monkeypatch.setattr(ss.requests, ...)` work
-import requests  # noqa: F401
 
 __all__ = [
     # Config

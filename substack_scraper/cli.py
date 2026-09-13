@@ -26,26 +26,23 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Free content with automatic Chrome driver
-  python substack_scraper.py --url https://example.substack.com
+  # Free publication
+  substack_scraper --url https://example.substack.com
 
   # Scrape single post
-  python substack_scraper.py --url https://example.substack.com/p/some-post-title
+  substack_scraper --url https://example.substack.com/p/some-post-title
 
-  # Free content using Edge
-  python substack_scraper.py --url https://example.substack.com --browser edge
+  # Premium content using Chrome or Edge
+  substack_scraper --url https://example.substack.com --premium --browser chrome
 
-  # Premium content (prompts for login or uses env vars)
-  python substack_scraper.py --url https://example.substack.com --premium
+  # First run: log in and solve CAPTCHA interactively (saved to persistent profile)
+  substack_scraper --url https://example.substack.com --premium --persistent-profile
 
-  # First run: log in and solve CAPTCHA interactively
-  python substack_scraper.py --url https://example.substack.com --premium --persistent-profile
+  # Subsequent runs: reuse saved session without logging in again
+  substack_scraper --url https://example.substack.com --premium --persistent-profile --skip-login
 
-  # Subsequent runs: reuse session without logging in again
-  python substack_scraper.py --url https://example.substack.com --premium --persistent-profile --skip-login
-
-  # Use manually downloaded driver
-  python substack_scraper.py --url https://example.substack.com --premium --chrome-driver-path /path/to/chromedriver
+  # Connect directly to active personal browser window (CDP)
+  substack_scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
         """,
     )
 
@@ -53,13 +50,20 @@ Examples:
         "-u", "--url", type=str, help="The base URL of the Substack site to scrape."
     )
     parser.add_argument(
-        "-d", "--directory", type=str, help="The directory to save scraped markdown posts."
+        "-d",
+        "--directory",
+        type=str,
+        help="The directory to save scraped markdown posts.",
     )
     parser.add_argument(
         "--html-directory", type=str, help="The directory to save scraped HTML posts."
     )
     parser.add_argument(
-        "-n", "--number", type=int, default=0, help="Number of posts to scrape (0 = all posts)."
+        "-n",
+        "--number",
+        type=int,
+        default=0,
+        help="Number of posts to scrape (0 = all posts).",
     )
     parser.add_argument(
         "--images",
@@ -104,36 +108,27 @@ Examples:
     premium_group.add_argument(
         "--skip-login",
         action="store_true",
-        help="Skip login (use with --persistent-profile after first login).",
+        help="Skip login (use with --persistent-profile or --storage-state).",
     )
-
-    # Driver path options
-    driver_group = parser.add_argument_group("Driver options (for troubleshooting)")
-    driver_group.add_argument(
-        "--chrome-driver-path",
+    premium_group.add_argument(
+        "--storage-state",
         type=str,
         default="",
-        help="Path to chromedriver executable.",
+        help="Path to storage state JSON file for saved session cookies.",
     )
-    driver_group.add_argument(
-        "--edge-driver-path",
+    premium_group.add_argument(
+        "--cdp-url",
         type=str,
         default="",
-        help="Path to msedgedriver executable.",
+        help="Connect directly to an active browser via Chrome DevTools Protocol URL (e.g. http://localhost:9222).",
     )
-    driver_group.add_argument(
-        "--chrome-path",
+    premium_group.add_argument(
+        "--browser-path",
         type=str,
         default="",
-        help="Path to Chrome browser executable.",
+        help="Explicit path to Chrome or Edge browser executable.",
     )
-    driver_group.add_argument(
-        "--edge-path",
-        type=str,
-        default="",
-        help="Path to Edge browser executable.",
-    )
-    driver_group.add_argument(
+    premium_group.add_argument(
         "--user-agent",
         type=str,
         default="",
@@ -154,25 +149,23 @@ def main() -> None:
 
     # Allow monkeypatched globals from the substack_scraper package/module
     ss = sys.modules.get("substack_scraper")
-    base_substack_url = getattr(ss, "BASE_SUBSTACK_URL", BASE_SUBSTACK_URL) if ss else BASE_SUBSTACK_URL
+    base_substack_url = (
+        getattr(ss, "BASE_SUBSTACK_URL", BASE_SUBSTACK_URL) if ss else BASE_SUBSTACK_URL
+    )
     use_premium = getattr(ss, "USE_PREMIUM", USE_PREMIUM) if ss else USE_PREMIUM
     base_md_dir = getattr(ss, "BASE_MD_DIR", BASE_MD_DIR) if ss else BASE_MD_DIR
     base_html_dir = getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
-    num_posts = getattr(ss, "NUM_POSTS_TO_SCRAPE", NUM_POSTS_TO_SCRAPE) if ss else NUM_POSTS_TO_SCRAPE
+    num_posts = (
+        getattr(ss, "NUM_POSTS_TO_SCRAPE", NUM_POSTS_TO_SCRAPE)
+        if ss
+        else NUM_POSTS_TO_SCRAPE
+    )
 
     if args.directory is None:
         args.directory = base_md_dir
 
     if args.html_directory is None:
         args.html_directory = base_html_dir
-
-    # Determine driver/browser paths based on selected browser
-    if args.browser == "chrome":
-        driver_path = args.chrome_driver_path
-        browser_path = args.chrome_path
-    else:
-        driver_path = args.edge_driver_path
-        browser_path = args.edge_path
 
     if args.url:
         if args.premium:
@@ -183,11 +176,12 @@ def main() -> None:
                 download_images=args.images,
                 browser=args.browser,
                 headless=args.headless,
-                driver_path=driver_path,
-                browser_path=browser_path,
+                browser_path=args.browser_path,
                 user_agent=args.user_agent,
                 use_persistent_profile=args.persistent_profile,
                 skip_login=args.skip_login,
+                storage_state=args.storage_state,
+                cdp_url=args.cdp_url,
                 frontmatter_format=args.frontmatter,
             )
         else:
@@ -207,7 +201,9 @@ def main() -> None:
                 "No Substack URL provided. Please specify --url <URL> or set BASE_SUBSTACK_URL in the script."
             )
             sys.exit(1)
-        logger.info(f"No --url specified. Using script default URL: {base_substack_url}")
+        logger.info(
+            f"No --url specified. Using script default URL: {base_substack_url}"
+        )
         if use_premium:
             scraper = PremiumSubstackScraper(
                 base_substack_url=base_substack_url,
@@ -216,11 +212,12 @@ def main() -> None:
                 download_images=args.images,
                 browser=args.browser,
                 headless=args.headless,
-                driver_path=driver_path,
-                browser_path=browser_path,
+                browser_path=args.browser_path,
                 user_agent=args.user_agent,
                 use_persistent_profile=args.persistent_profile,
                 skip_login=args.skip_login,
+                storage_state=args.storage_state,
+                cdp_url=args.cdp_url,
                 frontmatter_format=args.frontmatter,
             )
         else:

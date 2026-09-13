@@ -36,8 +36,8 @@ def get_post_slug(url: str) -> str:
     Returns:
         str: The post slug, or 'unknown_post' if not detected.
     """
-    match = re.search(r'/p/([^/]+)', url)
-    return match.group(1) if match else 'unknown_post'
+    match = re.search(r"/p/([^/]+)", url)
+    return match.group(1) if match else "unknown_post"
 
 
 def extract_main_part(url: str) -> str:
@@ -49,16 +49,15 @@ def extract_main_part(url: str) -> str:
     Returns:
         str: The publication subdomain or custom domain primary slug.
     """
-    netloc = urlparse(url).netloc.lower().split(':')[0]
+    netloc = urlparse(url).netloc.lower().split(":")[0]
     if not netloc:
-        netloc = urlparse("https://" + url).netloc.lower().split(':')[0]
+        netloc = urlparse("https://" + url).netloc.lower().split(":")[0]
     if netloc.endswith(".substack.com"):
-        sub = netloc[:-len(".substack.com")]
-        return sub.split('.')[-1] if sub else "substack"
-    parts = [p for p in netloc.split('.') if p]
+        sub = netloc[: -len(".substack.com")]
+        return sub.split(".")[-1] if sub else "substack"
+    parts = [p for p in netloc.split(".") if p]
     if len(parts) >= 2:
-        if parts[0] in ('www', 'blog', 'news', 'newsletter'):
+        if parts[0] in ("www", "blog", "news", "newsletter"):
             return parts[1]
         return parts[0]
     return parts[0] if parts else "substack"
-
