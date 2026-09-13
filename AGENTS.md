@@ -164,3 +164,14 @@ flowchart LR
 5. **Docstrings & Scope Visibility**: Any function or method whose caller is only within the same module or class must by default be protected with a `_` prefix (e.g. `_extract_post_id`, `_extract_metadata_from_md`). Only expose functions/methods as public (no `_` prefix) if they are intended to be called from another module. Use Google-style docstrings for public classes and functions, and concise one-line docstrings for protected (`_` prefixed) methods. Maintain callee-above-caller ordering.
 6. **Documentation Integrity**: Use relative repository file paths in documentation (never absolute paths). Keep tests in `tests/test_substack_scraper.py` synchronized with all features and bugfixes.
 7. **Test Mocking Conventions**: Use `Fake` as the naming prefix for test mock or stub classes rather than `Dummy` (e.g. `FakeScraper`).
+8. **Commit Message Format**: Follow the standard Conventional Commit prefixes without component scopes (`type: description` instead of `type(scope): description`):
+   - `feat:` New capabilities or user-facing features (routes to `.agents/plans/`).
+   - `fix:` Bug fixes, crash prevention, input validation, safe defaults (routes to `.agents/issues/`).
+   - `refactor:` Code reorganization without behavioral change (routes to `.agents/issues/`).
+   - `perf:` Performance improvements, concurrency, caching (routes to `.agents/issues/`).
+   - `security:` Security hardening, XSS prevention, credential safety (routes to `.agents/issues/`).
+   - `docs:` Documentation changes only.
+   - `test:` Test additions or test refactoring.
+   - `build:` Dependencies, packaging, `pyproject.toml`, or `uv.lock`.
+   - `chore:` Routine repository maintenance or configuration tweaks.
+

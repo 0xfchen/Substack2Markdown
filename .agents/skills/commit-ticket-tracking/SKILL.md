@@ -15,24 +15,15 @@ This skill establishes the standard workflow for tracking every code change in t
 
 ## 1. Classification & Routing Rules
 
-Commit categorization follows the **Intent + Optional Scope** model (`type(scope): summary`). Commits are routed to either `plans/` or `issues/` based on their primary intent:
+Commit categorization follows the **Intent-based Conventional Commit** model (`type: summary`) **without component scopes** to keep the codebase history concise and readable. Commits are routed to either `plans/` or `issues/` based on their primary intent:
 
 | Intent Type | Destination Directory | Document Type | What it Covers | Examples |
 | :--- | :--- | :--- | :--- | :--- |
-| **`feat`** | `.agents/plans/` | **Plan** | Any new capability, new CLI option/flag, format addition, or major architecture shift | `feat(cli): make --url required`<br/>`feat: add --force rescraping`<br/>`feat: playwright migration` |
-| **`fix`** | `.agents/issues/` | **Issue** | Bug fixes, crash prevention, input validation, timeout fallbacks, safe defaults | `fix(cli): exit cleanly on missing url`<br/>`fix(images): add http timeouts` |
+| **`feat`** | `.agents/plans/` | **Plan** | Any new capability, new CLI option/flag, format addition, or major architecture shift | `feat: make --url required`<br/>`feat: add --force rescraping`<br/>`feat: playwright migration` |
+| **`fix`** | `.agents/issues/` | **Issue** | Bug fixes, crash prevention, input validation, timeout fallbacks, safe defaults | `fix: exit cleanly on missing url`<br/>`fix: add http timeouts for images` |
 | **`refactor`** | `.agents/issues/` | **Issue** | Restructuring code without changing external behavior, typing, modularization, logging | `refactor: modularize package`<br/>`refactor: use logging instead of print` |
 | **`security`** | `.agents/issues/` | **Issue** | Vulnerability mitigations, sanitization, XSS prevention, credential safety | `security: prevent xss in html viewer` |
 | **`perf`** | `.agents/issues/` | **Issue** | Concurrency, speedups, caching, download optimization | `perf: parallelize image downloads` |
-
-### Component Scopes vs. Intent
-
-Scopes (e.g. `cli`, `images`, `browser`, `catalog`, `format`) represent **where** the change occurs, whereas the commit type defines the **intent**:
-
-- **Adding a new CLI flag or capability**: `feat(cli)` → **Plan**
-- **Fixing CLI error handling or invalid arguments**: `fix(cli)` → **Issue**
-- **Optimizing image download concurrency**: `perf(images)` → **Issue**
-- **Refactoring browser session management**: `refactor(browser)` → **Issue**
 
 ### Excluded Commit Types
 Do **not** generate standalone plans or issues for:
