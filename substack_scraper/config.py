@@ -16,8 +16,7 @@ def get_credentials() -> tuple[str, str]:
     """Retrieve Substack login credentials for premium scraping.
 
     The SUBSTACK_EMAIL and SUBSTACK_PASSWORD environment variables (or values
-    from a .env file if present) take precedence over an optional config.py
-    in the project root containing EMAIL and PASSWORD strings.
+    from a .env file if present) are used.
 
     Returns:
         tuple[str, str]: A tuple of (email, password).
@@ -31,11 +30,7 @@ def get_credentials() -> tuple[str, str]:
     except ImportError:
         pass
 
-    try:
-        from config import EMAIL, PASSWORD
-    except ImportError:
-        EMAIL, PASSWORD = "", ""
     return (
-        os.environ.get("SUBSTACK_EMAIL", EMAIL),
-        os.environ.get("SUBSTACK_PASSWORD", PASSWORD),
+        os.environ.get("SUBSTACK_EMAIL", ""),
+        os.environ.get("SUBSTACK_PASSWORD", ""),
     )

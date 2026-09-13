@@ -79,7 +79,7 @@ flowchart LR
     prem --> brw
 ```
 
-- [`substack_scraper/config.py`](substack_scraper/config.py): Global scraping constants, default directories, timeouts, and `get_credentials()` which loads from `.env` or `config.py`.
+- [`substack_scraper/config.py`](substack_scraper/config.py): Global scraping constants, default directories, timeouts, and `get_credentials()` which loads from `.env` or environment variables.
 - [`substack_scraper/url_utils.py`](substack_scraper/url_utils.py): URL validation, publication URL extraction, and `extract_main_part()` supporting custom Substack domains (e.g. `blog.bytebytego.com`, `newsletter.pragmaticengineer.com`).
 - [`substack_scraper/catalog.py`](substack_scraper/catalog.py): `safe_json_embed()` (mitigating XSS vulnerabilities) and `generate_html_file()` for compiling author HTML archives.
 - [`substack_scraper/images.py`](substack_scraper/images.py): Image URL resolution, filename sanitization, linked image cleanup, and parallel downloads via `ThreadPoolExecutor`.
@@ -110,8 +110,7 @@ flowchart LR
   ```
 - Substack credentials (for premium content):
   - Provide a `.env` file in the root (copy from `.env.example`), OR
-  - Set environment variables `SUBSTACK_EMAIL` and `SUBSTACK_PASSWORD`, OR
-  - Provide `config.py` in the root with `EMAIL = "..."` and `PASSWORD = "..."` (gitignored).
+  - Set environment variables `SUBSTACK_EMAIL` and `SUBSTACK_PASSWORD`.
 
 ## Common Commands
 ### Running the Scraper
