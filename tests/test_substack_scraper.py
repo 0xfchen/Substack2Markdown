@@ -271,8 +271,8 @@ def test_get_credentials_env_vars(monkeypatch):
 def test_get_credentials_empty_when_unconfigured(monkeypatch):
     monkeypatch.delenv("SUBSTACK_EMAIL", raising=False)
     monkeypatch.delenv("SUBSTACK_PASSWORD", raising=False)
-
-    assert ss.get_credentials() == ("", "")
+    with patch("dotenv.find_dotenv", return_value=""):
+        assert ss.get_credentials() == ("", "")
 
 
 # 11. YouTube embeds (issue #25)
@@ -508,7 +508,8 @@ def test_browser_manager_launch_cdp():
 
 
 def test_premium_scraper_requires_credentials_when_not_skipping():
-    with patch('substack_scraper.scrapers.premium.get_credentials', return_value=('', '')):
+    with patch('substack_scraper.scrapers.premium.get_credentials', return_value=('', '')), \
+         patch('substack_scraper.scrapers.premium.BrowserManager.DEFAULT_STORAGE_STATE_PATH', '/nonexistent/path/storage.json'):
         with pytest.raises(ValueError, match='Premium scraping requires credentials'):
             ss.PremiumSubstackScraper(
                 base_substack_url='https://example.substack.com',

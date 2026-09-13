@@ -75,9 +75,9 @@ Download images locally and rewrite markdown image links:
 uv run substack_scraper --url https://example.substack.com --images
 ```
 
-Export with MDX-compliant YAML frontmatter:
+Export with legacy header format (default is `mdx`):
 ```bash
-uv run substack_scraper --url https://example.substack.com --frontmatter mdx
+uv run substack_scraper --url https://example.substack.com --frontmatter legacy
 ```
 
 Specify custom output directory:
