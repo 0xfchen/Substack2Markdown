@@ -66,12 +66,12 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         ):
             raise ValueError(
                 "Premium scraping requires credentials. Set the SUBSTACK_EMAIL "
-                "and SUBSTACK_PASSWORD environment variables, or create a "
-                "config.py in the project root containing your Substack login:\n"
-                '    EMAIL = "your-email@domain.com"\n'
-                '    PASSWORD = "your-password"\n'
-                "If you've already logged in with a persistent profile or storage state, "
-                "pass --persistent-profile --skip-login (or --storage-state) instead."
+                "and SUBSTACK_PASSWORD environment variables, or provide them in a "
+                ".env file in the project root:\n"
+                "    SUBSTACK_EMAIL=your-email@domain.com\n"
+                "    SUBSTACK_PASSWORD=your-password\n"
+                "If you've already logged in with a persistent profile, storage state, or CDP, "
+                "pass --persistent-profile --skip-login, --storage-state, or --cdp-url instead."
             )
 
         self.session: PlaywrightSession = BrowserManager.launch(

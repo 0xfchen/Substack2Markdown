@@ -5,9 +5,6 @@ import sys
 from .config import (
     BASE_HTML_DIR,
     BASE_MD_DIR,
-    BASE_SUBSTACK_URL,
-    NUM_POSTS_TO_SCRAPE,
-    USE_PREMIUM,
 )
 from .scrapers.free import SubstackScraper
 from .scrapers.premium import PremiumSubstackScraper
@@ -47,7 +44,11 @@ Examples:
     )
 
     parser.add_argument(
-        "-u", "--url", type=str, help="The base URL of the Substack site to scrape."
+        "-u",
+        "--url",
+        type=str,
+        required=True,
+        help="The base URL or post URL of the Substack site to scrape (required).",
     )
     parser.add_argument(
         "-d",
@@ -135,6 +136,10 @@ Examples:
         help="Custom user agent string.",
     )
 
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     return parser.parse_args()
 
 
@@ -149,17 +154,8 @@ def main() -> None:
 
     # Allow monkeypatched globals from the substack_scraper package/module
     ss = sys.modules.get("substack_scraper")
-    base_substack_url = (
-        getattr(ss, "BASE_SUBSTACK_URL", BASE_SUBSTACK_URL) if ss else BASE_SUBSTACK_URL
-    )
-    use_premium = getattr(ss, "USE_PREMIUM", USE_PREMIUM) if ss else USE_PREMIUM
     base_md_dir = getattr(ss, "BASE_MD_DIR", BASE_MD_DIR) if ss else BASE_MD_DIR
     base_html_dir = getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
-    num_posts = (
-        getattr(ss, "NUM_POSTS_TO_SCRAPE", NUM_POSTS_TO_SCRAPE)
-        if ss
-        else NUM_POSTS_TO_SCRAPE
-    )
 
     if args.directory is None:
         args.directory = base_md_dir
@@ -167,65 +163,29 @@ def main() -> None:
     if args.html_directory is None:
         args.html_directory = base_html_dir
 
-    if args.url:
-        if args.premium:
-            scraper = PremiumSubstackScraper(
-                base_substack_url=args.url,
-                md_save_dir=args.directory,
-                html_save_dir=args.html_directory,
-                download_images=args.images,
-                browser=args.browser,
-                headless=args.headless,
-                browser_path=args.browser_path,
-                user_agent=args.user_agent,
-                use_persistent_profile=args.persistent_profile,
-                skip_login=args.skip_login,
-                storage_state=args.storage_state,
-                cdp_url=args.cdp_url,
-                frontmatter_format=args.frontmatter,
-            )
-        else:
-            scraper = SubstackScraper(
-                args.url,
-                md_save_dir=args.directory,
-                html_save_dir=args.html_directory,
-                download_images=args.images,
-                frontmatter_format=args.frontmatter,
-            )
-        scraper.scrape_posts(args.number)
-
-    else:
-        # Use hardcoded values
-        if not base_substack_url:
-            logger.error(
-                "No Substack URL provided. Please specify --url <URL> or set BASE_SUBSTACK_URL in the script."
-            )
-            sys.exit(1)
-        logger.info(
-            f"No --url specified. Using script default URL: {base_substack_url}"
+    if args.premium:
+        scraper = PremiumSubstackScraper(
+            base_substack_url=args.url,
+            md_save_dir=args.directory,
+            html_save_dir=args.html_directory,
+            download_images=args.images,
+            browser=args.browser,
+            headless=args.headless,
+            browser_path=args.browser_path,
+            user_agent=args.user_agent,
+            use_persistent_profile=args.persistent_profile,
+            skip_login=args.skip_login,
+            storage_state=args.storage_state,
+            cdp_url=args.cdp_url,
+            frontmatter_format=args.frontmatter,
         )
-        if use_premium:
-            scraper = PremiumSubstackScraper(
-                base_substack_url=base_substack_url,
-                md_save_dir=args.directory,
-                html_save_dir=args.html_directory,
-                download_images=args.images,
-                browser=args.browser,
-                headless=args.headless,
-                browser_path=args.browser_path,
-                user_agent=args.user_agent,
-                use_persistent_profile=args.persistent_profile,
-                skip_login=args.skip_login,
-                storage_state=args.storage_state,
-                cdp_url=args.cdp_url,
-                frontmatter_format=args.frontmatter,
-            )
-        else:
-            scraper = SubstackScraper(
-                base_substack_url=base_substack_url,
-                md_save_dir=args.directory,
-                html_save_dir=args.html_directory,
-                download_images=args.images,
-                frontmatter_format=args.frontmatter,
-            )
-        scraper.scrape_posts(num_posts_to_scrape=num_posts)
+    else:
+        scraper = SubstackScraper(
+            args.url,
+            md_save_dir=args.directory,
+            html_save_dir=args.html_directory,
+            download_images=args.images,
+            frontmatter_format=args.frontmatter,
+        )
+    scraper.scrape_posts(args.number)
+
