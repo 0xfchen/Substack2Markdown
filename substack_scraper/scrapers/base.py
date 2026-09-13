@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import sys
@@ -23,6 +24,8 @@ from ..url_utils import (
     get_publication_url,
     is_post_url,
 )
+
+logger = logging.getLogger(__name__)
 
 FrontmatterFormat = Literal["mdx", "legacy"]
 
@@ -82,9 +85,11 @@ class BaseSubstackScraper(ABC):
         if not os.path.exists(md_save_dir):
             os.makedirs(md_save_dir)
             print(f"Created md directory {md_save_dir}")
+            logger.info("Created md directory %s", md_save_dir)
         if not os.path.exists(self.html_save_dir):
             os.makedirs(self.html_save_dir)
             print(f"Created html directory {self.html_save_dir}")
+            logger.info("Created html directory %s", self.html_save_dir)
 
         self.download_images: bool = download_images
         self.image_dir = Path(BASE_IMAGE_DIR) / self.writer_name
@@ -117,6 +122,7 @@ class BaseSubstackScraper(ABC):
 
         if not response.ok:
             print(f"Error fetching sitemap at {sitemap_url}: {response.status_code}")
+            logger.warning("Error fetching sitemap at %s: %s", sitemap_url, response.status_code)
             return []
 
         root = ET.fromstring(response.content)
@@ -132,11 +138,13 @@ class BaseSubstackScraper(ABC):
             list[str]: URLs extracted from RSS items (typically up to 22 posts).
         """
         print("Falling back to feed.xml. This will only contain up to the 22 most recent posts.")
+        logger.info("Falling back to feed.xml. This will only contain up to the 22 most recent posts.")
         feed_url = f"{self.base_substack_url}feed.xml"
         response = requests.get(feed_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         if not response.ok:
             print(f"Error fetching feed at {feed_url}: {response.status_code}")
+            logger.warning("Error fetching feed at %s: %s", feed_url, response.status_code)
             return []
 
         root = ET.fromstring(response.content)
@@ -176,7 +184,10 @@ class BaseSubstackScraper(ABC):
         soup = BeautifulSoup(html_content, "html.parser")
         for wrap in soup.select("div.youtube-wrap[data-attrs]"):
             try:
-                video_id = json.loads(wrap["data-attrs"])["videoId"]
+                attrs = wrap.get("data-attrs")
+                if not isinstance(attrs, (str, bytes, bytearray)):
+                    continue
+                video_id = json.loads(attrs)["videoId"]
             except (KeyError, TypeError, ValueError):
                 continue
             if not video_id:
@@ -230,6 +241,7 @@ class BaseSubstackScraper(ABC):
             raise ValueError("content must be a string")
         if os.path.exists(filepath) and not overwrite:
             print(f"File already exists: {filepath}")
+            logger.info("File already exists: %s", filepath)
             return
         with open(filepath, "w", encoding="utf-8") as file:
             file.write(content)
@@ -263,6 +275,7 @@ class BaseSubstackScraper(ABC):
             raise ValueError("content must be a string")
         if os.path.exists(filepath) and not overwrite:
             print(f"File already exists: {filepath}")
+            logger.info("File already exists: %s", filepath)
             return
 
         html_dir = os.path.dirname(filepath)
@@ -506,6 +519,17 @@ class BaseSubstackScraper(ABC):
             print(f"  paywall_present={paywall is not None}")
             print(f"  ld_json_present={ld_script is not None}")
             print(f"  date={date!r} author={author!r}")
+            logger.warning(
+                "[EXTRACT FAIL] url=%s title_found=%s title=%r content_element_found=%s paywall_present=%s ld_json_present=%s date=%r author=%r",
+                url,
+                title_found,
+                title,
+                content_element is not None,
+                paywall is not None,
+                ld_script is not None,
+                date,
+                author,
+            )
             try:
                 debug_dir = os.path.join(os.path.dirname(self.md_save_dir), "_debug", self.writer_name)
                 os.makedirs(debug_dir, exist_ok=True)
@@ -514,8 +538,10 @@ class BaseSubstackScraper(ABC):
                 with open(debug_path, "w", encoding="utf-8") as f:
                     f.write(str(soup))
                 print(f"  dumped raw HTML -> {debug_path}")
+                logger.debug("Dumped raw HTML -> %s", debug_path)
             except OSError as dump_err:
                 print(f"  failed to dump debug HTML: {dump_err}")
+                logger.warning("Failed to dump debug HTML: %s", dump_err)
 
         md_content = self.combine_metadata_and_content(
             title,

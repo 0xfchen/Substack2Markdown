@@ -13,8 +13,8 @@
 
 Previously, `extract_main_part()` performed a naive split on `.substack.com`:
 ```python
-parts = urlparse(url).netloc.split('.')
-return parts[1] if parts[0] == 'www' else parts[0]
+parts = urlparse(url).netloc.split(".")
+return parts[1] if parts[0] == "www" else parts[0]
 ```
 When encountering custom domains or subdomains like `blog.bytebytego.com` or `newsletter.pragmaticengineer.com`, it returned `"blog"` or `"newsletter"` instead of `"bytebytego"` or `"pragmaticengineer"`, creating incorrect output directories and filenames.
 Furthermore, `generate_html_file()` wrote only to `BASE_HTML_DIR` and read only from `JSON_DATA_DIR`, ignoring CLI directory overrides.

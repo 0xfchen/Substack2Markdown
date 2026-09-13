@@ -20,9 +20,7 @@ def safe_json_embed(data: Any) -> str:
         str: Sanitized JSON string safe for HTML script tag embedding.
     """
     json_str = json.dumps(data, ensure_ascii=False, indent=4)
-    return (
-        json_str.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
-    )
+    return json_str.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
 
 
 def generate_html_file(
@@ -43,12 +41,8 @@ def generate_html_file(
             JSON_DATA_DIR.
     """
     ss = sys.modules.get("substack_scraper")
-    current_html_dir = (
-        getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
-    )
-    current_data_dir = (
-        getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
-    )
+    current_html_dir = getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
+    current_data_dir = getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
 
     target_html_dir = html_dir or current_html_dir
     target_data_dir = data_dir or current_data_dir
