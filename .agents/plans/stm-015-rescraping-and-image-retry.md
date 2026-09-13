@@ -1,6 +1,7 @@
-# Implementation Plan: Robust Rescraping & Image Retry Logic
+# Robust Rescraping & Image Retry Logic
 
-This plan implements **Improvement Area 1 (Robustness & Rescraping)**:
+## Goal
+
 1. **`--force` / `--overwrite` Option**: Allows overwriting already-downloaded markdown and HTML files when rescraping.
 2. **Image Download Retry with Backoff**: Adds automatic retry (up to 3 attempts with exponential delay) to `download_image` for robust downloads across publications with many images.
 
@@ -97,3 +98,4 @@ This plan implements **Improvement Area 1 (Robustness & Rescraping)**:
   - Scrape single post: file is written.
   - Re-run without `--force`: log displays `File already exists: ...` and finishes instantly.
   - Re-run with `--force`: scraper executes and refreshes file.
+

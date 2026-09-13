@@ -1,6 +1,7 @@
-# Plan: Playwright Migration & Session Reuse
+# Playwright Migration & Session Reuse
 
 ## Goal
+
 Migrate `Substack2Markdown` from Selenium to Playwright to:
 1. **Eliminate WebDrivers completely**: No `chromedriver`, `msedgedriver`, or driver version mismatch issues.
 2. **Zero Extra Browser Downloads**: Use the already-installed system Google Chrome or Microsoft Edge directly via Playwright browser channels (`channel="chrome"`, `channel="msedge"`). Do NOT download or install Playwright's bundled Chromium if Chrome/Edge is present on the computer.
@@ -103,3 +104,4 @@ If you want to attach directly to your **already running personal Chrome/Edge wi
 ### 6. Verification & Tests
 - Ensure all existing unit tests (59 tests) pass.
 - Add mock tests for `PremiumSubstackScraper` and Playwright context creation.
+
