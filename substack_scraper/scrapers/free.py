@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ..config import DEFAULT_REQUEST_TIMEOUT
-from .base import BaseSubstackScraper
+from .base import BaseSubstackScraper, FrontmatterFormat
 
 
 class SubstackScraper(BaseSubstackScraper):
@@ -17,7 +17,7 @@ class SubstackScraper(BaseSubstackScraper):
         md_save_dir: str,
         html_save_dir: str,
         download_images: bool = False,
-        frontmatter_format: str = "mdx",
+        frontmatter_format: FrontmatterFormat = "mdx",
     ) -> None:
         """Initialize free Substack scraper.
 
