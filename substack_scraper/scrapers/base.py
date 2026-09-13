@@ -1,10 +1,11 @@
 import json
 import os
+import re
 import sys
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
 import html2text
@@ -60,9 +61,7 @@ class BaseSubstackScraper(ABC):
         self.frontmatter_format: FrontmatterFormat = frontmatter_format
         self.overwrite: bool = overwrite
         self.is_single_post: bool = is_post_url(base_substack_url)
-        self.post_slug: str | None = (
-            get_post_slug(base_substack_url) if self.is_single_post else None
-        )
+        self.post_slug: str | None = get_post_slug(base_substack_url) if self.is_single_post else None
         original_url = base_substack_url
 
         if self.is_single_post:
@@ -122,8 +121,7 @@ class BaseSubstackScraper(ABC):
 
         root = ET.fromstring(response.content)
         urls = [
-            element.text
-            for element in root.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")
+            element.text for element in root.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc") if element.text
         ]
         return urls
 
@@ -133,9 +131,7 @@ class BaseSubstackScraper(ABC):
         Returns:
             list[str]: URLs extracted from RSS items (typically up to 22 posts).
         """
-        print(
-            "Falling back to feed.xml. This will only contain up to the 22 most recent posts."
-        )
+        print("Falling back to feed.xml. This will only contain up to the 22 most recent posts.")
         feed_url = f"{self.base_substack_url}feed.xml"
         response = requests.get(feed_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
@@ -250,9 +246,7 @@ class BaseSubstackScraper(ABC):
         """
         return markdown.markdown(md_content, extensions=["extra"])
 
-    def save_to_html_file(
-        self, filepath: str, content: str, overwrite: bool = False
-    ) -> None:
+    def save_to_html_file(self, filepath: str, content: str, overwrite: bool = False) -> None:
         """Wrap HTML content in stylesheet skeleton and write to disk.
 
         Args:
@@ -318,6 +312,56 @@ class BaseSubstackScraper(ABC):
         return url.split("/")[-1] + filetype
 
     @staticmethod
+    def _extract_metadata_from_md(md_filepath: str) -> dict[str, Any] | None:
+        """Extract metadata dictionary from a local markdown file's frontmatter."""
+        if not os.path.exists(md_filepath):
+            return None
+        try:
+            with open(md_filepath, encoding="utf-8") as file:
+                content = file.read()
+        except OSError:
+            return None
+
+        metadata: dict[str, Any] = {}
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                frontmatter_lines = parts[1].strip().splitlines()
+                for line in frontmatter_lines:
+                    if ":" in line:
+                        key, value = line.split(":", 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+                        if key == "post_id" and value.isdigit():
+                            metadata[key] = int(value)
+                        else:
+                            metadata[key] = value
+        else:
+            # Check legacy format: # Title \n\n ## Subtitle \n\n **Date** \n\n **Likes:** N
+            lines = [line.strip() for line in content.splitlines() if line.strip()]
+            for line in lines:
+                if line.startswith("# ") and "title" not in metadata:
+                    metadata["title"] = line[2:].strip()
+                elif line.startswith("## ") and "subtitle" not in metadata:
+                    metadata["subtitle"] = line[3:].strip()
+                elif line.startswith("**Likes:**"):
+                    metadata["like_count"] = line.replace("**Likes:**", "").strip()
+                elif line.startswith("**") and line.endswith("**") and "date" not in metadata:
+                    metadata["date"] = line.strip("*").strip()
+        return metadata
+
+    @staticmethod
+    def _extract_post_id(html_content: str) -> int | None:
+        """Extract Substack numeric post ID from HTML content."""
+        match = re.search(r'\\?"post\\?":\s*\{[^}]*\\?"id\\?":\s*(\d+)', html_content)
+        if match:
+            return int(match.group(1))
+        general_match = re.search(r'"postId":\s*(\d+)', html_content)
+        if general_match:
+            return int(general_match.group(1))
+        return None
+
+    @staticmethod
     def combine_metadata_and_content(
         title: str,
         subtitle: str,
@@ -328,6 +372,7 @@ class BaseSubstackScraper(ABC):
         content: str,
         frontmatter_format: FrontmatterFormat = "mdx",
         source_url: str = "",
+        post_id: int | None = None,
     ) -> str:
         """Combine post metadata headers with markdown body using the given format.
 
@@ -341,6 +386,7 @@ class BaseSubstackScraper(ABC):
             content: Main article markdown body.
             frontmatter_format: Format selector ('legacy' or 'mdx').
             source_url: Original post URL for MDX frontmatter.
+            post_id: Optional Substack post ID for unique identification.
 
         Returns:
             str: Combined markdown with metadata header or YAML frontmatter.
@@ -362,6 +408,8 @@ class BaseSubstackScraper(ABC):
             frontmatter += f'title: "{safe_title}"\n'
             if safe_subtitle:
                 frontmatter += f'subtitle: "{safe_subtitle}"\n'
+            if post_id is not None:
+                frontmatter += f"post_id: {post_id}\n"
             frontmatter += f'date: "{date}"\n'
             frontmatter += f'author: "{safe_author}"\n'
             if source_url:
@@ -429,9 +477,7 @@ class BaseSubstackScraper(ABC):
                     images = ld_json["image"]
                     if isinstance(images, list) and images:
                         img = images[0]
-                        cover_image = (
-                            img.get("url", "") if isinstance(img, dict) else str(img)
-                        )
+                        cover_image = img.get("url", "") if isinstance(img, dict) else str(img)
                     elif isinstance(images, dict):
                         cover_image = images.get("url", "")
             except (json.JSONDecodeError, ValueError, KeyError):
@@ -440,14 +486,12 @@ class BaseSubstackScraper(ABC):
         if not date:
             date = "Date not found"
 
-        like_count_element = soup.select_one(
-            "div.like-button-container button div.label"
-        )
+        like_count_element = soup.select_one("div.like-button-container button div.label")
         like_count = (
-            like_count_element.text.strip()
-            if like_count_element and like_count_element.text.strip().isdigit()
-            else "0"
+            like_count_element.text.strip() if like_count_element and like_count_element.text.strip().isdigit() else "0"
         )
+
+        post_id = self._extract_post_id(str(soup))
 
         content_element = soup.select_one("div.available-content")
         content_html = str(content_element) if content_element else ""
@@ -463,15 +507,9 @@ class BaseSubstackScraper(ABC):
             print(f"  ld_json_present={ld_script is not None}")
             print(f"  date={date!r} author={author!r}")
             try:
-                debug_dir = os.path.join(
-                    os.path.dirname(self.md_save_dir), "_debug", self.writer_name
-                )
+                debug_dir = os.path.join(os.path.dirname(self.md_save_dir), "_debug", self.writer_name)
                 os.makedirs(debug_dir, exist_ok=True)
-                slug = (
-                    get_post_slug(url)
-                    if url and is_post_url(url)
-                    else (url.rstrip("/").split("/")[-1] or "unknown")
-                )
+                slug = get_post_slug(url) if url and is_post_url(url) else (url.rstrip("/").split("/")[-1] or "unknown")
                 debug_path = os.path.join(debug_dir, f"{slug}.html")
                 with open(debug_path, "w", encoding="utf-8") as f:
                     f.write(str(soup))
@@ -489,6 +527,7 @@ class BaseSubstackScraper(ABC):
             md,
             self.frontmatter_format,
             url,
+            post_id=post_id,
         )
         return title, subtitle, author, date, cover_image, like_count, md_content
 
@@ -500,25 +539,59 @@ class BaseSubstackScraper(ABC):
     def save_essays_data_to_json(self, essays_data: list[dict]) -> None:
         """Save essays metadata records to a JSON file for the author.
 
+        Merges records in place by unique post_id first (if available), then by slug
+        or file_link. Preserves original order and updates modified fields (such as
+        title, slug, or like_count).
+
         Args:
             essays_data: List of post metadata dictionaries to serialize.
         """
         ss = sys.modules.get("substack_scraper")
-        target_data_dir = (
-            getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
-        )
+        target_data_dir = getattr(ss, "JSON_DATA_DIR", JSON_DATA_DIR) if ss else JSON_DATA_DIR
         if not os.path.exists(target_data_dir):
             os.makedirs(target_data_dir)
 
         json_path = os.path.join(target_data_dir, f"{self.writer_name}.json")
+        existing_data: list[dict] = []
         if os.path.exists(json_path):
             with open(json_path, encoding="utf-8") as file:
-                existing_data = json.load(file)
-            essays_data = existing_data + [
-                data for data in essays_data if data not in existing_data
-            ]
+                try:
+                    existing_data = json.load(file)
+                except (json.JSONDecodeError, ValueError):
+                    existing_data = []
+
+        def _get_entry_key(entry: dict) -> str:
+            if entry.get("post_id"):
+                return f"id:{entry['post_id']}"
+            if entry.get("slug"):
+                return f"slug:{entry['slug']}"
+            file_link = entry.get("file_link", "")
+            if file_link:
+                base_name = os.path.splitext(os.path.basename(file_link))[0]
+                return f"file:{base_name}"
+            return f"title:{entry.get('title', '')}"
+
+        merged_data: list[dict] = []
+        key_to_index: dict[str, int] = {}
+
+        # Populate with existing records
+        for item in existing_data:
+            key = _get_entry_key(item)
+            key_to_index[key] = len(merged_data)
+            merged_data.append(dict(item))
+
+        # Merge or append new incoming records
+        for item in essays_data:
+            key = _get_entry_key(item)
+            if key in key_to_index:
+                index = key_to_index[key]
+                merged_data[index].update(item)
+            else:
+                key_to_index[key] = len(merged_data)
+                merged_data.append(dict(item))
+
         with open(json_path, "w", encoding="utf-8") as file:
-            json.dump(essays_data, file, ensure_ascii=False, indent=4)
+            json.dump(merged_data, file, ensure_ascii=False, indent=4)
 
     def scrape_posts(self, num_posts_to_scrape: int = 0) -> None:
         """Iterate over all post URLs, scraping and saving them to disk.
@@ -527,16 +600,8 @@ class BaseSubstackScraper(ABC):
             num_posts_to_scrape: Number of posts to download (0 = scrape all).
         """
         ss = sys.modules.get("substack_scraper")
-        gen_html = (
-            getattr(ss, "generate_html_file", generate_html_file)
-            if ss
-            else generate_html_file
-        )
-        proc_imgs = (
-            getattr(ss, "process_markdown_images", process_markdown_images)
-            if ss
-            else process_markdown_images
-        )
+        gen_html = getattr(ss, "generate_html_file", generate_html_file) if ss else generate_html_file
+        proc_imgs = getattr(ss, "process_markdown_images", process_markdown_images) if ss else process_markdown_images
 
         essays_data = []
         count = 0
@@ -557,9 +622,7 @@ class BaseSubstackScraper(ABC):
                             pbar.refresh()
                             continue
 
-                        title, subtitle, author, date, cover_image, like_count, md = (
-                            self.extract_post_data(soup, url)
-                        )
+                        title, subtitle, author, date, cover_image, like_count, md = self.extract_post_data(soup, url)
 
                         content_element = soup.select_one("div.available-content")
                         if title == "Untitled" or content_element is None:
@@ -568,20 +631,13 @@ class BaseSubstackScraper(ABC):
                             )
                             count += 1
                             pbar.update(1)
-                            if (
-                                num_posts_to_scrape != 0
-                                and count == num_posts_to_scrape
-                            ):
+                            if num_posts_to_scrape != 0 and count == num_posts_to_scrape:
                                 break
                             continue
 
                         if self.download_images:
                             total_images = count_images_in_markdown(md)
-                            slug = (
-                                get_post_slug(url)
-                                if is_post_url(url)
-                                else url.rstrip("/").split("/")[-1]
-                            )
+                            slug = get_post_slug(url) if is_post_url(url) else url.rstrip("/").split("/")[-1]
                             with tqdm(
                                 total=total_images,
                                 desc=f"Downloading images for {slug}",
@@ -591,24 +647,36 @@ class BaseSubstackScraper(ABC):
 
                         self.save_to_file(md_filepath, md, overwrite=self.overwrite)
                         html_content = self.md_to_html(md)
-                        self.save_to_html_file(
-                            html_filepath, html_content, overwrite=self.overwrite
-                        )
+                        self.save_to_html_file(html_filepath, html_content, overwrite=self.overwrite)
 
-                        essays_data.append(
-                            {
-                                "title": title,
-                                "subtitle": subtitle,
-                                "author": author,
-                                "date": date,
-                                "cover_image": cover_image,
-                                "like_count": like_count,
-                                "file_link": md_filepath,
-                                "html_link": html_filepath,
-                            }
-                        )
+                        post_id = self._extract_post_id(str(soup))
+                        post_slug = get_post_slug(url) if is_post_url(url) else url.rstrip("/").split("/")[-1]
+                        entry_data = {
+                            "title": title,
+                            "subtitle": subtitle,
+                            "author": author,
+                            "date": date,
+                            "cover_image": cover_image,
+                            "like_count": like_count,
+                            "file_link": md_filepath,
+                            "html_link": html_filepath,
+                            "slug": post_slug,
+                        }
+                        if post_id is not None:
+                            entry_data["post_id"] = post_id
+                        essays_data.append(entry_data)
                     else:
                         pbar.write(f"File already exists: {md_filepath}")
+                        post_slug = get_post_slug(url) if is_post_url(url) else url.rstrip("/").split("/")[-1]
+                        existing_entry: dict[str, Any] = {
+                            "file_link": md_filepath,
+                            "html_link": html_filepath,
+                            "slug": post_slug,
+                        }
+                        extracted_metadata = self._extract_metadata_from_md(md_filepath)
+                        if extracted_metadata:
+                            existing_entry.update(extracted_metadata)
+                        essays_data.append(existing_entry)
                 except Exception as e:
                     pbar.write(f"Error scraping post: {e}")
 

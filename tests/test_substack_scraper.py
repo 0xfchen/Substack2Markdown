@@ -7,7 +7,7 @@ import pytest
 import substack_scraper as ss
 
 
-class DummyScraper(ss.BaseSubstackScraper):
+class FakeScraper(ss.BaseSubstackScraper):
     def get_url_soup(self, url: str):
         return None
 
@@ -42,7 +42,7 @@ def test_count_images_in_markdown_counts_cleaned_linked_images():
 
 
 def test_single_post_url_initializes_without_fetching_all_posts(tmp_path):
-    scraper = DummyScraper(
+    scraper = FakeScraper(
         "https://example.substack.com/p/my-post",
         str(tmp_path / "md"),
         str(tmp_path / "html"),
@@ -217,7 +217,7 @@ def test_scraper_initialization(tmp_path):
     md_dir = str(tmp_path / "md")
     html_dir = str(tmp_path / "html")
 
-    scraper = DummyScraper(
+    scraper = FakeScraper(
         "https://example.substack.com/p/test-post",
         md_dir,
         html_dir,
@@ -226,6 +226,7 @@ def test_scraper_initialization(tmp_path):
     assert scraper.writer_name == "example"
     assert os.path.isdir(os.path.join(md_dir, "example"))
     assert os.path.isdir(os.path.join(html_dir, "example"))
+
 
 # 9. test_mdx_frontmatter_includes_source_url
 def test_mdx_frontmatter_includes_source_url():
@@ -282,7 +283,7 @@ YOUTUBE_EMBED_HTML = (
     '&quot;startTime&quot;:null,&quot;endTime&quot;:null}" data-component-name="Youtube2ToDOM" '
     'class="youtube-wrap"><div class="youtube-inner">'
     '<iframe src="https://www.youtube-nocookie.com/embed/9FDgRXPSv3U?rel=0" frameborder="0">'
-    '</iframe></div></div><p>Outro</p></div>'
+    "</iframe></div></div><p>Outro</p></div>"
 )
 
 
@@ -297,10 +298,7 @@ def test_youtube_embed_exported_as_linked_thumbnail():
 
 
 def test_youtube_embed_with_malformed_attrs_is_skipped():
-    html = (
-        '<div class="youtube-wrap" data-attrs="not-json"><iframe src="x"></iframe></div>'
-        "<p>Body</p>"
-    )
+    html = '<div class="youtube-wrap" data-attrs="not-json"><iframe src="x"></iframe></div><p>Body</p>'
 
     md = ss.BaseSubstackScraper.html_to_md(html)
 
@@ -308,10 +306,7 @@ def test_youtube_embed_with_malformed_attrs_is_skipped():
 
 
 def test_clean_linked_images_preserves_youtube_thumbnail_links():
-    md = (
-        "[![YouTube video](https://img.youtube.com/vi/abc/hqdefault.jpg)]"
-        "(https://www.youtube.com/watch?v=abc)"
-    )
+    md = "[![YouTube video](https://img.youtube.com/vi/abc/hqdefault.jpg)](https://www.youtube.com/watch?v=abc)"
 
     assert ss.clean_linked_images(md) == md
 
@@ -335,9 +330,19 @@ def test_generate_html_file_escapes_author_and_embeds_safely(tmp_path, monkeypat
     html_dir.mkdir()
 
     author = "Hacker & Friends"
-    fake_essays = [{"title": "Post </script><script>alert(1)</script>", "subtitle": "sub", "like_count": 5, "date": "2026-01-01", "file_link": "f.md", "html_link": "f.html"}]
+    fake_essays = [
+        {
+            "title": "Post </script><script>alert(1)</script>",
+            "subtitle": "sub",
+            "like_count": 5,
+            "date": "2026-01-01",
+            "file_link": "f.md",
+            "html_link": "f.html",
+        }
+    ]
 
     import json
+
     with open(data_dir / f"{author}.json", "w", encoding="utf-8") as f:
         json.dump(fake_essays, f)
 
@@ -367,7 +372,6 @@ def test_main_bare_command_shows_help_and_exits(monkeypatch, capsys):
     assert "--premium" in captured.err or "--premium" in captured.out
 
 
-
 # 14. Network Timeouts & Reliability
 def test_process_markdown_images_preserves_remote_url_on_download_failure(monkeypatch):
     # Mock download_image to fail (return None)
@@ -385,9 +389,7 @@ def test_download_image_uses_timeout(monkeypatch, tmp_path):
     mock_get = Mock(side_effect=ss.requests.Timeout("Connection timed out"))
     monkeypatch.setattr(ss.requests, "get", mock_get)
 
-    result = ss.download_image(
-        "https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12, max_retries=1
-    )
+    result = ss.download_image("https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12, max_retries=1)
     assert result is None
     mock_get.assert_called_once()
     assert mock_get.call_args[1]["timeout"] == 12
@@ -428,8 +430,21 @@ def test_generate_html_file_honors_custom_directories(tmp_path):
     custom_html.mkdir()
 
     import json
+
     with open(custom_data / "custom_author.json", "w", encoding="utf-8") as f:
-        json.dump([{"title": "Custom Post", "subtitle": "", "date": "2026-01-01", "like_count": 0, "file_link": "a.md", "html_link": "a.html"}], f)
+        json.dump(
+            [
+                {
+                    "title": "Custom Post",
+                    "subtitle": "",
+                    "date": "2026-01-01",
+                    "like_count": 0,
+                    "file_link": "a.md",
+                    "html_link": "a.html",
+                }
+            ],
+            f,
+        )
 
     ss.generate_html_file("custom_author", html_dir=str(custom_html), data_dir=str(custom_data))
 
@@ -476,13 +491,11 @@ def test_get_credentials_loads_from_env_file(tmp_path, monkeypatch):
     assert password == "env_pass"
 
 
-
-
 # 18. Playwright BrowserManager & PremiumScraper Tests
 def test_browser_manager_get_user_data_dir():
-    profile_dir = ss.BrowserManager.get_user_data_dir('chrome')
-    assert 'chrome_profile' in profile_dir
-    assert '.substack_scraper' in profile_dir
+    profile_dir = ss.BrowserManager.get_user_data_dir("chrome")
+    assert "chrome_profile" in profile_dir
+    assert ".substack_scraper" in profile_dir
 
 
 def test_browser_manager_resolve_channel():
@@ -490,8 +503,8 @@ def test_browser_manager_resolve_channel():
     mock_browser = MagicMock()
     mock_pw.chromium.launch.return_value = mock_browser
 
-    resolved = ss.BrowserManager.resolve_channel('chrome', mock_pw)
-    assert resolved in ('chrome', 'msedge')
+    resolved = ss.BrowserManager.resolve_channel("chrome", mock_pw)
+    assert resolved in ("chrome", "msedge")
     assert mock_browser.close.called
 
 
@@ -502,21 +515,26 @@ def test_browser_manager_launch_cdp():
     mock_cdp_browser.contexts = [mock_context]
     mock_pw_instance.chromium.connect_over_cdp.return_value = mock_cdp_browser
 
-    with patch('substack_scraper.browser.sync_playwright') as mock_sync_pw:
+    with patch("substack_scraper.browser.sync_playwright") as mock_sync_pw:
         mock_sync_pw.return_value.start.return_value = mock_pw_instance
-        session = ss.BrowserManager.launch(cdp_url='http://localhost:9222')
+        session = ss.BrowserManager.launch(cdp_url="http://localhost:9222")
         assert session.context == mock_context
-        mock_pw_instance.chromium.connect_over_cdp.assert_called_once_with('http://localhost:9222')
+        mock_pw_instance.chromium.connect_over_cdp.assert_called_once_with("http://localhost:9222")
 
 
 def test_premium_scraper_requires_credentials_when_not_skipping():
-    with patch('substack_scraper.scrapers.premium.get_credentials', return_value=('', '')), \
-         patch('substack_scraper.scrapers.premium.BrowserManager.DEFAULT_STORAGE_STATE_PATH', '/nonexistent/path/storage.json'):
-        with pytest.raises(ValueError, match='Premium scraping requires credentials'):
+    with (
+        patch("substack_scraper.scrapers.premium.get_credentials", return_value=("", "")),
+        patch(
+            "substack_scraper.scrapers.premium.BrowserManager.DEFAULT_STORAGE_STATE_PATH",
+            "/nonexistent/path/storage.json",
+        ),
+    ):
+        with pytest.raises(ValueError, match="Premium scraping requires credentials"):
             ss.PremiumSubstackScraper(
-                base_substack_url='https://example.substack.com',
-                md_save_dir='data/md_files',
-                html_save_dir='data/html_pages',
+                base_substack_url="https://example.substack.com",
+                md_save_dir="data/md_files",
+                html_save_dir="data/html_pages",
                 skip_login=False,
             )
 
@@ -528,15 +546,15 @@ def test_premium_scraper_init_with_skip_login():
     mock_context.pages = [mock_page]
     mock_session.context = mock_context
 
-    with patch('substack_scraper.scrapers.premium.BrowserManager.launch', return_value=mock_session):
+    with patch("substack_scraper.scrapers.premium.BrowserManager.launch", return_value=mock_session):
         scraper = ss.PremiumSubstackScraper(
-            base_substack_url='https://example.substack.com',
-            md_save_dir='data/md_files',
-            html_save_dir='data/html_pages',
+            base_substack_url="https://example.substack.com",
+            md_save_dir="data/md_files",
+            html_save_dir="data/html_pages",
             skip_login=True,
         )
         assert scraper.skip_login is True
-        mock_page.goto.assert_called_once_with('https://example.substack.com', wait_until='domcontentloaded')
+        mock_page.goto.assert_called_once_with("https://example.substack.com", wait_until="domcontentloaded")
 
 
 # 19. Rescraping and Image Retry Tests
@@ -549,8 +567,10 @@ def test_download_image_retries_on_failure_and_succeeds(tmp_path):
     mock_resp_ok.iter_content = Mock(return_value=[b"fake_image_data"])
 
     dest = tmp_path / "retry_success.jpg"
-    with patch("substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_ok]) as mock_get, \
-         patch("substack_scraper.images.sleep") as mock_sleep:
+    with (
+        patch("substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_ok]) as mock_get,
+        patch("substack_scraper.images.sleep") as mock_sleep,
+    ):
         result = ss.download_image("https://example.com/retry.jpg", dest, max_retries=3)
 
         assert result == str(dest)
@@ -564,8 +584,12 @@ def test_download_image_fails_after_max_retries(tmp_path):
     mock_resp_fail.status_code = 500
 
     dest = tmp_path / "retry_fail.jpg"
-    with patch("substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_fail, mock_resp_fail]) as mock_get, \
-         patch("substack_scraper.images.sleep") as mock_sleep:
+    with (
+        patch(
+            "substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_fail, mock_resp_fail]
+        ) as mock_get,
+        patch("substack_scraper.images.sleep") as mock_sleep,
+    ):
         result = ss.download_image("https://example.com/fail.jpg", dest, max_retries=3)
 
         assert result is None
@@ -577,7 +601,7 @@ def test_download_image_fails_after_max_retries(tmp_path):
 def test_scrape_posts_skips_existing_when_overwrite_is_false(tmp_path):
     md_dir = tmp_path / "md"
     html_dir = tmp_path / "html"
-    scraper = DummyScraper(
+    scraper = FakeScraper(
         "https://example.substack.com/p/test-post",
         str(md_dir),
         str(html_dir),
@@ -603,7 +627,7 @@ def test_scrape_posts_skips_existing_when_overwrite_is_false(tmp_path):
 def test_scrape_posts_rescrapes_existing_when_overwrite_is_true(tmp_path):
     md_dir = tmp_path / "md"
     html_dir = tmp_path / "html"
-    scraper = DummyScraper(
+    scraper = FakeScraper(
         "https://example.substack.com/p/test-post",
         str(md_dir),
         str(html_dir),
@@ -658,3 +682,159 @@ def test_cli_force_flag_sets_overwrite(monkeypatch):
     args_alias = ss.parse_args()
     assert args_alias.overwrite is True
 
+
+# ---------------------------------------------------------------------------
+# Catalog & Metadata Synchronization Tests
+# ---------------------------------------------------------------------------
+
+
+def test_extract_post_id_from_preloads():
+    html = (
+        "<html><head><script>"
+        'window._preloads = JSON.parse("{\\"post\\":{\\"id\\":214748970,\\"slug\\":\\"codex\\"}}");'
+        "</script></head></html>"
+    )
+    post_id = ss.BaseSubstackScraper._extract_post_id(html)
+    assert post_id == 214748970
+
+
+def test_extract_post_id_returns_none_when_missing():
+    html = "<html><head><title>No post ID</title></head></html>"
+    post_id = ss.BaseSubstackScraper._extract_post_id(html)
+    assert post_id is None
+
+
+def test_combine_metadata_and_content_includes_post_id():
+    markdown_output = ss.BaseSubstackScraper.combine_metadata_and_content(
+        title="Codex Post",
+        subtitle="Inside OpenAI",
+        date="2026-09-09",
+        author="Gergely",
+        cover_image="",
+        like_count="100",
+        content="Post body",
+        frontmatter_format="mdx",
+        source_url="https://example.substack.com/p/codex",
+        post_id=214748970,
+    )
+    assert "post_id: 214748970" in markdown_output
+    assert 'title: "Codex Post"' in markdown_output
+
+
+def test_extract_metadata_from_md_mdx_format(tmp_path):
+    md_file = tmp_path / "post.md"
+    md_file.write_text(
+        '---\ntitle: "Codex Post"\npost_id: 214748970\ndate: "2026-09-09"\nauthor: "Gergely"\n---\n\nBody',
+        encoding="utf-8",
+    )
+    metadata = ss.BaseSubstackScraper._extract_metadata_from_md(str(md_file))
+    assert metadata is not None
+    assert metadata["title"] == "Codex Post"
+    assert metadata["post_id"] == 214748970
+    assert metadata["date"] == "2026-09-09"
+    assert metadata["author"] == "Gergely"
+
+
+def test_extract_metadata_from_md_legacy_format(tmp_path):
+    md_file = tmp_path / "legacy.md"
+    md_file.write_text(
+        "# Old Article\n\n## A great subtitle\n\n**Sep 09, 2026**\n\n**Likes:** 42\n\nBody content",
+        encoding="utf-8",
+    )
+    metadata = ss.BaseSubstackScraper._extract_metadata_from_md(str(md_file))
+    assert metadata is not None
+    assert metadata["title"] == "Old Article"
+    assert metadata["subtitle"] == "A great subtitle"
+    assert metadata["like_count"] == "42"
+    assert metadata["date"] == "Sep 09, 2026"
+
+
+def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path, monkeypatch):
+    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(tmp_path))
+    scraper = FakeScraper("https://example.substack.com", str(tmp_path / "md"), str(tmp_path / "html"))
+
+    initial_entries = [
+        {
+            "post_id": 12345,
+            "title": "Initial Title",
+            "slug": "initial-slug",
+            "like_count": "10",
+            "file_link": "initial.md",
+        }
+    ]
+    scraper.save_essays_data_to_json(initial_entries)
+
+    updated_entries = [
+        {
+            "post_id": 12345,
+            "title": "Updated Title With New Headline",
+            "slug": "new-renamed-slug",
+            "like_count": "55",
+            "file_link": "new-renamed-slug.md",
+        }
+    ]
+    scraper.save_essays_data_to_json(updated_entries)
+
+    import json
+
+    json_path = tmp_path / "example.json"
+    with open(json_path, encoding="utf-8") as file:
+        saved_data = json.load(file)
+
+    assert len(saved_data) == 1
+    assert saved_data[0]["post_id"] == 12345
+    assert saved_data[0]["title"] == "Updated Title With New Headline"
+    assert saved_data[0]["slug"] == "new-renamed-slug"
+    assert saved_data[0]["like_count"] == "55"
+    assert saved_data[0]["file_link"] == "new-renamed-slug.md"
+
+
+def test_save_essays_data_to_json_appends_genuinely_new_posts(tmp_path, monkeypatch):
+    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(tmp_path))
+    scraper = FakeScraper("https://example.substack.com", str(tmp_path / "md"), str(tmp_path / "html"))
+
+    scraper.save_essays_data_to_json([{"post_id": 101, "title": "First"}])
+    scraper.save_essays_data_to_json([{"post_id": 102, "title": "Second"}])
+
+    import json
+
+    with open(tmp_path / "example.json", encoding="utf-8") as file:
+        saved_data = json.load(file)
+
+    assert len(saved_data) == 2
+    assert saved_data[0]["post_id"] == 101
+    assert saved_data[1]["post_id"] == 102
+
+
+def test_scrape_posts_recovers_metadata_for_skipped_existing_files(tmp_path, monkeypatch):
+    md_dir = tmp_path / "md"
+    html_dir = tmp_path / "html"
+    json_dir = tmp_path / "json"
+    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(json_dir))
+
+    author_md_dir = md_dir / "example"
+    author_md_dir.mkdir(parents=True, exist_ok=True)
+    existing_file = author_md_dir / "test-post.md"
+    existing_file.write_text(
+        '---\ntitle: "Existing Preserved"\npost_id: 8888\ndate: "2026-09-01"\nauthor: "Author"\n---\n\nContent',
+        encoding="utf-8",
+    )
+
+    scraper = FakeScraper(
+        "https://example.substack.com/p/test-post",
+        str(md_dir),
+        str(html_dir),
+        overwrite=False,
+    )
+    with patch("substack_scraper.scrapers.base.generate_html_file"):
+        scraper.scrape_posts()
+
+    import json
+
+    with open(json_dir / "example.json", encoding="utf-8") as file:
+        saved_data = json.load(file)
+
+    assert len(saved_data) == 1
+    assert saved_data[0]["post_id"] == 8888
+    assert saved_data[0]["title"] == "Existing Preserved"
+    assert saved_data[0]["slug"] == "test-post"
