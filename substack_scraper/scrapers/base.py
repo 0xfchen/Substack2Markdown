@@ -4,6 +4,7 @@ import sys
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 from xml.etree import ElementTree as ET
 
 import html2text
@@ -22,6 +23,8 @@ from ..url_utils import (
     is_post_url,
 )
 
+FrontmatterFormat = Literal["mdx", "legacy"]
+
 
 class BaseSubstackScraper(ABC):
     """Abstract base scraper defining Substack post and metadata extraction pipeline.
@@ -36,7 +39,7 @@ class BaseSubstackScraper(ABC):
         md_save_dir: str,
         html_save_dir: str,
         download_images: bool = False,
-        frontmatter_format: str = "mdx",
+        frontmatter_format: FrontmatterFormat = "mdx",
     ) -> None:
         """Initialize base scraper configuration and target directories.
 
@@ -313,7 +316,7 @@ class BaseSubstackScraper(ABC):
         cover_image: str,
         like_count: str,
         content: str,
-        frontmatter_format: str = "mdx",
+        frontmatter_format: FrontmatterFormat = "mdx",
         source_url: str = "",
     ) -> str:
         """Combine post metadata headers with markdown body using the given format.

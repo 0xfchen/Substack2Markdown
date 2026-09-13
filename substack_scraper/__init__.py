@@ -50,6 +50,7 @@ from .images import (
 # Import scraper classes
 from .scrapers import (
     BaseSubstackScraper,
+    FrontmatterFormat,
     PremiumSubstackScraper,
     SubstackScraper,
 )
@@ -94,6 +95,7 @@ __all__ = [
     "BrowserManager",
     # Scrapers
     "BaseSubstackScraper",
+    "FrontmatterFormat",
     "SubstackScraper",
     "PremiumSubstackScraper",
     # CLI

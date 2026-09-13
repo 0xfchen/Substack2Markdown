@@ -9,7 +9,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from ..browser import BrowserManager, PlaywrightSession
 from ..config import get_credentials
-from .base import BaseSubstackScraper
+from .base import BaseSubstackScraper, FrontmatterFormat
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         skip_login: bool = False,
         storage_state: str = "",
         cdp_url: str = "",
-        frontmatter_format: str = "mdx",
+        frontmatter_format: FrontmatterFormat = "mdx",
     ) -> None:
         """Initialize the premium scraper with Playwright browser automation.
 
