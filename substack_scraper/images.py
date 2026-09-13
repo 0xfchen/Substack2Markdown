@@ -2,10 +2,12 @@ import hashlib
 import logging
 import mimetypes
 import os
+import random
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from time import sleep
 from urllib.parse import unquote
 
 import requests
@@ -30,15 +32,15 @@ def resolve_image_url(url: str) -> str:
     """Extract the original source image URL from a Substack CDN URL.
 
     Args:
-        url: The candidate image URL, which may be a Substack CDN fetch URL.
+        url: URL string that might be a Substack CDN URL.
 
     Returns:
-        str: Unquoted direct image URL or original URL if not a CDN wrapper.
+        str: Unquoted source URL if it was wrapped in a CDN URL, otherwise original URL.
     """
-    if url.startswith("https://substackcdn.com/image/fetch/"):
-        parts = url.split("/https%3A%2F%2F")
-        if len(parts) > 1:
-            url = "https://" + unquote(parts[1])
+    pattern = r"https://substackcdn\.com/image/fetch/.*?/(https?%3A%2F%2F.*)"
+    match = re.search(pattern, url)
+    if match:
+        return unquote(match.group(1))
     return url
 
 
@@ -50,17 +52,17 @@ def clean_linked_images(md_content: str) -> str:
     YouTube thumbnails linking to the video) are preserved intact.
 
     Args:
-        md_content: The markdown text to process.
+        md_content: Markdown content string.
 
     Returns:
-        str: Markdown with redundant image link wrappers removed.
+        str: Cleaned markdown content.
     """
     pattern = r"\[!\[(.*?)\]\((.*?)\)\]\((.*?)\)"
 
-    def replace(match):
-        alt, src, target = match.groups()
-        if target == src or target.startswith("https://substackcdn.com/"):
-            return f"![{alt}]({src})"
+    def replace(match: re.Match) -> str:
+        alt_text, image_source, target_url = match.groups()
+        if target_url == image_source or target_url.startswith("https://substackcdn.com/"):
+            return f"![{alt_text}]({image_source})"
         return match.group(0)
 
     return re.sub(pattern, replace, md_content)
@@ -93,21 +95,31 @@ def sanitize_image_filename(url: str, timeout: int = 5) -> str:
         str: Cleaned and sanitized image filename.
     """
     url = resolve_image_url(url)
-    filename = url.split("/")[-1]
-    filename = filename.split("?")[0]
-    filename = re.sub(r'[<>:"/\\|?*]', "", filename)
+    clean_url = url.split("?")[0]
+    filename = clean_url.split("/")[-1]
 
-    if len(filename) > 100 or not filename:
-        hash_object = hashlib.md5(url.encode())
-        ext = None
-        req = _get_requests()
+    # Validate extension
+    extension = os.path.splitext(filename)[1].lower()
+    valid_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
+
+    if extension not in valid_extensions:
+        request_module = _get_requests()
         try:
-            resp = req.head(url, timeout=timeout)
-            ext = mimetypes.guess_extension(resp.headers.get("content-type", ""))
-        except (requests.RequestException, OSError) as exc:
-            logger.debug("Failed to determine extension for image URL %s: %s", url, exc)
-        ext = ext or ".jpg"
-        filename = f"{hash_object.hexdigest()}{ext}"
+            response = request_module.head(url, timeout=timeout, allow_redirects=True)
+            content_type = response.headers.get("content-type", "").split(";")[0].strip()
+            guessed_extension = mimetypes.guess_extension(content_type)
+            if guessed_extension in valid_extensions:
+                extension = guessed_extension
+            else:
+                extension = ".jpg"
+        except (requests.RequestException, OSError):
+            extension = ".jpg"
+        filename = f"{filename}{extension}"
+
+    # Hash if filename is empty or excessive length
+    if len(filename) > 100 or not filename:
+        url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+        filename = f"img_{url_hash}{extension}"
 
     return filename
 
@@ -117,35 +129,74 @@ def download_image(
     save_path: Path,
     pbar=None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
+    max_retries: int = 3,
 ) -> str | None:
     """Download an image from a URL and save it to the specified local path.
+
+    Retries on transient network errors or rate limits with exponential backoff.
 
     Args:
         url: Remote image URL.
         save_path: Target local Path where the image should be saved.
         pbar: Optional tqdm progress bar to increment upon success.
         timeout: Request timeout in seconds.
+        max_retries: Maximum number of download attempts before giving up.
 
     Returns:
         str | None: String path to the saved file on success, or None on failure.
     """
-    req = _get_requests()
-    try:
-        response = req.get(url, stream=True, timeout=timeout)
-        if response.status_code == 200:
-            save_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(save_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
+    request_module = _get_requests()
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = request_module.get(url, stream=True, timeout=timeout)
+            if response.status_code == 200:
+                save_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(save_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                if pbar:
+                    pbar.update(1)
+                return str(save_path)
+
+            if response.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                base = 2 ** (attempt - 1)
+                delay = base + random.uniform(-0.2 * base, 0.2 * base)
+                logger.debug(
+                    "Image HTTP %s for %s. Retrying attempt %s/%s in %.2fs...",
+                    response.status_code,
+                    url,
+                    attempt + 1,
+                    max_retries,
+                    delay,
+                )
+                sleep(delay)
+                continue
+
+            msg = f"HTTP {response.status_code} downloading image {url}"
+            logger.warning(msg)
             if pbar:
-                pbar.update(1)
-            return str(save_path)
-    except (requests.RequestException, OSError) as e:
-        msg = f"Error downloading image {url}: {e!s}"
-        logger.warning(msg)
-        if pbar:
-            pbar.write(msg)
+                pbar.write(msg)
+            return None
+        except (requests.RequestException, OSError) as e:
+            if attempt < max_retries:
+                base = 2 ** (attempt - 1)
+                delay = base + random.uniform(-0.2 * base, 0.2 * base)
+                logger.debug(
+                    "Error downloading image %s (%s). Retrying attempt %s/%s in %.2fs...",
+                    url,
+                    e,
+                    attempt + 1,
+                    max_retries,
+                    delay,
+                )
+                sleep(delay)
+                continue
+
+            msg = f"Error downloading image {url}: {e!s}"
+            logger.warning(msg)
+            if pbar:
+                pbar.write(msg)
     return None
 
 
@@ -197,17 +248,19 @@ def process_markdown_images(
         workers = min(len(download_tasks), max(1, max_workers))
         with ThreadPoolExecutor(max_workers=workers) as executor:
             future_to_path = {
-                executor.submit(_call_download_image, res_url, sp, pbar): sp
-                for res_url, sp in download_tasks
+                executor.submit(
+                    _call_download_image, resolved_url, save_path, pbar
+                ): save_path
+                for resolved_url, save_path in download_tasks
             }
             for future in future_to_path:
-                sp = future_to_path[future]
+                save_path = future_to_path[future]
                 try:
-                    res = future.result()
-                    if res:
-                        download_results[sp] = res
+                    downloaded_path = future.result()
+                    if downloaded_path:
+                        download_results[save_path] = downloaded_path
                 except (requests.RequestException, OSError) as exc:
-                    logger.debug("Failed image task for %s: %s", sp, exc)
+                    logger.debug("Failed image task for %s: %s", save_path, exc)
 
     def replace_image(match):
         url = match.group(0).strip("()")

@@ -18,6 +18,7 @@ class SubstackScraper(BaseSubstackScraper):
         html_save_dir: str,
         download_images: bool = False,
         frontmatter_format: FrontmatterFormat = "mdx",
+        overwrite: bool = False,
     ) -> None:
         """Initialize free Substack scraper.
 
@@ -27,6 +28,7 @@ class SubstackScraper(BaseSubstackScraper):
             html_save_dir: Root directory for HTML files.
             download_images: Whether to download images locally.
             frontmatter_format: Frontmatter format ('legacy' or 'mdx').
+            overwrite: Whether to overwrite existing files on disk when scraping.
         """
         super().__init__(
             base_substack_url,
@@ -34,6 +36,7 @@ class SubstackScraper(BaseSubstackScraper):
             html_save_dir,
             download_images,
             frontmatter_format,
+            overwrite,
         )
 
     def get_url_soup(self, url: str, max_attempts: int = 5) -> BeautifulSoup | None:

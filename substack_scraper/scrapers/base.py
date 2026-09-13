@@ -40,6 +40,7 @@ class BaseSubstackScraper(ABC):
         html_save_dir: str,
         download_images: bool = False,
         frontmatter_format: FrontmatterFormat = "mdx",
+        overwrite: bool = False,
     ) -> None:
         """Initialize base scraper configuration and target directories.
 
@@ -49,13 +50,15 @@ class BaseSubstackScraper(ABC):
             html_save_dir: Root directory for rendered HTML exports.
             download_images: Whether to download CDN images locally.
             frontmatter_format: Frontmatter format ('legacy' or 'mdx').
+            overwrite: Whether to overwrite existing files on disk when scraping.
 
         Raises:
             ValueError: If frontmatter_format is not 'legacy' or 'mdx'.
         """
         if frontmatter_format not in ("legacy", "mdx"):
             raise ValueError("frontmatter_format must be 'legacy' or 'mdx'")
-        self.frontmatter_format: str = frontmatter_format
+        self.frontmatter_format: FrontmatterFormat = frontmatter_format
+        self.overwrite: bool = overwrite
         self.is_single_post: bool = is_post_url(base_substack_url)
         self.post_slug: str | None = (
             get_post_slug(base_substack_url) if self.is_single_post else None
@@ -214,12 +217,13 @@ class BaseSubstackScraper(ABC):
         return h.handle(html_content)
 
     @staticmethod
-    def save_to_file(filepath: str, content: str) -> None:
+    def save_to_file(filepath: str, content: str, overwrite: bool = False) -> None:
         """Write text content to a local file.
 
         Args:
             filepath: Destination path for the file.
             content: Text content to write.
+            overwrite: Whether to overwrite file if it already exists.
 
         Raises:
             ValueError: If filepath or content is not a string.
@@ -228,7 +232,7 @@ class BaseSubstackScraper(ABC):
             raise ValueError("filepath must be a string")
         if not isinstance(content, str):
             raise ValueError("content must be a string")
-        if os.path.exists(filepath):
+        if os.path.exists(filepath) and not overwrite:
             print(f"File already exists: {filepath}")
             return
         with open(filepath, "w", encoding="utf-8") as file:
@@ -246,12 +250,15 @@ class BaseSubstackScraper(ABC):
         """
         return markdown.markdown(md_content, extensions=["extra"])
 
-    def save_to_html_file(self, filepath: str, content: str) -> None:
+    def save_to_html_file(
+        self, filepath: str, content: str, overwrite: bool = False
+    ) -> None:
         """Wrap HTML content in stylesheet skeleton and write to disk.
 
         Args:
             filepath: Target output HTML path.
             content: Body HTML content.
+            overwrite: Whether to overwrite file if it already exists.
 
         Raises:
             ValueError: If filepath or content is not a string.
@@ -260,6 +267,9 @@ class BaseSubstackScraper(ABC):
             raise ValueError("filepath must be a string")
         if not isinstance(content, str):
             raise ValueError("content must be a string")
+        if os.path.exists(filepath) and not overwrite:
+            print(f"File already exists: {filepath}")
+            return
 
         html_dir = os.path.dirname(filepath)
         css_path = os.path.relpath("./assets/css/essay-styles.css", html_dir)
@@ -539,7 +549,7 @@ class BaseSubstackScraper(ABC):
                     md_filepath = os.path.join(self.md_save_dir, md_filename)
                     html_filepath = os.path.join(self.html_save_dir, html_filename)
 
-                    if not os.path.exists(md_filepath):
+                    if self.overwrite or not os.path.exists(md_filepath):
                         soup = self.get_url_soup(url)
                         if soup is None:
                             total += 1
@@ -579,9 +589,11 @@ class BaseSubstackScraper(ABC):
                             ) as img_pbar:
                                 md = proc_imgs(md, self.writer_name, slug, img_pbar)
 
-                        self.save_to_file(md_filepath, md)
+                        self.save_to_file(md_filepath, md, overwrite=self.overwrite)
                         html_content = self.md_to_html(md)
-                        self.save_to_html_file(html_filepath, html_content)
+                        self.save_to_html_file(
+                            html_filepath, html_content, overwrite=self.overwrite
+                        )
 
                         essays_data.append(
                             {

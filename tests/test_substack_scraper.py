@@ -385,7 +385,9 @@ def test_download_image_uses_timeout(monkeypatch, tmp_path):
     mock_get = Mock(side_effect=ss.requests.Timeout("Connection timed out"))
     monkeypatch.setattr(ss.requests, "get", mock_get)
 
-    result = ss.download_image("https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12)
+    result = ss.download_image(
+        "https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12, max_retries=1
+    )
     assert result is None
     mock_get.assert_called_once()
     assert mock_get.call_args[1]["timeout"] == 12
@@ -535,3 +537,124 @@ def test_premium_scraper_init_with_skip_login():
         )
         assert scraper.skip_login is True
         mock_page.goto.assert_called_once_with('https://example.substack.com', wait_until='domcontentloaded')
+
+
+# 19. Rescraping and Image Retry Tests
+def test_download_image_retries_on_failure_and_succeeds(tmp_path):
+    mock_resp_fail = Mock()
+    mock_resp_fail.status_code = 503
+
+    mock_resp_ok = Mock()
+    mock_resp_ok.status_code = 200
+    mock_resp_ok.iter_content = Mock(return_value=[b"fake_image_data"])
+
+    dest = tmp_path / "retry_success.jpg"
+    with patch("substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_ok]) as mock_get, \
+         patch("substack_scraper.images.sleep") as mock_sleep:
+        result = ss.download_image("https://example.com/retry.jpg", dest, max_retries=3)
+
+        assert result == str(dest)
+        assert mock_get.call_count == 2
+        assert mock_sleep.call_count == 1
+        assert dest.read_bytes() == b"fake_image_data"
+
+
+def test_download_image_fails_after_max_retries(tmp_path):
+    mock_resp_fail = Mock()
+    mock_resp_fail.status_code = 500
+
+    dest = tmp_path / "retry_fail.jpg"
+    with patch("substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_fail, mock_resp_fail]) as mock_get, \
+         patch("substack_scraper.images.sleep") as mock_sleep:
+        result = ss.download_image("https://example.com/fail.jpg", dest, max_retries=3)
+
+        assert result is None
+        assert mock_get.call_count == 3
+        assert mock_sleep.call_count == 2
+        assert not dest.exists()
+
+
+def test_scrape_posts_skips_existing_when_overwrite_is_false(tmp_path):
+    md_dir = tmp_path / "md"
+    html_dir = tmp_path / "html"
+    scraper = DummyScraper(
+        "https://example.substack.com/p/test-post",
+        str(md_dir),
+        str(html_dir),
+        overwrite=False,
+    )
+
+    # Pre-create the markdown file
+    author_md_dir = md_dir / "example"
+    author_md_dir.mkdir(parents=True, exist_ok=True)
+    existing_md = author_md_dir / "test-post.md"
+    existing_md.write_text("existing content", encoding="utf-8")
+
+    scraper.extract_post_data = Mock()
+    scraper.save_to_file = Mock()
+
+    scraper.scrape_posts()
+
+    scraper.extract_post_data.assert_not_called()
+    scraper.save_to_file.assert_not_called()
+    assert existing_md.read_text(encoding="utf-8") == "existing content"
+
+
+def test_scrape_posts_rescrapes_existing_when_overwrite_is_true(tmp_path):
+    md_dir = tmp_path / "md"
+    html_dir = tmp_path / "html"
+    scraper = DummyScraper(
+        "https://example.substack.com/p/test-post",
+        str(md_dir),
+        str(html_dir),
+        overwrite=True,
+    )
+
+    # Pre-create the markdown file
+    author_md_dir = md_dir / "example"
+    author_md_dir.mkdir(parents=True, exist_ok=True)
+    existing_md = author_md_dir / "test-post.md"
+    existing_md.write_text("old content", encoding="utf-8")
+
+    mock_soup = Mock()
+    mock_soup.select_one = Mock(return_value=Mock())
+    scraper.get_url_soup = Mock(return_value=mock_soup)
+
+    fake_tuple = (
+        "Updated Title",
+        "Updated Subtitle",
+        "Author",
+        "2026-09-13",
+        "",
+        "10",
+        "Updated Content",
+    )
+    scraper.extract_post_data = Mock(return_value=fake_tuple)
+    scraper.save_to_file = Mock()
+    scraper.save_to_html_file = Mock()
+
+    with patch("substack_scraper.scrapers.base.generate_html_file"):
+        scraper.scrape_posts()
+
+    scraper.extract_post_data.assert_called_once_with(mock_soup, "https://example.substack.com/p/test-post")
+    scraper.save_to_file.assert_called_once()
+    assert scraper.save_to_file.call_args[1]["overwrite"] is True
+
+
+def test_cli_force_flag_sets_overwrite(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["substack_scraper.py", "--url", "https://example.substack.com", "--force"],
+    )
+    args = ss.parse_args()
+    assert args.overwrite is True
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["substack_scraper.py", "--url", "https://example.substack.com", "--overwrite"],
+    )
+    args_alias = ss.parse_args()
+    assert args_alias.overwrite is True
+
