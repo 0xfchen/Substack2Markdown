@@ -127,9 +127,9 @@ flowchart LR
   ```bash
   uv run substack_scraper --url https://example.substack.com --images
   ```
-- **Scrape with MDX frontmatter**:
+- **Scrape with legacy header format (default is mdx)**:
   ```bash
-  uv run substack_scraper --url https://example.substack.com --frontmatter mdx
+  uv run substack_scraper --url https://example.substack.com --frontmatter legacy
   ```
 - **Scrape premium publication**:
   ```bash

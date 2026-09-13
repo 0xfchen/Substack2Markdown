@@ -31,7 +31,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         skip_login: bool = False,
         storage_state: str = "",
         cdp_url: str = "",
-        frontmatter_format: str = "legacy",
+        frontmatter_format: str = "mdx",
     ) -> None:
         """Initialize the premium scraper with Playwright browser automation.
 

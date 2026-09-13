@@ -36,7 +36,7 @@ class BaseSubstackScraper(ABC):
         md_save_dir: str,
         html_save_dir: str,
         download_images: bool = False,
-        frontmatter_format: str = "legacy",
+        frontmatter_format: str = "mdx",
     ) -> None:
         """Initialize base scraper configuration and target directories.
 
@@ -313,7 +313,7 @@ class BaseSubstackScraper(ABC):
         cover_image: str,
         like_count: str,
         content: str,
-        frontmatter_format: str = "legacy",
+        frontmatter_format: str = "mdx",
         source_url: str = "",
     ) -> str:
         """Combine post metadata headers with markdown body using the given format.

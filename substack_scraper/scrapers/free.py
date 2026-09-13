@@ -17,7 +17,7 @@ class SubstackScraper(BaseSubstackScraper):
         md_save_dir: str,
         html_save_dir: str,
         download_images: bool = False,
-        frontmatter_format: str = "legacy",
+        frontmatter_format: str = "mdx",
     ) -> None:
         """Initialize free Substack scraper.
 

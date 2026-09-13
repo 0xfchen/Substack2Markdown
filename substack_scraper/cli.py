@@ -74,11 +74,11 @@ Examples:
     parser.add_argument(
         "--frontmatter",
         type=str,
-        default="legacy",
-        choices=["legacy", "mdx"],
-        help="Header format for scraped markdown. 'legacy' (default) uses the original "
-        "'# title / **date** / **Likes:** N' block. 'mdx' emits YAML frontmatter "
-        "(title, subtitle, date, author, image) suitable for MDX sites.",
+        default="mdx",
+        choices=["mdx", "legacy"],
+        help="Header format for scraped markdown. 'mdx' (default) emits YAML frontmatter "
+        "(title, subtitle, date, author, image, source_url) suitable for MDX/static site generators. "
+        "'legacy' uses the original '# title / **date** / **Likes:** N' header block.",
     )
 
     # Premium scraping options
