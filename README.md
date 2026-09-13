@@ -31,27 +31,21 @@ uv sync
 
 ### Credentials Setup (For Premium Content)
 
-To scrape subscriber-only posts, provide your Substack credentials using any of the following methods (in order of precedence):
+To scrape subscriber-only posts, provide your Substack credentials using either of the following methods:
 
-1. **Environment variables**:
-   ```bash
-   export SUBSTACK_EMAIL="your-email@domain.com"
-   export SUBSTACK_PASSWORD="your-password"
-   ```
-
-2. **`.env` file** in the project root (see `.env.example`):
+1. **`.env` file** in the project root (recommended, see `.env.example`):
    ```ini
    SUBSTACK_EMAIL=your-email@domain.com
    SUBSTACK_PASSWORD=your-password
    ```
 
-3. **`config.py`** in the project root:
-   ```python
-   EMAIL = "your-email@domain.com"
-   PASSWORD = "your-password"
+2. **Environment variables**:
+   ```bash
+   export SUBSTACK_EMAIL="your-email@domain.com"
+   export SUBSTACK_PASSWORD="your-password"
    ```
 
-> `config.py` and `.env` are gitignored to ensure your credentials are never committed.
+> The `.env` file is gitignored to ensure your credentials are never committed.
 
 For premium scraping, you will also need either **Google Chrome** or **Microsoft Edge** installed.
 

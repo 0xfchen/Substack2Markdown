@@ -1,6 +1,5 @@
 import os
 import sys
-import types
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -262,32 +261,14 @@ def test_mdx_frontmatter_includes_source_url():
 
 
 # 10. get_credentials
-def test_get_credentials_env_vars_take_precedence(monkeypatch):
-    fake_config = types.ModuleType("config")
-    fake_config.EMAIL = "file@example.com"
-    fake_config.PASSWORD = "file-secret"
-    monkeypatch.setitem(sys.modules, "config", fake_config)
+def test_get_credentials_env_vars(monkeypatch):
     monkeypatch.setenv("SUBSTACK_EMAIL", "env@example.com")
     monkeypatch.setenv("SUBSTACK_PASSWORD", "env-secret")
 
     assert ss.get_credentials() == ("env@example.com", "env-secret")
 
 
-def test_get_credentials_falls_back_to_config(monkeypatch):
-    fake_config = types.ModuleType("config")
-    fake_config.EMAIL = "file@example.com"
-    fake_config.PASSWORD = "file-secret"
-    monkeypatch.setitem(sys.modules, "config", fake_config)
-    monkeypatch.delenv("SUBSTACK_EMAIL", raising=False)
-    monkeypatch.delenv("SUBSTACK_PASSWORD", raising=False)
-
-    assert ss.get_credentials() == ("file@example.com", "file-secret")
-
-
 def test_get_credentials_empty_when_unconfigured(monkeypatch):
-    # None in sys.modules makes `import config` raise ImportError,
-    # simulating a missing config.py even if one exists locally
-    monkeypatch.setitem(sys.modules, "config", None)
     monkeypatch.delenv("SUBSTACK_EMAIL", raising=False)
     monkeypatch.delenv("SUBSTACK_PASSWORD", raising=False)
 
