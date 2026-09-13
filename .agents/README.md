@@ -7,7 +7,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | Ticket | Type | Category | Description | Document Link |
 | :--- | :--- | :--- | :--- | :--- |
 | **`stm-001`** | **Issue** | `security` | Prevent XSS in HTML viewer and escape embedded JSON | [`issues/stm-001-xss-prevention-and-safe-json-embed.md`](issues/stm-001-xss-prevention-and-safe-json-embed.md) |
-| **`stm-002`** | **Issue** | `fix(cli)` | Improve default CLI behavior and handle missing URL safely | [`issues/stm-002-cli-missing-url-handling.md`](issues/stm-002-cli-missing-url-handling.md) |
+| **`stm-002`** | **Issue** | `fix` | Improve default CLI behavior and handle missing URL safely | [`issues/stm-002-cli-missing-url-handling.md`](issues/stm-002-cli-missing-url-handling.md) |
 | **`stm-003`** | **Issue** | `fix` | Add HTTP timeouts and fallback for failed image downloads | [`issues/stm-003-image-download-http-timeouts.md`](issues/stm-003-image-download-http-timeouts.md) |
 | **`stm-004`** | **Plan** | `feat` | Respect custom output directories and support custom Substack domains | [`plans/stm-004-custom-directories-and-domains.md`](plans/stm-004-custom-directories-and-domains.md) |
 | **`stm-005`** | **Issue** | `perf` | Parallelize image downloads using ThreadPoolExecutor | [`issues/stm-005-parallelize-image-downloads.md`](issues/stm-005-parallelize-image-downloads.md) |
@@ -22,6 +22,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-014`** | **Issue** | `refactor` | Type `frontmatter_format` with `Literal['mdx', 'legacy']` | [`issues/stm-014-type-frontmatter-format-literal.md`](issues/stm-014-type-frontmatter-format-literal.md) |
 | **`stm-015`** | **Plan** | `feat` | Add `--force` rescraping option and image download retry with backoff | [`plans/stm-015-rescraping-and-image-retry.md`](plans/stm-015-rescraping-and-image-retry.md) |
 | **`stm-016`** | **Plan** | `feat` | Catalog & Metadata Synchronization (HTML `post_id` parsing, catalog deduplication) | [`plans/stm-016-catalog-and-metadata-sync.md`](plans/stm-016-catalog-and-metadata-sync.md) |
+| **`stm-017`** | **Plan** | `feat` | CLI Experience & Logging (Verbosity flags, unified logger, auto profile resolution) | [`plans/stm-017-cli-experience-and-logging.md`](plans/stm-017-cli-experience-and-logging.md) |
 
 ---
 

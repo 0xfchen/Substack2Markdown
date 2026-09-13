@@ -56,6 +56,8 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             ValueError: If credentials are missing when login is required.
         """
         self.email, self.password = get_credentials()
+        profile_dir = BrowserManager.get_user_data_dir(browser)
+        has_persistent_profile = use_persistent_profile and os.path.exists(profile_dir)
         has_storage = bool(
             storage_state
             or (
@@ -63,18 +65,24 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                 and os.path.getsize(BrowserManager.DEFAULT_STORAGE_STATE_PATH) > 0
             )
         )
-        if not (skip_login or has_storage or cdp_url) and not (
-            self.email and self.password
-        ):
-            raise ValueError(
-                "Premium scraping requires credentials. Set the SUBSTACK_EMAIL "
-                "and SUBSTACK_PASSWORD environment variables, or provide them in a "
-                ".env file in the project root:\n"
-                "    SUBSTACK_EMAIL=your-email@domain.com\n"
-                "    SUBSTACK_PASSWORD=your-password\n"
-                "If you've already logged in with a persistent profile, storage state, or CDP, "
-                "pass --persistent-profile --skip-login, --storage-state, or --cdp-url instead."
-            )
+        has_reusable_session = skip_login or has_persistent_profile or has_storage or bool(cdp_url)
+
+        if not (self.email and self.password):
+            if has_reusable_session:
+                skip_login = True
+                logger.info(
+                    "Substack credentials not provided; automatically reusing existing persistent profile or storage state with skip_login=True."
+                )
+            else:
+                raise ValueError(
+                    "Premium scraping requires credentials. Set the SUBSTACK_EMAIL "
+                    "and SUBSTACK_PASSWORD environment variables, or provide them in a "
+                    ".env file in the project root:\n"
+                    "    SUBSTACK_EMAIL=your-email@domain.com\n"
+                    "    SUBSTACK_PASSWORD=your-password\n"
+                    "If you've already logged in with a persistent profile, storage state, or CDP, "
+                    "pass --persistent-profile --skip-login, --storage-state, or --cdp-url instead."
+                )
 
         self.session: PlaywrightSession = BrowserManager.launch(
             browser=browser,
@@ -87,9 +95,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         )
 
         self.context = self.session.context
-        self.page = (
-            self.context.pages[0] if self.context.pages else self.context.new_page()
-        )
+        self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
         self.skip_login = skip_login
         self.use_persistent_profile = use_persistent_profile
         self.storage_state = storage_state or BrowserManager.DEFAULT_STORAGE_STATE_PATH
@@ -97,9 +103,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         if not skip_login and not cdp_url:
             self._login()
         else:
-            logger.info(
-                "Skipping login (using existing profile or active browser session)"
-            )
+            logger.info("Skipping login (using existing profile or active browser session)")
             self.page.goto(base_substack_url, wait_until="domcontentloaded")
             sleep(2)
 
@@ -119,9 +123,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             self.context.storage_state(path=self.storage_state)
             logger.info("Session state saved to %s", self.storage_state)
         except (OSError, PlaywrightError) as exc:
-            logger.warning(
-                "Could not save storage state to %s: %s", self.storage_state, exc
-            )
+            logger.warning("Could not save storage state to %s: %s", self.storage_state, exc)
 
     def _login(self) -> None:
         """Log into Substack via Playwright browser automation."""
@@ -131,9 +133,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
 
         # Click "Sign in with password" if available
         try:
-            pw_button = self.page.locator(
-                "//a[contains(@class, 'substack-login__login-option')]"
-            )
+            pw_button = self.page.locator("//a[contains(@class, 'substack-login__login-option')]")
             if pw_button.count() > 0:
                 pw_button.first.click()
                 sleep(1)
@@ -152,10 +152,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         for _ in range(30):
             sleep(1)
             # Check for error container
-            if (
-                self.page.locator("#error-container").count() > 0
-                and self.page.locator("#error-container").is_visible()
-            ):
+            if self.page.locator("#error-container").count() > 0 and self.page.locator("#error-container").is_visible():
                 raise RuntimeError(
                     "Login unsuccessful. Please check your email and password, or your account status.\n"
                     "If you're seeing a CAPTCHA, try:\n"
@@ -195,9 +192,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                         timeout=20000,
                     )
                 except PlaywrightTimeoutError:
-                    logger.warning(
-                        "Timeout waiting for post content to render: %s", url
-                    )
+                    logger.warning("Timeout waiting for post content to render: %s", url)
 
                 html_content = self.page.content()
                 soup = BeautifulSoup(html_content, "html.parser")
@@ -205,9 +200,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                 pre = soup.select_one("body > pre")
                 if pre and "too many requests" in pre.text.lower():
                     if attempt == max_attempts:
-                        raise RuntimeError(
-                            f"Max attempts reached for URL: {url}. Too many requests."
-                        )
+                        raise RuntimeError(f"Max attempts reached for URL: {url}. Too many requests.")
                     base = 2**attempt
                     delay = base + random.uniform(-0.2 * base, 0.2 * base)
                     logger.warning(

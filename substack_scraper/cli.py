@@ -56,9 +56,7 @@ Examples:
         type=str,
         help="The directory to save scraped markdown posts.",
     )
-    parser.add_argument(
-        "--html-directory", type=str, help="The directory to save scraped HTML posts."
-    )
+    parser.add_argument("--html-directory", type=str, help="The directory to save scraped HTML posts.")
     parser.add_argument(
         "-n",
         "--number",
@@ -143,6 +141,20 @@ Examples:
         help="Custom user agent string.",
     )
 
+    verbosity_group = parser.add_mutually_exclusive_group()
+    verbosity_group.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose debug logging (sets level to DEBUG).",
+    )
+    verbosity_group.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Silence informational output; only log warnings and errors (sets level to WARNING).",
+    )
+
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -152,12 +164,19 @@ Examples:
 
 def main() -> None:
     """Execute the command line interface to scrape posts and build catalogs."""
+    args = parse_args()
+
+    log_level = logging.INFO
+    if args.verbose:
+        log_level = logging.DEBUG
+    elif args.quiet:
+        log_level = logging.WARNING
+
     logging.basicConfig(
-        level=logging.INFO,
+        level=log_level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
-    args = parse_args()
 
     # Allow monkeypatched globals from the substack_scraper package/module
     ss = sys.modules.get("substack_scraper")
@@ -197,4 +216,3 @@ def main() -> None:
             overwrite=args.overwrite,
         )
     scraper.scrape_posts(args.number)
-

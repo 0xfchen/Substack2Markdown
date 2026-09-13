@@ -248,9 +248,7 @@ def process_markdown_images(
         workers = min(len(download_tasks), max(1, max_workers))
         with ThreadPoolExecutor(max_workers=workers) as executor:
             future_to_path = {
-                executor.submit(
-                    _call_download_image, resolved_url, save_path, pbar
-                ): save_path
+                executor.submit(_call_download_image, resolved_url, save_path, pbar): save_path
                 for resolved_url, save_path in download_tasks
             }
             for future in future_to_path:

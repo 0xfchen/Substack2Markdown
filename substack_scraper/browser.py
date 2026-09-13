@@ -45,9 +45,7 @@ class BrowserManager:
     """Manage browser launching, fallback selection, and session persistence via Playwright."""
 
     SUPPORTED_BROWSERS: list[str] = ["chrome", "edge"]
-    DEFAULT_STORAGE_STATE_PATH: str = os.path.join(
-        os.path.expanduser("~"), ".substack_scraper", "storage_state.json"
-    )
+    DEFAULT_STORAGE_STATE_PATH: str = os.path.join(os.path.expanduser("~"), ".substack_scraper", "storage_state.json")
 
     @staticmethod
     def get_user_data_dir(browser: str) -> str:
@@ -64,9 +62,7 @@ class BrowserManager:
         return os.path.join(base_dir, f"{browser}_profile")
 
     @classmethod
-    def resolve_channel(
-        cls, requested_browser: str, playwright: Playwright
-    ) -> str | None:
+    def resolve_channel(cls, requested_browser: str, playwright: Playwright) -> str | None:
         """Resolve a viable Playwright channel with automatic fallback between Chrome and Edge.
 
         Args:
@@ -81,9 +77,7 @@ class BrowserManager:
 
         for channel in (primary, secondary):
             try:
-                test_browser = playwright.chromium.launch(
-                    channel=channel, headless=True
-                )
+                test_browser = playwright.chromium.launch(channel=channel, headless=True)
                 test_browser.close()
                 return channel
             except PlaywrightError as exc:
@@ -184,9 +178,7 @@ class BrowserManager:
                 context_kwargs["user_agent"] = user_agent
 
             effective_storage = storage_state or (
-                cls.DEFAULT_STORAGE_STATE_PATH
-                if os.path.exists(cls.DEFAULT_STORAGE_STATE_PATH)
-                else ""
+                cls.DEFAULT_STORAGE_STATE_PATH if os.path.exists(cls.DEFAULT_STORAGE_STATE_PATH) else ""
             )
             if effective_storage and os.path.exists(effective_storage):
                 logger.info("Loading session from storage state: %s", effective_storage)

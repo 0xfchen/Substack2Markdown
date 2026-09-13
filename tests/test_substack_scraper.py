@@ -838,3 +838,73 @@ def test_scrape_posts_recovers_metadata_for_skipped_existing_files(tmp_path, mon
     assert saved_data[0]["post_id"] == 8888
     assert saved_data[0]["title"] == "Existing Preserved"
     assert saved_data[0]["slug"] == "test-post"
+
+
+def test_parse_args_verbose_and_quiet_mutually_exclusive(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["substack_scraper", "--url", "https://example.substack.com", "-v", "-q"],
+    )
+    with pytest.raises(SystemExit):
+        ss.parse_args()
+
+
+def test_parse_args_verbose_flag(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["substack_scraper", "--url", "https://example.substack.com", "--verbose"],
+    )
+    args = ss.parse_args()
+    assert args.verbose is True
+    assert args.quiet is False
+
+
+def test_parse_args_quiet_flag(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["substack_scraper", "--url", "https://example.substack.com", "-q"],
+    )
+    args = ss.parse_args()
+    assert args.quiet is True
+    assert args.verbose is False
+
+
+def test_premium_auto_skip_login_when_credentials_missing_but_profile_exists(tmp_path, monkeypatch):
+    profile_dir = tmp_path / "chrome_profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr("substack_scraper.scrapers.premium.get_credentials", lambda: (None, None))
+    monkeypatch.setattr(ss.BrowserManager, "get_user_data_dir", lambda browser: str(profile_dir))
+
+    fake_session = MagicMock()
+    fake_session.context.pages = [MagicMock()]
+    monkeypatch.setattr(ss.BrowserManager, "launch", lambda **kwargs: fake_session)
+
+    scraper = ss.PremiumSubstackScraper(
+        base_substack_url="https://example.substack.com/p/premium-post",
+        md_save_dir=str(tmp_path / "md"),
+        html_save_dir=str(tmp_path / "html"),
+        use_persistent_profile=True,
+    )
+    assert scraper.skip_login is True
+
+
+def test_base_and_free_scrapers_use_logging(tmp_path, caplog):
+    import logging
+
+    md_dir = tmp_path / "md"
+    html_dir = tmp_path / "html"
+
+    with caplog.at_level(logging.INFO):
+        scraper = FakeScraper(
+            "https://example.substack.com/p/test-post",
+            str(md_dir),
+            str(html_dir),
+        )
+
+    assert scraper.writer_name == "example"
+    assert any("Created md directory" in record.message for record in caplog.records)
+    assert any("Created html directory" in record.message for record in caplog.records)
