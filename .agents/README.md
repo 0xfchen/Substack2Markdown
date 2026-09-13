@@ -21,6 +21,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-013`** | **Plan** | `feat` | Set default frontmatter format to MDX | [`plans/stm-013-default-mdx-frontmatter.md`](plans/stm-013-default-mdx-frontmatter.md) |
 | **`stm-014`** | **Issue** | `refactor` | Type `frontmatter_format` with `Literal['mdx', 'legacy']` | [`issues/stm-014-type-frontmatter-format-literal.md`](issues/stm-014-type-frontmatter-format-literal.md) |
 | **`stm-015`** | **Plan** | `feat` | Add `--force` rescraping option and image download retry with backoff | [`plans/stm-015-rescraping-and-image-retry.md`](plans/stm-015-rescraping-and-image-retry.md) |
+| **`stm-016`** | **Plan** | `feat` | Catalog & Metadata Synchronization (HTML `post_id` parsing, catalog deduplication) | [`plans/stm-016-catalog-and-metadata-sync.md`](plans/stm-016-catalog-and-metadata-sync.md) |
 
 ---
 
