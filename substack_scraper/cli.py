@@ -2,10 +2,7 @@ import argparse
 import logging
 import sys
 
-from .config import (
-    BASE_HTML_DIR,
-    BASE_MD_DIR,
-)
+from .config import BASE_CONTENT_DIR
 from .scrapers.free import SubstackScraper
 from .scrapers.premium import PremiumSubstackScraper
 
@@ -19,7 +16,7 @@ def parse_args() -> argparse.Namespace:
         argparse.Namespace: Parsed command-line options and flags.
     """
     parser = argparse.ArgumentParser(
-        description="Scrape a Substack site and convert posts to markdown and HTML.",
+        description="Scrape a Substack site and convert posts to Markdown with author-centric storage.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -28,6 +25,9 @@ Examples:
 
   # Scrape single post
   substack_scraper --url https://example.substack.com/p/some-post-title
+
+  # Scrape with downloaded images
+  substack_scraper --url https://example.substack.com --images
 
   # Premium content using Chrome or Edge
   substack_scraper --url https://example.substack.com --premium --browser chrome
@@ -54,9 +54,8 @@ Examples:
         "-d",
         "--directory",
         type=str,
-        help="The directory to save scraped markdown posts.",
+        help=f"The base directory to save scraped content (default: {BASE_CONTENT_DIR}).",
     )
-    parser.add_argument("--html-directory", type=str, help="The directory to save scraped HTML posts.")
     parser.add_argument(
         "-n",
         "--number",
@@ -70,20 +69,17 @@ Examples:
         help="Download images and update markdown to use local paths.",
     )
     parser.add_argument(
-        "--frontmatter",
-        type=str,
-        default="mdx",
-        choices=["mdx", "legacy"],
-        help="Header format for scraped markdown. 'mdx' (default) emits YAML frontmatter "
-        "(title, subtitle, date, author, image, source_url) suitable for MDX/static site generators. "
-        "'legacy' uses the original '# title / **date** / **Likes:** N' header block.",
+        "--no-clean",
+        dest="clean_content",
+        action="store_false",
+        help="Disable HTML cleaning (keep subscription buttons, paywalls, and promo widgets).",
     )
     parser.add_argument(
         "--force",
         "--overwrite",
         dest="overwrite",
         action="store_true",
-        help="Force rescraping and overwrite existing markdown and HTML files.",
+        help="Force rescraping and overwrite existing markdown files.",
     )
 
     # Premium scraping options
@@ -180,20 +176,15 @@ def main() -> None:
 
     # Allow monkeypatched globals from the substack_scraper package/module
     ss = sys.modules.get("substack_scraper")
-    base_md_dir = getattr(ss, "BASE_MD_DIR", BASE_MD_DIR) if ss else BASE_MD_DIR
-    base_html_dir = getattr(ss, "BASE_HTML_DIR", BASE_HTML_DIR) if ss else BASE_HTML_DIR
+    base_content_dir = getattr(ss, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if ss else BASE_CONTENT_DIR
 
     if args.directory is None:
-        args.directory = base_md_dir
-
-    if args.html_directory is None:
-        args.html_directory = base_html_dir
+        args.directory = base_content_dir
 
     if args.premium:
         scraper = PremiumSubstackScraper(
             base_substack_url=args.url,
-            md_save_dir=args.directory,
-            html_save_dir=args.html_directory,
+            content_save_dir=args.directory,
             download_images=args.images,
             browser=args.browser,
             headless=args.headless,
@@ -203,16 +194,15 @@ def main() -> None:
             skip_login=args.skip_login,
             storage_state=args.storage_state,
             cdp_url=args.cdp_url,
-            frontmatter_format=args.frontmatter,
             overwrite=args.overwrite,
+            clean_content=args.clean_content,
         )
     else:
         scraper = SubstackScraper(
             args.url,
-            md_save_dir=args.directory,
-            html_save_dir=args.html_directory,
+            content_save_dir=args.directory,
             download_images=args.images,
-            frontmatter_format=args.frontmatter,
             overwrite=args.overwrite,
+            clean_content=args.clean_content,
         )
     scraper.scrape_posts(args.number)

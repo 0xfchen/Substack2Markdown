@@ -13,8 +13,7 @@ from urllib.parse import unquote
 import requests
 
 from .config import (
-    BASE_IMAGE_DIR,
-    BASE_MD_DIR,
+    BASE_CONTENT_DIR,
     DEFAULT_REQUEST_TIMEOUT,
     MAX_IMAGE_WORKERS,
 )
@@ -213,6 +212,7 @@ def process_markdown_images(
     post_slug: str,
     pbar=None,
     max_workers: int = MAX_IMAGE_WORKERS,
+    base_content_dir: str | Path | None = None,
 ) -> str:
     """Download Substack CDN images concurrently and update markdown references.
 
@@ -222,11 +222,18 @@ def process_markdown_images(
         post_slug: Post slug subdirectory name.
         pbar: Optional tqdm progress bar to increment per image.
         max_workers: Maximum number of worker threads for parallel downloading.
+        base_content_dir: Root content directory (defaults to BASE_CONTENT_DIR).
 
     Returns:
         str: Updated markdown content with CDN links replaced by relative paths.
     """
-    image_dir = Path(BASE_IMAGE_DIR) / author / post_slug
+    ss = sys.modules.get("substack_scraper")
+    current_content_dir = getattr(ss, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if ss else BASE_CONTENT_DIR
+    target_content_dir = Path(base_content_dir or current_content_dir)
+
+    author_dir = target_content_dir / author
+    image_dir = author_dir / "images" / post_slug
+    md_dir = author_dir / "posts"
     md_content = clean_linked_images(md_content)
     pattern = r"\(https://substackcdn\.com/image/fetch/[^\s\)]+\)"
 
@@ -267,7 +274,7 @@ def process_markdown_images(
         if not save_path.exists() and save_path not in download_results:
             return match.group(0)
 
-        rel_path = os.path.relpath(save_path, Path(BASE_MD_DIR) / author)
+        rel_path = os.path.relpath(save_path, md_dir)
         rel_path = rel_path.replace("\\", "/")
         return f"({rel_path})"
 

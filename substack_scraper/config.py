@@ -2,11 +2,7 @@ import os
 
 USE_PREMIUM: bool = False
 BASE_SUBSTACK_URL: str = "https://substack.com/"
-BASE_MD_DIR: str = "data/md_files"
-BASE_HTML_DIR: str = "data/html_pages"
-BASE_IMAGE_DIR: str = "data/images"
-HTML_TEMPLATE: str = "author_template.html"
-JSON_DATA_DIR: str = "data"
+BASE_CONTENT_DIR: str = "content"
 NUM_POSTS_TO_SCRAPE: int = 0
 DEFAULT_REQUEST_TIMEOUT: int = 30
 MAX_IMAGE_WORKERS: int = 6

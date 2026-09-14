@@ -5,7 +5,7 @@ from time import sleep
 import requests
 from bs4 import BeautifulSoup
 
-from ..config import DEFAULT_REQUEST_TIMEOUT
+from ..config import BASE_CONTENT_DIR, DEFAULT_REQUEST_TIMEOUT
 from .base import BaseSubstackScraper, FrontmatterFormat
 
 logger = logging.getLogger(__name__)
@@ -17,29 +17,32 @@ class SubstackScraper(BaseSubstackScraper):
     def __init__(
         self,
         base_substack_url: str,
-        md_save_dir: str,
-        html_save_dir: str,
+        content_save_dir: str = BASE_CONTENT_DIR,
+        html_save_dir: str | None = None,
         download_images: bool = False,
         frontmatter_format: FrontmatterFormat = "mdx",
         overwrite: bool = False,
+        clean_content: bool = True,
     ) -> None:
         """Initialize free Substack scraper.
 
         Args:
             base_substack_url: Target Substack publication or post URL.
-            md_save_dir: Root directory for markdown files.
-            html_save_dir: Root directory for HTML files.
+            content_save_dir: Root directory for author-centric content (defaults to 'content').
+            html_save_dir: Deprecated / unused HTML export directory.
             download_images: Whether to download images locally.
-            frontmatter_format: Frontmatter format ('legacy' or 'mdx').
+            frontmatter_format: Deprecated frontmatter format selector.
             overwrite: Whether to overwrite existing files on disk when scraping.
+            clean_content: Whether to strip promotional widgets and subscription CTAs.
         """
         super().__init__(
-            base_substack_url,
-            md_save_dir,
-            html_save_dir,
-            download_images,
-            frontmatter_format,
-            overwrite,
+            base_substack_url=base_substack_url,
+            content_save_dir=content_save_dir,
+            html_save_dir=html_save_dir,
+            download_images=download_images,
+            frontmatter_format=frontmatter_format,
+            overwrite=overwrite,
+            clean_content=clean_content,
         )
 
     def get_url_soup(self, url: str, max_attempts: int = 5) -> BeautifulSoup | None:
