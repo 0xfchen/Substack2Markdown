@@ -1,6 +1,6 @@
 """Substack2Markdown package.
 
-Provides tools to scrape and archive Substack newsletters into Markdown and HTML formats.
+Provides tools to scrape and archive Substack newsletters into structured Markdown format.
 """
 
 # Re-export requests so monkeypatches like `monkeypatch.setattr(ss.requests, ...)` work
@@ -9,11 +9,8 @@ import requests  # noqa: F401
 # Import browser manager
 from .browser import BrowserManager
 
-# Import catalog & HTML generator
-from .catalog import (
-    generate_html_file,
-    safe_json_embed,
-)
+# Import catalog & JSON embed
+from .catalog import safe_json_embed
 
 # Import CLI
 from .cli import (
@@ -24,13 +21,9 @@ from .cli import (
 
 # Import config constants & credentials
 from .config import (
-    BASE_HTML_DIR,
-    BASE_IMAGE_DIR,
-    BASE_MD_DIR,
+    BASE_CONTENT_DIR,
     BASE_SUBSTACK_URL,
     DEFAULT_REQUEST_TIMEOUT,
-    HTML_TEMPLATE,
-    JSON_DATA_DIR,
     MAX_IMAGE_WORKERS,
     NUM_POSTS_TO_SCRAPE,
     USE_PREMIUM,
@@ -50,7 +43,6 @@ from .images import (
 # Import scraper classes
 from .scrapers import (
     BaseSubstackScraper,
-    FrontmatterFormat,
     PremiumSubstackScraper,
     SubstackScraper,
 )
@@ -65,13 +57,9 @@ from .url_utils import (
 
 __all__ = [
     # Config
-    "BASE_HTML_DIR",
-    "BASE_IMAGE_DIR",
-    "BASE_MD_DIR",
+    "BASE_CONTENT_DIR",
     "BASE_SUBSTACK_URL",
     "DEFAULT_REQUEST_TIMEOUT",
-    "HTML_TEMPLATE",
-    "JSON_DATA_DIR",
     "MAX_IMAGE_WORKERS",
     "NUM_POSTS_TO_SCRAPE",
     "USE_PREMIUM",
@@ -82,7 +70,6 @@ __all__ = [
     "get_publication_url",
     "is_post_url",
     # Catalog
-    "generate_html_file",
     "safe_json_embed",
     # Images
     "clean_linked_images",
@@ -95,7 +82,6 @@ __all__ = [
     "BrowserManager",
     # Scrapers
     "BaseSubstackScraper",
-    "FrontmatterFormat",
     "SubstackScraper",
     "PremiumSubstackScraper",
     # CLI

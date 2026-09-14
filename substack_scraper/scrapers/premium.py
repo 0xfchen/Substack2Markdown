@@ -8,8 +8,8 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from ..browser import BrowserManager, PlaywrightSession
-from ..config import get_credentials
-from .base import BaseSubstackScraper, FrontmatterFormat
+from ..config import BASE_CONTENT_DIR, get_credentials
+from .base import BaseSubstackScraper
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ class PremiumSubstackScraper(BaseSubstackScraper):
     def __init__(
         self,
         base_substack_url: str,
-        md_save_dir: str,
-        html_save_dir: str,
+        content_save_dir: str = BASE_CONTENT_DIR,
+        html_save_dir: str | None = None,
         download_images: bool = False,
         browser: str = "chrome",
         headless: bool = False,
@@ -31,15 +31,15 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         skip_login: bool = False,
         storage_state: str = "",
         cdp_url: str = "",
-        frontmatter_format: FrontmatterFormat = "mdx",
         overwrite: bool = False,
+        clean_content: bool = True,
     ) -> None:
         """Initialize the premium scraper with Playwright browser automation.
 
         Args:
             base_substack_url: Target Substack publication or post URL.
-            md_save_dir: Destination folder for markdown exports.
-            html_save_dir: Destination folder for HTML exports.
+            content_save_dir: Root directory for author-centric exports (defaults to 'content').
+            html_save_dir: Deprecated / unused HTML export directory.
             download_images: Whether to download images locally.
             browser: Automation browser ('chrome' or 'edge').
             headless: Whether to execute browser headlessly.
@@ -49,8 +49,8 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             skip_login: Whether to bypass login when reusing authenticated profile or session.
             storage_state: Optional path to storage state JSON file for saved cookies.
             cdp_url: Optional remote debugging URL (CDP) to attach to an active browser.
-            frontmatter_format: Header format ('legacy' or 'mdx').
-            overwrite: Whether to re-scrape and overwrite existing markdown and HTML files.
+            overwrite: Whether to re-scrape and overwrite existing markdown files.
+            clean_content: Whether to strip promotional widgets and subscription CTAs.
 
         Raises:
             ValueError: If credentials are missing when login is required.
@@ -108,12 +108,12 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             sleep(2)
 
         super().__init__(
-            base_substack_url,
-            md_save_dir,
-            html_save_dir,
-            download_images,
-            frontmatter_format,
-            overwrite,
+            base_substack_url=base_substack_url,
+            content_save_dir=content_save_dir,
+            html_save_dir=html_save_dir,
+            download_images=download_images,
+            overwrite=overwrite,
+            clean_content=clean_content,
         )
 
     def _save_session_state(self) -> None:

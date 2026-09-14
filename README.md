@@ -1,21 +1,22 @@
 # Substack2Markdown
 
-Substack2Markdown is a Python tool for downloading free and premium Substack posts and saving them as both Markdown and HTML files, complete with a local HTML interface to browse and sort through posts by date or like count. It can save paid subscriber-only content as long as you are subscribed to that Substack publication.
+Substack2Markdown is a Python tool for downloading free and premium Substack posts and saving them into clean, structured Markdown files organized by author (`content/<author>/posts/<slug>.md`). It extracts rich post metadata, sanitizes promotional clutter, and powers a modern local static reader.
 
-![Substack2Markdown Interface](./assets/images/screenshot.png)
-
-Once you run the scraper, it saves markdown files into `data/md_files/<author>/` and generates an interactive HTML viewer in `data/html_pages/<author>.html`. When image downloading is enabled (`--images`), post images are saved locally into `data/images/<author>/<post_slug>/`.
+Once you run the scraper, it saves markdown files into `content/<author>/posts/` and an author catalog into `content/<author>/metadata.json`. When image downloading is enabled (`--images`), post images are saved locally into `content/<author>/images/<post_slug>/` and rewritten with relative links.
 
 ## Features
 
-- Converts Substack posts into Markdown files with original formatting and embeds.
-- Generates an interactive local HTML viewer with sorting by date or like count.
+- Converts Substack posts into clean Markdown files with rich YAML frontmatter.
+- Cleans distracting promotional widgets (subscription banners, paywall prompts, footers) with `--no-clean` opt-out.
+- Preserves code block language syntax identifiers (` ```python `) for syntax highlighting.
+- Extracts rich post metadata (`post_id`, `tags`, `description`, `wordcount`, `audience`, `canonical_url`) with zero extra network requests.
+- Author-centric content organization (`content/<author>/posts/`, `images/`, `metadata.json`).
 - Supports both free and premium publications (with active subscription).
 - Supports Chrome and Microsoft Edge browsers with automated driver discovery and caching.
 - Supports persistent browser profiles to remember login sessions and solve CAPTCHAs interactively.
 - Supports single-post scraping via post URL (e.g. `/p/post-slug`).
 - Downloads post images locally with `--images` and rewrites markdown image links.
-- Supports optional MDX frontmatter output (`--frontmatter mdx`).
+- Scaffolds a local static reader in `reader/` powered by Astro.
 
 ## Installation
 
@@ -75,14 +76,14 @@ Download images locally and rewrite markdown image links:
 uv run substack_scraper --url https://example.substack.com --images
 ```
 
-Export with legacy header format (default is `mdx`):
+Keep raw promotional widgets (disable cleaning):
 ```bash
-uv run substack_scraper --url https://example.substack.com --frontmatter legacy
+uv run substack_scraper --url https://example.substack.com --no-clean
 ```
 
-Specify custom output directory:
+Specify custom output base directory:
 ```bash
-uv run substack_scraper --url https://example.substack.com --directory /path/to/save/posts
+uv run substack_scraper --url https://example.substack.com --directory /path/to/save/content
 ```
 
 ### Premium Scraping (Subscriber-Only Content)
@@ -125,6 +126,14 @@ chrome.exe --remote-debugging-port=9222
 uv run substack_scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
 ```
 
-## Viewing Markdown Files in Browser
+## Local Reader (Astro)
 
-To read the Markdown files in your browser, you can install the [Markdown Viewer](https://chromewebstore.google.com/detail/markdown-viewer/ckkdlimhmcjmikdlpkmbgfkaikojcbjk) browser extension, or simply open the generated HTML archive (`data/html_pages/<author>.html`) in any web browser and switch between HTML and Markdown views.
+A modern static reader is provided in the `reader/` directory.
+
+To run the local reader:
+```bash
+cd reader
+pnpm install
+pnpm dev
+```
+Open [http://localhost:4321](http://localhost:4321) in your browser to read through all scraped newsletters with full search, tag filtering, and syntax highlighting.

@@ -12,7 +12,13 @@ setup.py
 .idea/
 .vscode/
 
-# Ignore all files in data/ except README.md
-data/*
-!data/README.md
+# Ignore all files in content/ except README.md
+content/*
+!content/README.md
+
+# Ignore Astro reader dependencies and build output
+reader/node_modules/
+reader/.astro/
+reader/dist/
+reader/.github/
 

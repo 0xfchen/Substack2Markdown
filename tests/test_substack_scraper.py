@@ -213,52 +213,33 @@ def test_download_image_error_handling(mock_get, tmp_path):
 
 # 8. test_scraper_initialization
 def test_scraper_initialization(tmp_path):
-    """Verify writer_name and directories are created."""
-    md_dir = str(tmp_path / "md")
-    html_dir = str(tmp_path / "html")
+    """Verify writer_name and author directory structure are created."""
+    content_dir = str(tmp_path / "content")
 
     scraper = FakeScraper(
         "https://example.substack.com/p/test-post",
-        md_dir,
-        html_dir,
+        content_save_dir=content_dir,
     )
 
     assert scraper.writer_name == "example"
-    assert os.path.isdir(os.path.join(md_dir, "example"))
-    assert os.path.isdir(os.path.join(html_dir, "example"))
+    assert os.path.isdir(os.path.join(content_dir, "example", "posts"))
 
 
 # 9. test_mdx_frontmatter_includes_source_url
 def test_mdx_frontmatter_includes_source_url():
-    """Verify the post URL is emitted as source_url in mdx frontmatter."""
+    """Verify the post URL is emitted as canonical_url in YAML frontmatter."""
     result = ss.BaseSubstackScraper.combine_metadata_and_content(
-        "Title",
-        "Subtitle",
-        "2024-01-01",
-        "Author",
-        "",
-        "5",
-        "Body",
-        frontmatter_format="mdx",
-        source_url="https://example.substack.com/p/test-post",
+        title="Title",
+        subtitle="Subtitle",
+        date="2024-01-01",
+        author="Author",
+        cover_image="",
+        content="Body",
+        canonical_url="https://example.substack.com/p/test-post",
     )
 
-    assert 'source_url: "https://example.substack.com/p/test-post"' in result
-    assert result.index('author: "Author"') < result.index("source_url:")
-
-    # Legacy format is unchanged and never includes source_url
-    legacy = ss.BaseSubstackScraper.combine_metadata_and_content(
-        "Title",
-        "Subtitle",
-        "2024-01-01",
-        "Author",
-        "",
-        "5",
-        "Body",
-        frontmatter_format="legacy",
-        source_url="https://example.substack.com/p/test-post",
-    )
-    assert "source_url" not in legacy
+    assert 'canonical_url: "https://example.substack.com/p/test-post"' in result
+    assert result.index('author: "Author"') < result.index("canonical_url:")
 
 
 # 10. get_credentials
@@ -321,40 +302,6 @@ def test_safe_json_embed_escapes_html_tags():
     assert ">" not in embedded
     assert "\\u003c/script\\u003e" in embedded
     assert "\\u0026" in embedded
-
-
-def test_generate_html_file_escapes_author_and_embeds_safely(tmp_path, monkeypatch):
-    data_dir = tmp_path / "data"
-    html_dir = tmp_path / "html"
-    data_dir.mkdir()
-    html_dir.mkdir()
-
-    author = "Hacker & Friends"
-    fake_essays = [
-        {
-            "title": "Post </script><script>alert(1)</script>",
-            "subtitle": "sub",
-            "like_count": 5,
-            "date": "2026-01-01",
-            "file_link": "f.md",
-            "html_link": "f.html",
-        }
-    ]
-
-    import json
-
-    with open(data_dir / f"{author}.json", "w", encoding="utf-8") as f:
-        json.dump(fake_essays, f)
-
-    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(data_dir))
-    monkeypatch.setattr(ss, "BASE_HTML_DIR", str(html_dir))
-
-    ss.generate_html_file(author)
-
-    output_html = (html_dir / f"{author}.html").read_text(encoding="utf-8")
-    assert "</script><script>" not in output_html
-    assert "\\u003c/script\\u003e" in output_html
-    assert "Hacker &amp; Friends" in output_html
 
 
 # 13. CLI & Defaults
@@ -421,36 +368,6 @@ def test_download_image_uses_timeout(monkeypatch, tmp_path):
 )
 def test_extract_main_part_supports_custom_domains(url, expected):
     assert ss.extract_main_part(url) == expected
-
-
-def test_generate_html_file_honors_custom_directories(tmp_path):
-    custom_data = tmp_path / "custom_data"
-    custom_html = tmp_path / "custom_html"
-    custom_data.mkdir()
-    custom_html.mkdir()
-
-    import json
-
-    with open(custom_data / "custom_author.json", "w", encoding="utf-8") as f:
-        json.dump(
-            [
-                {
-                    "title": "Custom Post",
-                    "subtitle": "",
-                    "date": "2026-01-01",
-                    "like_count": 0,
-                    "file_link": "a.md",
-                    "html_link": "a.html",
-                }
-            ],
-            f,
-        )
-
-    ss.generate_html_file("custom_author", html_dir=str(custom_html), data_dir=str(custom_data))
-
-    output_file = custom_html / "custom_author.html"
-    assert output_file.exists()
-    assert "Custom Post" in output_file.read_text(encoding="utf-8")
 
 
 # 16. Concurrency & Performance
@@ -533,8 +450,7 @@ def test_premium_scraper_requires_credentials_when_not_skipping():
         with pytest.raises(ValueError, match="Premium scraping requires credentials"):
             ss.PremiumSubstackScraper(
                 base_substack_url="https://example.substack.com",
-                md_save_dir="data/md_files",
-                html_save_dir="data/html_pages",
+                content_save_dir="content",
                 skip_login=False,
             )
 
@@ -549,8 +465,7 @@ def test_premium_scraper_init_with_skip_login():
     with patch("substack_scraper.scrapers.premium.BrowserManager.launch", return_value=mock_session):
         scraper = ss.PremiumSubstackScraper(
             base_substack_url="https://example.substack.com",
-            md_save_dir="data/md_files",
-            html_save_dir="data/html_pages",
+            content_save_dir="content",
             skip_login=True,
         )
         assert scraper.skip_login is True
@@ -655,10 +570,8 @@ def test_scrape_posts_rescrapes_existing_when_overwrite_is_true(tmp_path):
     )
     scraper.extract_post_data = Mock(return_value=fake_tuple)
     scraper.save_to_file = Mock()
-    scraper.save_to_html_file = Mock()
 
-    with patch("substack_scraper.scrapers.base.generate_html_file"):
-        scraper.scrape_posts()
+    scraper.scrape_posts()
 
     scraper.extract_post_data.assert_called_once_with(mock_soup, "https://example.substack.com/p/test-post")
     scraper.save_to_file.assert_called_once()
@@ -735,31 +648,56 @@ def test_extract_metadata_from_md_mdx_format(tmp_path):
     assert metadata["author"] == "Gergely"
 
 
-def test_extract_metadata_from_md_legacy_format(tmp_path):
-    md_file = tmp_path / "legacy.md"
-    md_file.write_text(
-        "# Old Article\n\n## A great subtitle\n\n**Sep 09, 2026**\n\n**Likes:** 42\n\nBody content",
-        encoding="utf-8",
+def test_clean_post_html_strips_widgets_and_footers():
+    html = (
+        '<div class="available-content">'
+        "<p>Real content</p>"
+        '<div class="subscription-widget-wrap"><input placeholder="email"/></div>'
+        '<div class="post-footer"><button>Share</button></div>'
+        "</div>"
     )
-    metadata = ss.BaseSubstackScraper._extract_metadata_from_md(str(md_file))
-    assert metadata is not None
-    assert metadata["title"] == "Old Article"
-    assert metadata["subtitle"] == "A great subtitle"
-    assert metadata["like_count"] == "42"
-    assert metadata["date"] == "Sep 09, 2026"
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    ss.BaseSubstackScraper._clean_post_html(soup)
+    cleaned_str = str(soup)
+    assert "Real content" in cleaned_str
+    assert "subscription-widget-wrap" not in cleaned_str
+    assert "post-footer" not in cleaned_str
 
 
-def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path, monkeypatch):
-    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(tmp_path))
-    scraper = FakeScraper("https://example.substack.com", str(tmp_path / "md"), str(tmp_path / "html"))
+def test_substack_html2text_code_block_language_fences():
+    html = '<pre><code class="language-python">def hello():\n    return "world"</code></pre>'
+    md = ss.BaseSubstackScraper.html_to_md(html)
+    assert "```python" in md
+    assert 'def hello():\n    return "world"' in md
+    assert md.strip().endswith("```")
+
+
+def test_extract_preloaded_post_data():
+    html = (
+        "<html><head><script>"
+        'window._preloads = JSON.parse("{\\"post\\":{\\"id\\":1234,\\"description\\":\\"A summary\\",\\"wordcount\\":500,\\"audience\\":\\"only_paid\\",\\"canonical_url\\":\\"https://example.com/p/test\\",\\"postTags\\":[{\\"name\\":\\"tech\\"},{\\"name\\":\\"ai\\"}]}}");'
+        "</script></head></html>"
+    )
+    data = ss.BaseSubstackScraper._extract_preloaded_post_data(html)
+    assert data["post_id"] == 1234
+    assert data["description"] == "A summary"
+    assert data["wordcount"] == 500
+    assert data["audience"] == "only_paid"
+    assert data["canonical_url"] == "https://example.com/p/test"
+    assert data["tags"] == ["tech", "ai"]
+
+
+def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path):
+    scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
 
     initial_entries = [
         {
             "post_id": 12345,
             "title": "Initial Title",
             "slug": "initial-slug",
-            "like_count": "10",
-            "file_link": "initial.md",
+            "file_link": "posts/initial.md",
         }
     ]
     scraper.save_essays_data_to_json(initial_entries)
@@ -769,15 +707,14 @@ def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path, mo
             "post_id": 12345,
             "title": "Updated Title With New Headline",
             "slug": "new-renamed-slug",
-            "like_count": "55",
-            "file_link": "new-renamed-slug.md",
+            "file_link": "posts/new-renamed-slug.md",
         }
     ]
     scraper.save_essays_data_to_json(updated_entries)
 
     import json
 
-    json_path = tmp_path / "example.json"
+    json_path = tmp_path / "example" / "metadata.json"
     with open(json_path, encoding="utf-8") as file:
         saved_data = json.load(file)
 
@@ -785,20 +722,18 @@ def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path, mo
     assert saved_data[0]["post_id"] == 12345
     assert saved_data[0]["title"] == "Updated Title With New Headline"
     assert saved_data[0]["slug"] == "new-renamed-slug"
-    assert saved_data[0]["like_count"] == "55"
-    assert saved_data[0]["file_link"] == "new-renamed-slug.md"
+    assert saved_data[0]["file_link"] == "posts/new-renamed-slug.md"
 
 
-def test_save_essays_data_to_json_appends_genuinely_new_posts(tmp_path, monkeypatch):
-    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(tmp_path))
-    scraper = FakeScraper("https://example.substack.com", str(tmp_path / "md"), str(tmp_path / "html"))
+def test_save_essays_data_to_json_appends_genuinely_new_posts(tmp_path):
+    scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
 
     scraper.save_essays_data_to_json([{"post_id": 101, "title": "First"}])
     scraper.save_essays_data_to_json([{"post_id": 102, "title": "Second"}])
 
     import json
 
-    with open(tmp_path / "example.json", encoding="utf-8") as file:
+    with open(tmp_path / "example" / "metadata.json", encoding="utf-8") as file:
         saved_data = json.load(file)
 
     assert len(saved_data) == 2
@@ -806,15 +741,11 @@ def test_save_essays_data_to_json_appends_genuinely_new_posts(tmp_path, monkeypa
     assert saved_data[1]["post_id"] == 102
 
 
-def test_scrape_posts_recovers_metadata_for_skipped_existing_files(tmp_path, monkeypatch):
-    md_dir = tmp_path / "md"
-    html_dir = tmp_path / "html"
-    json_dir = tmp_path / "json"
-    monkeypatch.setattr(ss, "JSON_DATA_DIR", str(json_dir))
-
-    author_md_dir = md_dir / "example"
-    author_md_dir.mkdir(parents=True, exist_ok=True)
-    existing_file = author_md_dir / "test-post.md"
+def test_scrape_posts_recovers_metadata_for_skipped_existing_files(tmp_path):
+    content_dir = tmp_path / "content"
+    author_posts_dir = content_dir / "example" / "posts"
+    author_posts_dir.mkdir(parents=True, exist_ok=True)
+    existing_file = author_posts_dir / "test-post.md"
     existing_file.write_text(
         '---\ntitle: "Existing Preserved"\npost_id: 8888\ndate: "2026-09-01"\nauthor: "Author"\n---\n\nContent',
         encoding="utf-8",
@@ -822,16 +753,15 @@ def test_scrape_posts_recovers_metadata_for_skipped_existing_files(tmp_path, mon
 
     scraper = FakeScraper(
         "https://example.substack.com/p/test-post",
-        str(md_dir),
-        str(html_dir),
+        content_save_dir=str(content_dir),
         overwrite=False,
     )
-    with patch("substack_scraper.scrapers.base.generate_html_file"):
-        scraper.scrape_posts()
+    scraper.scrape_posts()
 
     import json
 
-    with open(json_dir / "example.json", encoding="utf-8") as file:
+    metadata_path = content_dir / "example" / "metadata.json"
+    with open(metadata_path, encoding="utf-8") as file:
         saved_data = json.load(file)
 
     assert len(saved_data) == 1
@@ -885,8 +815,7 @@ def test_premium_auto_skip_login_when_credentials_missing_but_profile_exists(tmp
 
     scraper = ss.PremiumSubstackScraper(
         base_substack_url="https://example.substack.com/p/premium-post",
-        md_save_dir=str(tmp_path / "md"),
-        html_save_dir=str(tmp_path / "html"),
+        content_save_dir=str(tmp_path / "content"),
         use_persistent_profile=True,
     )
     assert scraper.skip_login is True
@@ -895,16 +824,41 @@ def test_premium_auto_skip_login_when_credentials_missing_but_profile_exists(tmp
 def test_base_and_free_scrapers_use_logging(tmp_path, caplog):
     import logging
 
-    md_dir = tmp_path / "md"
-    html_dir = tmp_path / "html"
+    content_dir = tmp_path / "content"
 
     with caplog.at_level(logging.INFO):
         scraper = FakeScraper(
             "https://example.substack.com/p/test-post",
-            str(md_dir),
-            str(html_dir),
+            content_save_dir=str(content_dir),
         )
 
     assert scraper.writer_name == "example"
-    assert any("Created md directory" in record.message for record in caplog.records)
-    assert any("Created html directory" in record.message for record in caplog.records)
+    assert any("Created posts directory" in record.message for record in caplog.records)
+
+
+def test_clean_post_html_strips_comment_and_promo_buttons():
+    html = """
+    <div class="available-content">
+        <p>This is the real article body paragraph.</p>
+        <p class="button-wrapper">
+            <a class="button primary" href="https://example.substack.com/p/test-slug/comments">
+                <span>Leave a comment</span>
+            </a>
+        </p>
+        <p class="button-wrapper">
+            <a class="button primary" href="https://example.substack.com/subscribe">
+                <span>Subscribe now</span>
+            </a>
+        </p>
+        <p>Here is another legitimate paragraph mentioning to leave a comment if you like.</p>
+        <div class="post-footer">Footer promo content</div>
+    </div>
+    """
+    from substack_scraper.scrapers.base import BaseSubstackScraper
+
+    md = BaseSubstackScraper.html_to_md(html, clean_content=True)
+    assert "This is the real article body paragraph." in md
+    assert "Here is another legitimate paragraph mentioning to leave a comment if you like." in md
+    assert "[Leave a comment]" not in md
+    assert "[Subscribe now]" not in md
+    assert "Footer promo content" not in md
