@@ -127,9 +127,15 @@ class PremiumSubstackScraper(BaseSubstackScraper):
 
     def _login(self) -> None:
         """Log into Substack via Playwright browser automation."""
-        logger.info("Logging into Substack...")
+        logger.info("Checking Substack login status...")
         self.page.goto("https://substack.com/sign-in", wait_until="domcontentloaded")
         sleep(2)
+
+        # If session is already authenticated, Substack immediately redirects away from /sign-in
+        if "sign-in" not in self.page.url:
+            logger.info("Session already authenticated (redirected to %s). Skipping login form.", self.page.url)
+            self._save_session_state()
+            return
 
         # Click "Sign in with password" if available
         try:
@@ -142,7 +148,9 @@ class PremiumSubstackScraper(BaseSubstackScraper):
 
         # Fill credentials
         try:
-            self.page.fill("input[name='email']", self.email)
+            email_locator = self.page.locator("input[name='email']")
+            email_locator.wait_for(state="visible", timeout=5000)
+            email_locator.fill(self.email)
             self.page.fill("input[name='password']", self.password)
             self.page.click("button[type='submit']")
         except PlaywrightError as exc:
@@ -193,6 +201,14 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                     )
                 except PlaywrightTimeoutError:
                     logger.warning("Timeout waiting for post content to render: %s", url)
+
+                # Substack SSR initially renders h2.paywall-title on paid posts before
+                # client-side hydration evaluates session auth. Wait for hydration if present.
+                if self.page.locator("h2.paywall-title").count() > 0:
+                    try:
+                        self.page.wait_for_selector("h2.paywall-title", state="detached", timeout=5000)
+                    except PlaywrightTimeoutError:
+                        pass
 
                 html_content = self.page.content()
                 soup = BeautifulSoup(html_content, "html.parser")
