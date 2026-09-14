@@ -24,6 +24,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-016`** | **Plan** | `feat` | Catalog & Metadata Synchronization (HTML `post_id` parsing, catalog deduplication) | [`plans/stm-016-catalog-and-metadata-sync.md`](plans/stm-016-catalog-and-metadata-sync.md) |
 | **`stm-017`** | **Plan** | `feat` | CLI Experience & Logging (Verbosity flags, unified logger, auto profile resolution) | [`plans/stm-017-cli-experience-and-logging.md`](plans/stm-017-cli-experience-and-logging.md) |
 | **`stm-018`** | **Plan** | `feat` | Author-Centric Storage, Rich Metadata, Content Cleaning, and Astro Reader | [`plans/stm-018-content-storage-and-astro-reader.md`](plans/stm-018-content-storage-and-astro-reader.md) |
+| **`stm-019`** | **Issue** | `fix` | Premium Scraper Session Redirect Timeout and SSR Hydration Paywall Check | [`issues/stm-019-premium-auth-redirect-and-ssr-hydration.md`](issues/stm-019-premium-auth-redirect-and-ssr-hydration.md) |
 
 ---
 
