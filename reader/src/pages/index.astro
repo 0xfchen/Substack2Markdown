@@ -1,159 +1,626 @@
 ---
-import '../styles/pages/home.css';
-import { Image, getImage } from 'astro:assets';
+import '../styles/pages/posts-index.css';
 import { getCollection } from 'astro:content';
-import FeaturedPostGrid from '../components/FeaturedPostGrid.astro';
-import FormattedDate from '../components/FormattedDate.astro';
+import readingTimeLib from 'reading-time';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { DATE_LOCALE, SITE_TITLE, SITE_DESCRIPTION } from '../consts';
-import { getUiText } from '../ui';
+import ReadingStatusButton from '../components/ReadingStatusButton.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import { withBase } from '../utils/paths';
-const tr = getUiText();
+
+import fs from 'node:fs';
+import path from 'node:path';
 
 const posts = (await getCollection('posts'))
   .filter((p) => !p.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-const featured = posts.find((post) => post.data.homeFeatured) ?? posts[0];
-const heroCandidates = posts.filter((post) => post.id !== featured?.id);
-const pinnedHeroPosts = posts
-  .filter((post) => post.id !== featured?.id && post.data.homeHeroOrder)
-  .sort((a, b) => {
-    const orderDelta = (a.data.homeHeroOrder ?? 0) - (b.data.homeHeroOrder ?? 0);
-    if (orderDelta !== 0) return orderDelta;
-    return b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
-  });
-const fallbackHeroPosts = heroCandidates.filter((post) => !post.data.homeHeroOrder);
-const heroPosts = [...pinnedHeroPosts, ...fallbackHeroPosts].slice(0, 2);
-const heroDateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
-  year: 'numeric',
-  month: 'short',
-  day: '2-digit',
-});
-const getHeroDateParts = (date: Date) => {
-  const parts = heroDateFormatter.formatToParts(date);
+const authors = [...new Set(posts.map((p) => p.data.author || 'Unknown'))].sort();
+
+// Load initial reading state from content/reading_state.json if present
+let initialReadingState: Record<string, { status?: string; scrollRatio?: number; readCount?: number }> = {};
+try {
+  const statePath = path.resolve(process.cwd(), '..', 'content', 'reading_state.json');
+  if (fs.existsSync(statePath)) {
+    initialReadingState = JSON.parse(fs.readFileSync(statePath, 'utf-8') || '{}');
+  }
+} catch {
+  initialReadingState = {};
+}
+
+// Prepare article data rows
+const articleRows = posts.map((post) => {
+  const words = post.data.wordcount || (post.body ? post.body.trim().split(/\s+/).length : 0);
+  const estMinutes = Math.max(1, Math.round(readingTimeLib(post.body ?? '').minutes));
+  const stateEntry = initialReadingState[post.id];
+  let initialProgress = 0;
+  if (stateEntry?.status === 'completed') {
+    initialProgress = 100;
+  } else if (stateEntry?.status === 'in-progress') {
+    const ratio = stateEntry.scrollRatio;
+    initialProgress =
+      typeof ratio === 'number' && ratio > 0
+        ? Math.max(5, Math.min(95, Math.round(ratio * 20) * 5))
+        : 5;
+  }
+
+  const readCount =
+    typeof stateEntry?.readCount === 'number'
+      ? stateEntry.readCount
+      : stateEntry?.status === 'completed'
+      ? 1
+      : 0;
+
   return {
-    label: heroDateFormatter.format(date),
-    parts,
+    id: post.id,
+    title: post.data.title,
+    subtitle: post.data.subtitle || post.data.description || '',
+    author: post.data.author || 'Unknown',
+    pubDate: post.data.pubDate,
+    pubDateStr: post.data.pubDate.toISOString().slice(0, 10),
+    words,
+    estMinutes,
+    tags: post.data.tags || [],
+    category: post.data.category || '',
+    href: withBase(`/posts/${post.id}/`),
+    initialProgress,
+    readCount,
   };
-};
-const gridCandidates = posts.filter((post) => post.id !== featured?.id);
-const pinnedGridPosts = gridCandidates
-  .filter((post) => post.data.homeOrder)
-  .sort((a, b) => {
-    const orderDelta = (a.data.homeOrder ?? 0) - (b.data.homeOrder ?? 0);
-    if (orderDelta !== 0) return orderDelta;
-    return b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
-  });
-const fallbackGridPosts = gridCandidates.filter((post) => !post.data.homeOrder);
-const gridPosts = [...pinnedGridPosts, ...fallbackGridPosts].slice(0, 3);
-const featuredPlaceholder = featured?.data.heroImage
-  ? await getImage({
-      src: featured.data.heroImage,
-      width: 48,
-      format: 'webp',
-      quality: 28,
-    })
-  : undefined;
-const featuredPlaceholderStyle = featuredPlaceholder
-  ? `--tone-image-placeholder: url("${featuredPlaceholder.src}");`
-  : undefined;
+});
 ---
 
 <BaseLayout title={SITE_TITLE} description={SITE_DESCRIPTION}>
-  <main id="main-content" class="home-main">
-    <section class="hero">
-      <h1 class="hero-title">
-        <span class="hero-title-line">{tr.heroTitle}</span>
-        {
-          tr.heroTitleLine2 && (
-            <span class="hero-title-line hero-title-line--accent">{tr.heroTitleLine2}</span>
-          )
-        }
-      </h1>
+  <main id="main-content" class="reading-list-main">
+    <header class="reading-header">
+      <div class="reading-title-wrap">
+        <p class="eyebrow-accent">Archive Library</p>
+        <h1 class="page-title">{SITE_TITLE}</h1>
+        <p class="page-desc">{SITE_DESCRIPTION}</p>
+      </div>
 
-      <p class="hero-desc">{SITE_DESCRIPTION}</p>
-
-      <div class="hero-divider" aria-hidden="true"></div>
-
-      {
-        heroPosts.length > 0 && (
-          <nav class="hero-recent" aria-label="Selected posts">
-            <div class="hero-recent-list">
-              {
-                heroPosts.map((post) => {
-                  const heroDate = getHeroDateParts(post.data.pubDate);
-
-                  return (
-                    <a href={withBase(`/posts/${post.id}/`)} class="hero-recent-item">
-                      <span class="hero-recent-main">
-                        <span class="hero-recent-title">{post.data.title}</span>
-                        <span class="hero-recent-arrow" aria-hidden="true">
-                          ↗
-                        </span>
-                      </span>
-                      <span class="hero-recent-date">
-                        <time datetime={post.data.pubDate.toISOString()} aria-label={heroDate.label}>{
-                          heroDate.parts.map((part) => (
-                            <span class={`hero-recent-date-${part.type}`}>{part.value}</span>
-                          ))
-                        }</time>
-                      </span>
-                    </a>
-                  );
-                })
-              }
-            </div>
-          </nav>
-        )
-      }
-    </section>
-
-    {
-      featured && (
-        <section class="featured-section">
-          <a href={withBase(`/posts/${featured.id}/`)} class="featured-card">
-            <div class="featured-text">
-              <p class="featured-meta">
-                <FormattedDate date={featured.data.pubDate} />
-              </p>
-              <h2 class="featured-title">{featured.data.title}</h2>
-              {featured.data.description && (
-                <p class="featured-desc">{featured.data.description}</p>
-              )}
-              <span class="featured-cta">{tr.readLink}</span>
-            </div>
-            <div class="featured-thumb-wrap" style={featuredPlaceholderStyle}>
-              {featured.data.heroImage ? (
-                <Image
-                  src={featured.data.heroImage}
-                  alt={featured.data.title}
-                  class="featured-thumb"
-                  widths={[400, 720, 960, 1280]}
-                  sizes="(max-width: 600px) calc(100vw - 32px), 360px"
-                  quality={88}
-                  loading="lazy"
-                />
-              ) : (
-                <div class="featured-thumb card-img-placeholder" />
-              )}
-            </div>
-          </a>
-        </section>
-      )
-    }
-
-    {
-      gridPosts.length > 0 && (
-        <section class="posts-section">
-          <div class="posts-header">
-            <a href={withBase('/posts')} class="view-all">
-              {tr.viewAll}
-            </a>
+      <!-- Stats Bar -->
+      <div class="stats-card" data-stats-card>
+        <div class="stat-item">
+          <span class="stat-value" data-stat-total>{articleRows.length}</span>
+          <span class="stat-label">Total Articles</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value stat-pending" data-stat-pending>0</span>
+          <span class="stat-label">To Read</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value stat-reading" data-stat-reading>0</span>
+          <span class="stat-label">Reading</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value stat-completed" data-stat-completed>0</span>
+          <span class="stat-label">Completed</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value stat-reads" data-stat-reads>0</span>
+          <span class="stat-label">Total Reads</span>
+        </div>
+        <div class="stat-item stat-progress-wrap">
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" data-progress-fill style="width: 0%;"></div>
           </div>
-          <FeaturedPostGrid posts={gridPosts} />
-        </section>
-      )
-    }
+          <span class="stat-label" data-stat-percent>0% Completed</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Controls & Filters -->
+    <div class="table-controls">
+      <!-- Status Tabs -->
+      <div class="status-tabs" role="tablist">
+        <button type="button" class="tab-btn is-active" data-status-filter="all" aria-pressed="true">
+          All <span class="tab-badge" data-badge-all>{articleRows.length}</span>
+        </button>
+        <button type="button" class="tab-btn" data-status-filter="pending" aria-pressed="false">
+          To Read <span class="tab-badge" data-badge-pending>0</span>
+        </button>
+        <button type="button" class="tab-btn" data-status-filter="in-progress" aria-pressed="false">
+          Reading <span class="tab-badge" data-badge-reading>0</span>
+        </button>
+        <button type="button" class="tab-btn" data-status-filter="completed" aria-pressed="false">
+          Done <span class="tab-badge" data-badge-completed>0</span>
+        </button>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="search-filter-row">
+        <div class="search-input-wrap">
+          <input
+            type="search"
+            class="reading-search-input"
+            data-reading-search
+            placeholder="Search titles, authors, tags..."
+            aria-label="Search articles"
+          />
+        </div>
+
+        {authors.length > 1 && (
+          <select class="filter-select" data-author-filter aria-label="Filter by Author">
+            <option value="all">All Authors ({authors.length})</option>
+            {authors.map((author) => (
+              <option value={author}>{author}</option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+
+    <!-- Articles Data Table -->
+    <div class="table-container">
+      <table class="reading-table" data-reading-table>
+        <thead>
+          <tr>
+            <th class="th-status sortable" data-sort="status">Status <span class="sort-indicator">↕</span></th>
+            <th class="th-title sortable" data-sort="title">Title <span class="sort-indicator">↕</span></th>
+            <th class="th-author sortable" data-sort="author">Author <span class="sort-indicator">↕</span></th>
+            <th class="th-date sortable" data-sort="date">Date <span class="sort-indicator">↕</span></th>
+            <th class="th-length sortable" data-sort="length">Read Time <span class="sort-indicator">↕</span></th>
+            <th class="th-tags">Tags</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            articleRows.map((row) => (
+              <tr
+                class="article-row"
+                data-row-id={row.id}
+                data-author={row.author}
+                data-date={row.pubDateStr}
+                data-words={row.words}
+                data-title={row.title.toLowerCase()}
+                data-search={`${row.title} ${row.subtitle} ${row.author} ${row.tags.join(' ')}`.toLowerCase()}
+                data-read-count={row.readCount}
+                style={`--row-progress: ${row.initialProgress}%;`}
+                data-has-progress={row.initialProgress > 0 ? 'true' : 'false'}
+              >
+                <td class="td-status">
+                  <ReadingStatusButton slug={row.id} />
+                </td>
+                <td class="td-title">
+                  <a href={row.href} class="row-title-link">
+                    <span class="row-title-text">{row.title}</span>
+                  </a>
+                  {row.subtitle && <span class="row-subtitle">{row.subtitle}</span>}
+                </td>
+                <td class="td-author">
+                  <span class="author-badge">{row.author}</span>
+                </td>
+                <td class="td-date">
+                  <FormattedDate date={row.pubDate} />
+                </td>
+                <td class="td-length">
+                  <span class="read-time-pill">{row.estMinutes} min</span>
+                  <span class="word-count">({row.words.toLocaleString()} words)</span>
+                </td>
+                <td class="td-tags">
+                  <div class="tags-wrap">
+                    {row.tags.slice(0, 3).map((tag) => (
+                      <span class="tag-pill">{tag}</span>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <div class="table-empty" data-table-empty hidden>
+        <p>No articles match the current filter.</p>
+      </div>
+    </div>
   </main>
 </BaseLayout>
+
+<script>
+  import { initReadingTable } from '../scripts/posts-index';
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initReadingTable);
+  } else {
+    initReadingTable();
+  }
+</script>
+
+<style>
+  .reading-list-main {
+    width: 100%;
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: var(--space-16, 4rem) var(--space-6, 1.5rem) var(--space-24, 6rem);
+    box-sizing: border-box;
+  }
+
+  .reading-header {
+    margin-bottom: var(--space-8, 2rem);
+  }
+
+  .reading-title-wrap {
+    margin-bottom: var(--space-6, 1.5rem);
+  }
+
+  .eyebrow-accent {
+    font-size: var(--text-caption-1, 0.75rem);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-blue);
+    margin: 0 0 var(--space-2);
+  }
+
+  .page-title {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--label-primary);
+    margin: 0 0 var(--space-2);
+  }
+
+  .page-desc {
+    font-size: var(--text-callout, 1rem);
+    color: var(--label-secondary);
+    margin: 0;
+  }
+
+  /* Stats Card */
+  .stats-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-6, 1.5rem);
+    padding: var(--space-5, 1.25rem) var(--space-6, 1.5rem);
+    border-radius: var(--radius-large, 0.75rem);
+    background: color-mix(in srgb, var(--fill-quaternary) 60%, var(--bg-primary));
+    border: 1px solid var(--separator, rgba(0, 0, 0, 0.08));
+    margin-top: var(--space-6, 1.5rem);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--label-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-pending {
+    color: var(--color-status-pending, #be123c);
+  }
+
+  .stat-reading {
+    color: var(--color-status-in-progress, #c9a200);
+  }
+
+  .stat-completed {
+    color: var(--color-status-completed, #166534);
+  }
+
+  .stat-label {
+    font-size: var(--text-caption-2, 0.6875rem);
+    font-weight: 500;
+    color: var(--label-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-progress-wrap {
+    flex: 1 1 200px;
+    min-width: 160px;
+    margin-left: auto;
+  }
+
+  .progress-bar-container {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--fill-tertiary);
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-green, #34c759);
+    transition: width 300ms ease;
+  }
+
+  /* Table Controls */
+  .table-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4, 1rem);
+    margin-bottom: var(--space-6, 1.5rem);
+    padding-bottom: var(--space-4, 1rem);
+    border-bottom: 1px solid var(--separator);
+  }
+
+  .status-tabs {
+    display: flex;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--label-secondary);
+    font-size: var(--text-footnote, 0.8125rem);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .tab-btn:hover {
+    color: var(--label-primary);
+    background: var(--fill-quaternary);
+  }
+
+  .tab-btn.is-active {
+    color: var(--label-primary);
+    background: var(--bg-primary);
+    border-color: var(--separator);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .tab-badge {
+    font-size: var(--text-caption-2, 0.6875rem);
+    padding: 0.05rem 0.35rem;
+    border-radius: 999px;
+    background: var(--fill-tertiary);
+    color: var(--label-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .search-filter-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 0.75rem);
+    flex-wrap: wrap;
+  }
+
+  .reading-search-input,
+  .filter-select {
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-medium, 0.5rem);
+    border: 1px solid var(--separator);
+    background: var(--bg-primary);
+    color: var(--label-primary);
+    font-size: var(--text-footnote);
+    outline: none;
+  }
+
+  .reading-search-input:focus,
+  .filter-select:focus {
+    border-color: var(--color-blue);
+  }
+
+  .reading-search-input {
+    width: 220px;
+  }
+
+  /* Data Table */
+  .table-container {
+    overflow-x: auto;
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-large, 0.75rem);
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+  }
+
+  .reading-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-footnote, 0.8125rem);
+    text-align: left;
+  }
+
+  .reading-table th {
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    background: var(--bg-secondary);
+    color: var(--label-secondary);
+    font-weight: 600;
+    border-bottom: 1px solid var(--separator);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .reading-table th.sortable {
+    cursor: pointer;
+  }
+
+  .reading-table th.sortable:hover {
+    color: var(--color-blue);
+  }
+
+  .sort-indicator {
+    font-size: 0.75em;
+    opacity: 0.5;
+    margin-left: 0.2rem;
+  }
+
+  .reading-table th.is-sorted .sort-indicator {
+    opacity: 1;
+    color: var(--color-blue);
+  }
+
+  .reading-table td {
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    border-bottom: 1px solid var(--separator);
+    vertical-align: middle;
+  }
+
+  .article-row {
+    position: relative;
+    --row-progress: 0%;
+    background: linear-gradient(
+      90deg,
+      rgba(45, 212, 191, 0.08) 0%,
+      rgba(20, 184, 166, 0.11) var(--row-progress, 0%),
+      transparent var(--row-progress, 0%)
+    );
+    transition: background 260ms ease-out;
+  }
+
+  .article-row[data-has-progress='true'] {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .article-row:last-child td {
+    border-bottom: none;
+  }
+
+  .article-row:hover {
+    background: linear-gradient(
+      90deg,
+      rgba(45, 212, 191, 0.13) 0%,
+      rgba(20, 184, 166, 0.17) var(--row-progress, 0%),
+      color-mix(in srgb, var(--fill-quaternary) 35%, transparent) var(--row-progress, 0%)
+    );
+  }
+
+  .article-row[data-current-status='completed'] .row-title-text {
+    color: var(--label-secondary);
+  }
+
+  .th-status,
+  .td-status {
+    width: 110px;
+    white-space: nowrap;
+  }
+
+  .th-title,
+  .td-title {
+    max-width: 380px;
+  }
+
+  .th-author,
+  .td-author {
+    width: 130px;
+  }
+
+  .th-date,
+  .td-date {
+    width: 95px;
+    white-space: nowrap;
+  }
+
+  .th-length,
+  .td-length {
+    width: 105px;
+    white-space: nowrap;
+  }
+
+  .th-tags,
+  .td-tags {
+    width: auto;
+  }
+
+  .row-title-link {
+    display: block;
+    color: var(--label-primary);
+    text-decoration: none;
+    font-weight: 600;
+    line-height: 1.35;
+    transition: color var(--duration-fast) ease;
+  }
+
+  .row-title-link:hover {
+    color: var(--color-blue);
+  }
+
+  .row-subtitle {
+    display: block;
+    font-size: var(--text-caption-1, 0.75rem);
+    color: var(--label-tertiary);
+    line-height: 1.35;
+    margin-top: 0.2rem;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .author-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: var(--fill-tertiary);
+    color: var(--label-secondary);
+    font-size: var(--text-caption-2, 0.6875rem);
+    font-weight: 500;
+  }
+
+  .td-date {
+    white-space: nowrap;
+    color: var(--label-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .td-length {
+    white-space: nowrap;
+  }
+
+  .read-time-pill {
+    font-weight: 500;
+    color: var(--label-secondary);
+  }
+
+  .word-count {
+    display: block;
+    font-size: var(--text-caption-2, 0.6875rem);
+    color: var(--label-tertiary);
+  }
+
+  .tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    max-width: 100%;
+  }
+
+  .tag-pill {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    background: var(--fill-quaternary);
+    color: var(--label-tertiary);
+    font-size: var(--text-caption-2, 0.6875rem);
+    line-height: 1.3;
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100%;
+  }
+
+  .table-empty {
+    padding: var(--space-12, 3rem) var(--space-4);
+    text-align: center;
+    color: var(--label-tertiary);
+    font-size: var(--text-callout);
+  }
+
+  @media (max-width: 768px) {
+    .table-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-input-wrap,
+    .reading-search-input {
+      width: 100%;
+    }
+  }
+</style>

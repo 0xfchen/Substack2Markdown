@@ -21,10 +21,11 @@ export function initReadingRail() {
     activeBoundary: 'viewport-end',
     activeOffset,
     edge: {
+      hideBefore: false,
       afterBoundary: 'viewport-end',
       afterOffset: 120,
     },
-    minWidth: 1220,
+    minWidth: 960,
     topOffset: 52,
   });
 }

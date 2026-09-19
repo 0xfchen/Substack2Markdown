@@ -7,6 +7,8 @@ import FeaturedPostGrid from '../components/FeaturedPostGrid.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import ImageLightbox from '../components/ImageLightbox.astro';
 import ScrollFocus from '../components/ScrollFocus.astro';
+import ReadingStatusButton from '../components/ReadingStatusButton.astro';
+import ProgressRail from '../components/ProgressRail.astro';
 import BaseLayout from './BaseLayout.astro';
 import { SITE_AUTHOR, SITE_LANG, SITE_TITLE } from '../consts';
 import { getUiText } from '../ui';
@@ -14,11 +16,13 @@ import { withBase } from '../utils/paths';
 import { serializeScriptJson } from '../utils/serialize-script-json';
 
 type Props = CollectionEntry<'posts'>['data'] & {
+  slug?: string;
   readingTime?: number;
   relatedPosts?: CollectionEntry<'posts'>[];
 };
 
 const {
+  slug = '',
   title,
   description,
   pubDate,
@@ -30,6 +34,7 @@ const {
 } = Astro.props;
 
 const tr = getUiText();
+const libraryBase = withBase('/');
 const postsBase = withBase('/posts');
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -59,6 +64,7 @@ const jsonLd = serializeScriptJson({
   pubDate={pubDateISO}
   updatedDate={updatedDateISO}
   bodyClass="post-page"
+  showFloatingNavigation={true}
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={jsonLd} />
@@ -66,9 +72,12 @@ const jsonLd = serializeScriptJson({
 
   {focusEffect && <ScrollFocus variant={focusEffect} />}
 
-  <main id="main-content" class="post-main">
+  <main id="main-content" class="post-main" data-post-slug={slug}>
     <article data-pagefind-body>
-      <a href={postsBase} class="back-link">{tr.backLink}</a>
+      <div class="post-top-nav">
+        <a href={libraryBase} class="back-link">{tr.backLink}</a>
+        {slug && <ReadingStatusButton slug={slug} />}
+      </div>
 
       <header class="post-header">
         <div class="post-accent"></div>
@@ -98,6 +107,8 @@ const jsonLd = serializeScriptJson({
       </header>
 
       <div class="post-divider"></div>
+
+      {slug && <ProgressRail slug={slug} />}
 
       <div class="prose" id="prose-content">
         <slot />

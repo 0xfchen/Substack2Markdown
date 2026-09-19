@@ -5,6 +5,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import SearchPalette from '../components/SearchPalette.astro';
+import FloatingNavigation from '../components/FloatingNavigation.astro';
 
 interface Props {
   title: string;
@@ -20,6 +21,7 @@ interface Props {
   lang?: string;
   locale?: string;
   bodyClass?: string;
+  showFloatingNavigation?: boolean;
 }
 
 const {
@@ -36,6 +38,7 @@ const {
   lang,
   locale,
   bodyClass,
+  showFloatingNavigation = false,
 } = Astro.props;
 const htmlLang = lang ?? config.site.lang;
 ---
@@ -62,6 +65,7 @@ const htmlLang = lang ?? config.site.lang;
     <Header />
     <SearchPalette />
     <slot />
+    {showFloatingNavigation && <FloatingNavigation />}
     <Footer />
     <script>
       import { onReady } from '../scripts/mount';

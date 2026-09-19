@@ -1,17 +1,19 @@
 ---
 import config from '../../astro-theme-config';
 import { withBase } from '../utils/paths';
-
 const today = new Date();
-const footerTitle = config.site.logoLabel || config.site.title;
 const footerLinks = config.footerNav.filter((item) => item.href !== '/');
+const githubUrl = config.social.github || 'https://github.com/0xfchen';
+const githubHandle = githubUrl.replace(/\/+$/, '').split('/').pop() || '0xfchen';
 ---
 
 <footer class="site-footer">
   <div class="footer-inner">
     <p class="footer-copy">
-      &copy; {today.getFullYear()}
-      {footerTitle}.
+      &copy; {today.getFullYear()}{' '}
+      <a href={githubUrl} target="_blank" rel="noopener noreferrer" class="footer-author-link">
+        {githubHandle}
+      </a>
     </p>
     {
       footerLinks.length > 0 && (
@@ -33,8 +35,10 @@ const footerLinks = config.footerNav.filter((item) => item.href !== '/');
 <style>
 .site-footer {
   background: transparent;
-  padding: var(--space-4) 0 var(--space-10);
-  margin-top: var(--space-12);
+  padding: var(--space-6) 0 var(--space-12);
+  margin-top: auto;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .footer-inner {
@@ -43,7 +47,8 @@ const footerLinks = config.footerNav.filter((item) => item.href !== '/');
   padding: 0 var(--space-6);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  text-align: center;
   gap: var(--space-6);
   flex-wrap: wrap;
 }
@@ -52,6 +57,19 @@ const footerLinks = config.footerNav.filter((item) => item.href !== '/');
   font-size: var(--text-footnote);
   color: var(--label-tertiary);
   margin: 0;
+}
+
+.footer-author-link {
+  color: var(--label-tertiary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.footer-author-link:hover {
+  color: var(--color-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .footer-links {
@@ -95,9 +113,9 @@ const footerLinks = config.footerNav.filter((item) => item.href !== '/');
     padding: 0 var(--space-4);
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: var(--space-4);
-    text-align: left;
+    text-align: center;
   }
 
   .footer-links {
@@ -110,7 +128,7 @@ const footerLinks = config.footerNav.filter((item) => item.href !== '/');
 @media (max-width: 340px) {
   .footer-inner {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
   }
 }
 </style>

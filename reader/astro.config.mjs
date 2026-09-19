@@ -58,5 +58,65 @@ export default defineConfig({
         allow: ['..'],
       },
     },
+    plugins: [
+      {
+        name: 'reading-state-api',
+        configureServer(server) {
+          server.middlewares.use(async (request, response, next) => {
+            const url = request.url ? new URL(request.url, 'http://localhost').pathname : '';
+            if (url !== '/api/reading-status') {
+              return next();
+            }
+
+            const fs = await import('node:fs/promises');
+            const path = await import('node:path');
+            const filePath = path.resolve(process.cwd(), '../content/reading_state.json');
+
+            if (request.method === 'GET') {
+              try {
+                const data = await fs.readFile(filePath, 'utf-8');
+                response.setHeader('Content-Type', 'application/json');
+                response.end(data || '{}');
+              } catch {
+                response.setHeader('Content-Type', 'application/json');
+                response.end('{}');
+              }
+              return;
+            }
+
+            if (request.method === 'POST') {
+              let body = '';
+              request.on('data', (chunk) => {
+                body += chunk;
+              });
+              request.on('end', async () => {
+                try {
+                  const updates = JSON.parse(body || '{}');
+                  let existing = {};
+                  try {
+                    const raw = await fs.readFile(filePath, 'utf-8');
+                    existing = JSON.parse(raw || '{}');
+                  } catch {
+                    existing = {};
+                  }
+
+                  const merged = { ...existing, ...updates };
+                  await fs.writeFile(filePath, JSON.stringify(merged, null, 2), 'utf-8');
+                  response.setHeader('Content-Type', 'application/json');
+                  response.end(JSON.stringify({ ok: true, count: Object.keys(updates).length }));
+                } catch (error) {
+                  response.statusCode = 500;
+                  response.end(JSON.stringify({ error: String(error) }));
+                }
+              });
+              return;
+            }
+
+            next();
+          });
+        },
+      },
+    ],
   },
 });
+

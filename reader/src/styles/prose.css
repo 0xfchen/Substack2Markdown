@@ -360,3 +360,14 @@
   --callout-accent: var(--color-blue);
   --callout-label: 'Note';
 }
+
+.prose .callout-danger,
+.prose .callout-caution {
+  --callout-accent: var(--color-danger);
+  --callout-label: 'Danger';
+}
+
+.prose .callout-important {
+  --callout-accent: var(--color-yellow);
+  --callout-label: 'Important';
+}

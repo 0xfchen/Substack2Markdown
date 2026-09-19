@@ -35,7 +35,8 @@
     "check": "astro check",
     "format": "prettier --write \"src/**/*.{astro,ts,css,md,mdx}\"",
     "lint": "eslint \"src/**/*.{js,ts,astro}\" \"*.mjs\"",
-    "lint:css": "stylelint \"src/**/*.{css,astro}\""
+    "lint:css": "stylelint \"src/**/*.{css,astro}\"",
+    "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.1",
@@ -62,7 +63,8 @@
     "stylelint": "^17.11.0",
     "stylelint-config-standard": "^40.0.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.3"
+    "typescript-eslint": "^8.46.3",
+    "vitest": "^5.0.1"
   },
   "overrides": {
     "@typescript-eslint/scope-manager": "8.46.3",

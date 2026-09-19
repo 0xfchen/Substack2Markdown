@@ -1,0 +1,236 @@
+---
+type Props = {
+  slug: string;
+};
+
+const { slug } = Astro.props;
+---
+
+<div class="reading-status-control" data-reading-status-control data-slug={slug}>
+  <button
+    type="button"
+    class="status-btn"
+    data-status-btn
+    aria-label="Change reading status"
+    title="Click to toggle reading status (To Read -> Reading -> Complete)"
+  >
+    <span class="status-icon" data-status-icon aria-hidden="true">○</span>
+    <span class="status-text" data-status-text>To Read</span>
+    <span class="read-count-badge" data-read-count hidden></span>
+  </button>
+</div>
+
+<script>
+  import {
+    fetchReadingState,
+    getReadingStatus,
+    getReadCount,
+    toggleReadingStatus,
+    READING_STATUS_CHANGE_EVENT,
+    type ReadingStatus,
+    type ReadingStatusChangeEventDetail,
+  } from '../scripts/reading-tracker';
+
+  declare global {
+    interface Window {
+      __readingControlListenerAttached?: boolean;
+    }
+  }
+
+  function updateControlUI(control: HTMLElement, status: ReadingStatus, readCount: number = 0) {
+    control.setAttribute('data-status', status);
+    control.setAttribute('data-read-count', String(readCount));
+    const icon = control.querySelector('[data-status-icon]');
+    const text = control.querySelector('[data-status-text]');
+    const badge = control.querySelector<HTMLElement>('[data-read-count]');
+    const btn = control.querySelector<HTMLButtonElement>('[data-status-btn]');
+
+    if (status === 'completed') {
+      if (icon) icon.textContent = '✓';
+      if (text) text.textContent = 'Complete';
+      if (btn) {
+        btn.title = readCount > 1
+          ? `Read ${readCount} times • Click to start reread (reset to To Read)`
+          : 'Complete • Click to start reread (reset to To Read)';
+      }
+      if (badge) {
+        if (readCount > 1) {
+          badge.textContent = `${readCount}×`;
+          badge.hidden = false;
+        } else {
+          badge.hidden = true;
+        }
+      }
+    } else if (status === 'in-progress') {
+      if (icon) icon.textContent = '◑';
+      if (text) text.textContent = 'Reading';
+      if (badge) {
+        if (readCount >= 1) {
+          badge.textContent = `${readCount}×`;
+          badge.hidden = false;
+        } else {
+          badge.hidden = true;
+        }
+      }
+      if (btn) {
+        btn.title = readCount >= 1
+          ? `Reading (read ${readCount}× before) • Click to mark complete`
+          : 'Reading • Click to mark complete';
+      }
+    } else {
+      if (icon) icon.textContent = '○';
+      if (text) text.textContent = 'To Read';
+      if (badge) {
+        if (readCount >= 1) {
+          badge.textContent = `${readCount}×`;
+          badge.hidden = false;
+        } else {
+          badge.hidden = true;
+        }
+      }
+      if (btn) {
+        btn.title = readCount >= 1
+          ? `To Read (read ${readCount}× before) • Click to start reading`
+          : 'Click to toggle reading status (To Read -> Reading -> Complete)';
+      }
+    }
+  }
+
+  function syncAllControls(targetSlug?: string, targetStatus?: ReadingStatus, targetCount?: number) {
+    const controls = document.querySelectorAll<HTMLElement>('[data-reading-status-control]');
+    controls.forEach((control) => {
+      const itemSlug = control.dataset.slug;
+      if (!itemSlug) return;
+      if (!targetSlug || itemSlug === targetSlug) {
+        const status = targetSlug && targetStatus ? targetStatus : getReadingStatus(itemSlug);
+        const count = targetSlug && targetCount !== undefined ? targetCount : getReadCount(itemSlug);
+        updateControlUI(control, status, count);
+      }
+    });
+  }
+
+  // Ensure global listeners are attached exactly once
+  if (!window.__readingControlListenerAttached) {
+    window.__readingControlListenerAttached = true;
+
+    // Delegated click handler on document
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null;
+      const btn = target?.closest<HTMLButtonElement>('[data-status-btn]');
+      if (!btn) return;
+
+      const control = btn.closest<HTMLElement>('[data-reading-status-control]');
+      const slug = control?.dataset.slug;
+      if (!slug) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      toggleReadingStatus(slug);
+    });
+
+    // Reactive status change event listener
+    window.addEventListener(READING_STATUS_CHANGE_EVENT, ((e: CustomEvent<ReadingStatusChangeEventDetail>) => {
+      const { slug, status, state } = e.detail || {};
+      syncAllControls(slug, status, state?.readCount);
+    }) as EventListener);
+  }
+
+  // Initialize UI
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => syncAllControls(), { once: true });
+  } else {
+    syncAllControls();
+  }
+
+  fetchReadingState().then(() => {
+    syncAllControls();
+  });
+</script>
+
+<style>
+  .reading-status-control {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .status-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--separator, rgba(0, 0, 0, 0.12));
+    background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+    color: var(--label-secondary);
+    font-size: var(--text-caption-1, 0.75rem);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--duration-fast, 120ms) var(--ease-out);
+    user-select: none;
+  }
+
+  .status-btn:hover {
+    color: var(--label-primary);
+    border-color: var(--color-blue);
+    background: color-mix(in srgb, var(--color-blue) 8%, var(--bg-primary));
+  }
+
+  .status-icon {
+    font-size: 0.85em;
+    font-weight: 700;
+  }
+
+  /* Status specific styles */
+  .reading-status-control[data-status='completed'] .status-btn {
+    color: var(--color-status-completed, #166534);
+    border-color: color-mix(in srgb, var(--color-status-completed, #166534) 40%, transparent);
+    background: color-mix(in srgb, var(--color-status-completed, #166534) 10%, transparent);
+  }
+
+  .reading-status-control[data-status='completed'] .status-btn:hover {
+    border-color: color-mix(in srgb, var(--color-status-completed, #166534) 60%, transparent);
+    background: color-mix(in srgb, var(--color-status-completed, #166534) 18%, transparent);
+  }
+
+  .reading-status-control[data-status='in-progress'] .status-btn {
+    color: var(--color-status-in-progress, #c9a200);
+    border-color: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 40%, transparent);
+    background: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 10%, transparent);
+  }
+
+  .reading-status-control[data-status='in-progress'] .status-btn:hover {
+    border-color: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 65%, transparent);
+    background: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 18%, transparent);
+  }
+
+  .reading-status-control[data-status='pending'] .status-btn {
+    color: var(--color-status-pending, #be123c);
+    border-color: color-mix(in srgb, var(--color-status-pending, #be123c) 35%, transparent);
+    background: color-mix(in srgb, var(--color-status-pending, #be123c) 10%, transparent);
+  }
+
+  .reading-status-control[data-status='pending'] .status-btn:hover {
+    border-color: color-mix(in srgb, var(--color-status-pending, #be123c) 55%, transparent);
+    background: color-mix(in srgb, var(--color-status-pending, #be123c) 18%, transparent);
+  }
+
+  .read-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.15rem;
+    padding: 0 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+    border-radius: var(--radius-full, 9999px);
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  }
+
+  .read-count-badge[hidden] {
+    display: none !important;
+  }
+</style>
+

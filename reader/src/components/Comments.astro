@@ -2,28 +2,34 @@
 import config from '../../astro-theme-config';
 import { withBase, withoutBase } from '../utils/paths';
 
-const comments = config.comments;
-const giscus = {
-  ...comments.giscus,
-  repo: import.meta.env.PUBLIC_GISCUS_REPO || comments.giscus.repo,
-  repoId: import.meta.env.PUBLIC_GISCUS_REPO_ID || comments.giscus.repoId,
-  category: import.meta.env.PUBLIC_GISCUS_CATEGORY || comments.giscus.category,
-  categoryId: import.meta.env.PUBLIC_GISCUS_CATEGORY_ID || comments.giscus.categoryId,
-  reactionsEnabled:
-    import.meta.env.PUBLIC_GISCUS_REACTIONS_ENABLED || comments.giscus.reactionsEnabled,
-};
-const commentsMode = import.meta.env.PUBLIC_GISCUS_MODE || comments.mode;
+const comments = (config.comments || { mode: 'off' }) as Record<string, any>;
+const commentsMode = import.meta.env.PUBLIC_GISCUS_MODE || comments.mode || 'off';
 const canUseCommentsMode =
   commentsMode === 'giscus' || commentsMode === 'giscus-custom';
+const giscusConfig = (comments.giscus || {}) as Record<string, any>;
+const giscus: Record<string, any> = {
+  mapping: 'pathname',
+  strict: '0',
+  emitMetadata: '0',
+  theme: 'preferred_color_scheme',
+  lang: 'en',
+  loading: 'eager',
+  customLightTheme: '/giscus-light.css',
+  customDarkTheme: '/giscus-dark.css',
+  ...giscusConfig,
+  repo: import.meta.env.PUBLIC_GISCUS_REPO || giscusConfig.repo || '',
+  repoId: import.meta.env.PUBLIC_GISCUS_REPO_ID || giscusConfig.repoId || '',
+  category: import.meta.env.PUBLIC_GISCUS_CATEGORY || giscusConfig.category || '',
+  categoryId: import.meta.env.PUBLIC_GISCUS_CATEGORY_ID || giscusConfig.categoryId || '',
+  reactionsEnabled:
+    import.meta.env.PUBLIC_GISCUS_REACTIONS_ENABLED || giscusConfig.reactionsEnabled || '0',
+};
 const canRenderGiscus =
   canUseCommentsMode &&
   comments.provider === 'giscus' &&
-  giscus.repo &&
-  giscus.repoId &&
-  giscus.category &&
-  giscus.categoryId;
+  Boolean(giscus.repo && giscus.repoId && giscus.category && giscus.categoryId);
 const giscusTerm = withoutBase(Astro.url.pathname).replace(/^\/+/, '');
-const giscusMapping = giscus.mapping === 'pathname' ? 'specific' : giscus.mapping;
+const giscusMapping = giscus.mapping === 'pathname' ? 'specific' : (giscus.mapping || 'specific');
 ---
 
 {

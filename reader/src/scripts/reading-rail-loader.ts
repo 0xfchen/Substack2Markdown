@@ -1,22 +1,24 @@
 import { mountReadingRailForPosts } from './reading-rail';
 
-const railQuery = '(min-width: 1220px)';
-let mounted = false;
-let listening = false;
+const railQuery = '(min-width: 960px)';
 const railMediaQuery = window.matchMedia(railQuery);
 
 function mountReadingRailWhenWide() {
-  if (mounted || !railMediaQuery.matches) return;
-  mounted = true;
+  if (!railMediaQuery.matches) return;
   mountReadingRailForPosts();
 }
 
 export function mountReadingRailLoader() {
-  mountReadingRailWhenWide();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountReadingRailWhenWide, { once: true });
+  } else {
+    mountReadingRailWhenWide();
+  }
 
-  if (listening) return;
-  listening = true;
   railMediaQuery.addEventListener('change', (event) => {
-    if (event.matches) mountReadingRailWhenWide();
+    if (event.matches) {
+      mountReadingRailForPosts();
+    }
   });
 }
+

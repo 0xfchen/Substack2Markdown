@@ -41,6 +41,7 @@ const readingTime = Math.max(1, Math.round(readingTimeLib(post.body ?? '').minut
 
 <PostLayout
   {...post.data}
+  slug={post.id}
   readingTime={readingTime}
   focusEffect={post.data.focusEffect}
   relatedPosts={relatedPosts}

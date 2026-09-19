@@ -6,15 +6,12 @@ type NavItem = {
 /**
  * astro-theme-config.ts
  *
- * Central configuration for the Tone theme.
- * Most site-level customization should happen in this file.
+ * Central configuration for the Substack Archive Reader.
  */
 
 const config = {
   site: {
-    /** Production origin, used for canonical links, sitemap, and Open Graph metadata. */
     url: 'https://example.com',
-    /** Subpath such as '/repo-name'. Keep empty when deploying at a domain root. */
     base: '',
     lang: 'en',
     locale: 'en_US',
@@ -23,20 +20,18 @@ const config = {
     logoLabel: 'Substack Reader',
     description: 'Personal local archive of Substack essays and newsletters.',
     author: 'Substack Reader',
-    /** Optional absolute or root-relative image URL for homepage/search/about social previews. */
     defaultOgImage: '/og.png',
   },
 
-  // The logo already links to `/`. Add items here if you want visible header links.
-  // Example: [{ label: 'Posts', href: '/posts' }, { label: 'About', href: '/about' }]
-  nav: [] as NavItem[],
-
-  // Footer links stay visible by default so readers have a stable way to move around.
-  footerNav: [
-    { label: 'Posts', href: '/posts' },
-    { label: 'About', href: '/about' },
+  // Header navigation links
+  nav: [
+    { label: 'Library', href: '/' },
+    { label: 'Feed', href: '/posts' },
     { label: 'Search', href: '/search' },
   ] as NavItem[],
+
+  // Footer navigation links (primary links are in header)
+  footerNav: [] as NavItem[],
 
   content: {
     categoryOrder: [
@@ -57,79 +52,11 @@ const config = {
   },
 
   comments: {
-    // One-line switch after you fill the giscus values:
-    // mode: 'off'           -> no comments
-    // mode: 'giscus'        -> original giscus theme
-    // mode: 'giscus-custom' -> Tone custom giscus theme
-    // Local preview can also use PUBLIC_GISCUS_MODE and PUBLIC_GISCUS_* in .env.local.
     mode: 'off',
-    provider: 'giscus',
-    giscus: {
-      repo: '',
-      repoId: '',
-      category: '',
-      categoryId: '',
-      mapping: 'pathname',
-      strict: '0',
-      reactionsEnabled: '0',
-      emitMetadata: '0',
-      inputPosition: 'bottom',
-      theme: 'preferred_color_scheme',
-      customLightTheme: '/giscus-light.css',
-      customDarkTheme: '/giscus-dark.css',
-      lang: 'en',
-      loading: 'eager',
-    },
   },
 
   social: {
-    website: 'https://hanityx.github.io/astro-tone/', // e.g. 'https://your-site.com'
-    email: '', // e.g. 'hello@your-site.com'
-    linkedin: '', // e.g. 'https://www.linkedin.com/in/yourhandle'
-    github: 'https://github.com/hanityx/astro-tone', // e.g. 'https://github.com/yourhandle'
-  },
-
-  about: {
-    /** Profile image URL. Leave empty to use the text-only About layout. */
-    profileImage: '',
-    name: 'Alex Morgan',
-    role: 'Writes about useful small tools and the notes behind them.',
-    location: 'Anywhere',
-    focus: 'Writing, small tools, and notes worth returning to.',
-    lead: 'Alex writes about small product decisions, interface craft, and the notes that make work easier to return to.',
-    headline: ['Made to', 'last.'],
-    statementLabel: 'Work',
-    statementTitle: 'Notes on making useful things.',
-    statement:
-      'This page is intentionally spare: a short bio, a few links, and enough context for readers who want to know who is writing.',
-    careerLabel: 'Career',
-    career: [
-      {
-        period: 'Current',
-        title: 'Independent practice',
-        description:
-          'Designing calm interfaces, writing field notes, and helping teams clarify product surfaces.',
-      },
-      {
-        period: 'Selected',
-        title: 'Product systems',
-        description:
-          'Worked across design systems, editorial tooling, and early-stage product foundations.',
-      },
-      {
-        period: 'Elsewhere',
-        title: 'Writing and reference',
-        description:
-          'Keeping a public archive of notes, examples, and references worth returning to.',
-      },
-    ],
-    interests: [
-      'Interface systems that stay quiet until needed',
-      'Writing as a way to keep product judgment visible',
-      'Tools and habits that make long work easier to resume',
-    ],
-    interestsLabel: 'Interests',
-    interestsHeading: 'What the work keeps returning to',
+    github: 'https://github.com/0xfchen',
   },
 };
 

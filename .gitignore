@@ -16,9 +16,9 @@ setup.py
 content/*
 !content/README.md
 
-# Ignore Astro reader dependencies and build output
-reader/node_modules/
-reader/.astro/
-reader/dist/
-reader/.github/
+# Ignore Node & Astro dependencies and build output (at any directory depth)
+node_modules/
+.astro/
+dist/
+.github/
 
