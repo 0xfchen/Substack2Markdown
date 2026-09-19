@@ -22,6 +22,7 @@ interface Props {
   locale?: string;
   bodyClass?: string;
   showFloatingNavigation?: boolean;
+  slug?: string;
 }
 
 const {
@@ -39,6 +40,7 @@ const {
   locale,
   bodyClass,
   showFloatingNavigation = false,
+  slug,
 } = Astro.props;
 const htmlLang = lang ?? config.site.lang;
 ---
@@ -65,7 +67,7 @@ const htmlLang = lang ?? config.site.lang;
     <Header />
     <SearchPalette />
     <slot />
-    {showFloatingNavigation && <FloatingNavigation />}
+    {showFloatingNavigation && <FloatingNavigation slug={slug} />}
     <Footer />
     <script>
       import { onReady } from '../scripts/mount';

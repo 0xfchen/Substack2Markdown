@@ -8,17 +8,207 @@ import {
 
 const VIEWPORT_BATCH_SIZE = 30; // ~1-1.5 viewport heights of rows
 
+export interface TableViewState {
+  renderedCount: number;
+  scrollY: number;
+  statusFilter: string;
+  search: string;
+  author: string;
+  sortColumn: string;
+  sortAsc: boolean;
+  timestamp: number;
+}
+
+export interface RowSortFields {
+  status: string;
+  readCount: number;
+  title: string;
+  author: string;
+  date: string;
+  words: number;
+}
+
+export const POSTS_TABLE_STATE_KEY = 'posts_index_view_state';
+
+/**
+ * Load cached table view state from sessionStorage.
+ */
+export function loadTableState(): TableViewState | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(POSTS_TABLE_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TableViewState;
+    // Discard state older than 2 hours
+    if (Date.now() - parsed.timestamp > 2 * 60 * 60 * 1000) {
+      sessionStorage.removeItem(POSTS_TABLE_STATE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save table view state to sessionStorage.
+ */
+export function saveTableState(state: TableViewState): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(POSTS_TABLE_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage write errors (e.g. quota exceeded)
+  }
+}
+
+/**
+ * Resolve target slug from URL hash or stored session slug.
+ */
+export function resolveTargetSlug(hash: string, storedSlug: string | null): string {
+  if (hash) {
+    if (hash.startsWith('#row-')) {
+      try {
+        return decodeURIComponent(hash.slice(5));
+      } catch {
+        return hash.slice(5);
+      }
+    }
+    // Explicit non-row hash (e.g. #main-content) takes precedence; do not hijack with storedSlug
+    return '';
+  }
+  if (storedSlug) {
+    return storedSlug.trim();
+  }
+  return '';
+}
+
+/**
+ * Calculate the number of rows to initially render, respecting cached viewport batches
+ * and target row position.
+ */
+export function calculateInitialRenderCount(
+  savedCount: number | undefined,
+  totalCount: number,
+  defaultBatch = VIEWPORT_BATCH_SIZE,
+  targetIndex?: number
+): number {
+  let count = defaultBatch;
+  if (typeof savedCount === 'number' && savedCount > count) {
+    count = savedCount;
+  }
+  if (typeof targetIndex === 'number' && targetIndex >= 0) {
+    count = Math.max(count, targetIndex + 10);
+  }
+  return Math.min(count, totalCount);
+}
+
+/**
+ * Comparator for sorting rows by status, title, author, date, or length.
+ */
+export function compareRows(
+  a: RowSortFields,
+  b: RowSortFields,
+  column: string,
+  asc: boolean
+): number {
+  if (column === 'status') {
+    const statusOrder: Record<string, number> = { completed: 3, 'in-progress': 2, pending: 1 };
+    const statA = statusOrder[a.status || 'pending'] || 0;
+    const statB = statusOrder[b.status || 'pending'] || 0;
+    if (statA !== statB) {
+      return asc ? statA - statB : statB - statA;
+    }
+    return asc ? a.readCount - b.readCount : b.readCount - a.readCount;
+  }
+  if (column === 'title') {
+    return asc ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title);
+  }
+  if (column === 'author') {
+    return asc ? a.author.localeCompare(b.author) : b.author.localeCompare(a.author);
+  }
+  if (column === 'date') {
+    return asc ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+  }
+  if (column === 'length') {
+    return asc ? a.words - b.words : b.words - a.words;
+  }
+  return 0;
+}
+
+export interface RowFilterOptions {
+  statusFilter: string;
+  searchQuery: string;
+  authorFilter: string;
+}
+
+/**
+ * Check if a row matches the given status, author, and search query filters.
+ */
+export function matchesRow(
+  status: string,
+  searchTarget: string,
+  author: string,
+  options: RowFilterOptions
+): boolean {
+  const matchesStatus =
+    options.statusFilter === 'all' ||
+    (options.statusFilter === 'pending' && status === 'pending') ||
+    (options.statusFilter === 'in-progress' && status === 'in-progress') ||
+    (options.statusFilter === 'completed' && status === 'completed');
+
+  const matchesAuthor =
+    options.authorFilter === 'all' || author === options.authorFilter;
+
+  const query = options.searchQuery.toLowerCase().trim();
+  const matchesQuery = !query || searchTarget.toLowerCase().includes(query);
+
+  return matchesStatus && matchesAuthor && matchesQuery;
+}
+
+/**
+ * Calculates the target scroll coordinate for restoration.
+ * Prioritizes saved exact scrollY over element bounding rect, and clamps to >= 0.
+ */
+export function calculateScrollTarget(
+  savedScrollY?: number,
+  targetRectTop?: number,
+  currentWindowScrollY = 0,
+  headerOffset = 80
+): number | null {
+  if (typeof savedScrollY === 'number' && !Number.isNaN(savedScrollY)) {
+    return Math.max(0, savedScrollY);
+  }
+  if (typeof targetRectTop === 'number' && !Number.isNaN(targetRectTop)) {
+    return Math.max(0, currentWindowScrollY + targetRectTop - headerOffset);
+  }
+  return null;
+}
+
 /**
  * Initialize the reading table on the posts index page.
  * Handles status filtering, search, author filtering, sorting,
  * and lazy-loads rows dynamically as the user scrolls down the page.
  */
 export function initReadingTable(): void {
+  if (typeof document === 'undefined') return;
+
   const table = document.querySelector<HTMLTableElement>('[data-reading-table]');
   if (!table) return;
 
   const tbody = table.querySelector('tbody');
   if (!tbody) return;
+
+  // Prevent browser default scroll restoration engine from scrolling smoothly or asynchronously
+  if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
+  // Temporarily disable smooth scroll on root to guarantee instant positioning without animation
+  const docEl = typeof document !== 'undefined' ? document.documentElement : null;
+  if (docEl) {
+    docEl.style.scrollBehavior = 'auto';
+  }
 
   // Master collection of all rows in the dataset
   const allRows = [...table.querySelectorAll<HTMLTableRowElement>('.article-row')];
@@ -36,9 +226,23 @@ export function initReadingTable(): void {
   let filteredRows: HTMLTableRowElement[] = [];
   let renderedCount = 0;
 
-  function appendNextBatch(): void {
+  function persistCurrentState(): void {
+    if (typeof window === 'undefined') return;
+    saveTableState({
+      renderedCount,
+      scrollY: window.scrollY,
+      statusFilter: currentStatusFilter,
+      search: currentSearch,
+      author: currentAuthor,
+      sortColumn,
+      sortAsc,
+      timestamp: Date.now(),
+    });
+  }
+
+  function appendBatch(count: number): void {
     if (!tbody || renderedCount >= filteredRows.length) return;
-    const nextEnd = Math.min(renderedCount + VIEWPORT_BATCH_SIZE, filteredRows.length);
+    const nextEnd = Math.min(renderedCount + count, filteredRows.length);
     const fragment = document.createDocumentFragment();
     for (let i = renderedCount; i < nextEnd; i++) {
       const row = filteredRows[i];
@@ -47,6 +251,10 @@ export function initReadingTable(): void {
     }
     tbody.appendChild(fragment);
     renderedCount = nextEnd;
+  }
+
+  function appendNextBatch(): void {
+    appendBatch(VIEWPORT_BATCH_SIZE);
   }
 
   function updateStats(): void {
@@ -104,32 +312,41 @@ export function initReadingTable(): void {
     if (badgeCompleted) badgeCompleted.textContent = String(completed);
   }
 
-  function renderTable(): void {
+  function renderTable(initialCount?: number): void {
+    if (!tbody) return;
+
     filteredRows = allRows.filter((row) => {
       const id = row.dataset.rowId;
       const status = id ? getReadingStatus(id) : 'pending';
       const searchTarget = row.dataset.search || '';
       const author = row.dataset.author || '';
 
-      // Status match
-      const matchesStatus =
-        currentStatusFilter === 'all' ||
-        (currentStatusFilter === 'pending' && status === 'pending') ||
-        (currentStatusFilter === 'in-progress' && status === 'in-progress') ||
-        (currentStatusFilter === 'completed' && status === 'completed');
-
-      // Author match
-      const matchesAuthor = currentAuthor === 'all' || author === currentAuthor;
-
-      // Query match
-      const matchesQuery = !currentSearch || searchTarget.includes(currentSearch);
-
-      return matchesStatus && matchesAuthor && matchesQuery;
+      return matchesRow(status, searchTarget, author, {
+        statusFilter: currentStatusFilter,
+        searchQuery: currentSearch,
+        authorFilter: currentAuthor,
+      });
     });
 
-    tbody!.innerHTML = '';
+    // Cleanly detach child rows without parsing HTML.
+    // Note for future maintainers: All row interactions (status updates, row clicks)
+    // rely on event delegation on tbody or document, ensuring dynamically mounted
+    // rows remain fully interactive across filtering and batch rendering.
+    if (typeof tbody.replaceChildren === 'function') {
+      tbody.replaceChildren();
+    } else {
+      while (tbody.firstChild) {
+        tbody.removeChild(tbody.firstChild);
+      }
+    }
     renderedCount = 0;
-    appendNextBatch();
+
+    const countToRender =
+      initialCount && initialCount > VIEWPORT_BATCH_SIZE
+        ? Math.min(initialCount, filteredRows.length)
+        : VIEWPORT_BATCH_SIZE;
+
+    appendBatch(countToRender);
 
     // Ensure enough initial content to allow scrolling on large/tall displays
     while (
@@ -145,53 +362,29 @@ export function initReadingTable(): void {
     }
   }
 
-  function sortTable(column: string): void {
-    if (sortColumn === column) {
-      sortAsc = !sortAsc;
-    } else {
-      sortColumn = column;
-      sortAsc = column === 'title' || column === 'author'; // text default asc, status/date/length desc
-    }
+  function applySort(column: string, asc: boolean, doRender = true): void {
+    sortColumn = column;
+    sortAsc = asc;
 
     allRows.sort((a, b) => {
-      let valA = '';
-      let valB = '';
-
-      if (column === 'status') {
-        const statusOrder: Record<string, number> = { completed: 3, 'in-progress': 2, pending: 1 };
-        const statA = statusOrder[a.dataset.currentStatus || 'pending'] || 0;
-        const statB = statusOrder[b.dataset.currentStatus || 'pending'] || 0;
-        if (statA !== statB) {
-          return sortAsc ? statA - statB : statB - statA;
-        }
-        const countA = Number(a.dataset.readCount || 0);
-        const countB = Number(b.dataset.readCount || 0);
-        return sortAsc ? countA - countB : countB - countA;
-      }
-      if (column === 'title') {
-        valA = a.dataset.title || '';
-        valB = b.dataset.title || '';
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-      if (column === 'author') {
-        valA = a.dataset.author || '';
-        valB = b.dataset.author || '';
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-      if (column === 'date') {
-        valA = a.dataset.date || '';
-        valB = b.dataset.date || '';
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-      if (column === 'length') {
-        const numA = Number(a.dataset.words || 0);
-        const numB = Number(b.dataset.words || 0);
-        return sortAsc ? numA - numB : numB - numA;
-      }
-      return 0;
+      const fieldA: RowSortFields = {
+        status: a.dataset.currentStatus || 'pending',
+        readCount: Number(a.dataset.readCount || 0),
+        title: a.dataset.title || '',
+        author: a.dataset.author || '',
+        date: a.dataset.date || '',
+        words: Number(a.dataset.words || 0),
+      };
+      const fieldB: RowSortFields = {
+        status: b.dataset.currentStatus || 'pending',
+        readCount: Number(b.dataset.readCount || 0),
+        title: b.dataset.title || '',
+        author: b.dataset.author || '',
+        date: b.dataset.date || '',
+        words: Number(b.dataset.words || 0),
+      };
+      return compareRows(fieldA, fieldB, column, asc);
     });
-
-    renderTable();
 
     // Update sort indicators
     table?.querySelectorAll<HTMLElement>('.sortable').forEach((th) => {
@@ -202,6 +395,19 @@ export function initReadingTable(): void {
       }
       th.classList.toggle('is-sorted', isCurrent);
     });
+
+    if (doRender) {
+      renderTable();
+    }
+  }
+
+  function sortTable(column: string): void {
+    if (sortColumn === column) {
+      applySort(column, !sortAsc);
+    } else {
+      const asc = column === 'title' || column === 'author'; // text default asc, status/date/length desc
+      applySort(column, asc);
+    }
   }
 
   // --- Viewport scroll and intersection observer for infinite scroll ---
@@ -273,13 +479,184 @@ export function initReadingTable(): void {
     renderTable();
   });
 
+  let hasRestoredTarget = false;
+  let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+  let activeHighlightedRow: HTMLTableRowElement | null = null;
+
+  function clearHighlight(): void {
+    if (highlightTimer) {
+      clearTimeout(highlightTimer);
+      highlightTimer = null;
+    }
+    if (activeHighlightedRow) {
+      activeHighlightedRow.removeAttribute('data-row-anchor-highlight');
+      activeHighlightedRow = null;
+    }
+  }
+
+  function onPageHide(): void {
+    clearHighlight();
+    persistCurrentState();
+  }
+
+  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('beforeunload', onPageHide);
+  tbody.addEventListener('click', (e) => {
+    const link = (e.target as HTMLElement)?.closest('a');
+    if (link) {
+      const row = link.closest('.article-row') as HTMLTableRowElement | null;
+      if (row?.dataset.slug) {
+        try {
+          sessionStorage.setItem('last_active_slug', row.dataset.slug);
+        } catch {
+          // ignore
+        }
+      }
+      persistCurrentState();
+    }
+  });
+
+  // Restore saved view state if available
+  const savedState = loadTableState();
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  let storedSlug: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      storedSlug = sessionStorage.getItem('last_active_slug');
+    } catch {
+      // ignore
+    }
+  }
+  const targetSlug = resolveTargetSlug(hash, storedSlug);
+
+  // Clean up hash and storage key without jumping scroll position
+  try {
+    sessionStorage.removeItem('last_active_slug');
+    if (typeof window !== 'undefined' && window.location.hash) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  } catch {
+    // ignore
+  }
+
+  let targetIndex = -1;
+  if (targetSlug) {
+    targetIndex = allRows.findIndex(
+      (r) => r.dataset.slug === targetSlug || r.dataset.rowId === targetSlug
+    );
+  }
+
+  const initialRenderCount = calculateInitialRenderCount(
+    savedState?.renderedCount,
+    allRows.length,
+    VIEWPORT_BATCH_SIZE,
+    targetIndex
+  );
+
+  // If we have a saved scroll position, set temporary minHeight on documentElement
+  // so that clearing tbody during renderTable() does NOT clamp window.scrollY to 0
+  if (docEl && savedState?.scrollY) {
+    docEl.style.minHeight = `${savedState.scrollY + window.innerHeight + 100}px`;
+  }
+
+  function restoreScrollAndTarget(): void {
+    if (hasRestoredTarget) return;
+
+    let targetRow: HTMLTableRowElement | null = null;
+
+    if (targetSlug) {
+      const idx = filteredRows.findIndex(
+        (r) => r.dataset.slug === targetSlug || r.dataset.rowId === targetSlug
+      );
+      if (idx !== -1) {
+        while (renderedCount <= idx + 5 && renderedCount < filteredRows.length) {
+          appendNextBatch();
+        }
+        targetRow = filteredRows[idx] ?? null;
+      }
+    }
+
+    // 1. Restore exact scroll coordinate immediately if available (Option 2)
+    const targetScroll = calculateScrollTarget(
+      savedState?.scrollY,
+      targetRow ? targetRow.getBoundingClientRect().top : undefined,
+      typeof window !== 'undefined' ? window.scrollY : 0
+    );
+
+    if (targetScroll !== null && typeof window !== 'undefined') {
+      window.scrollTo({ top: targetScroll, behavior: 'instant' });
+      hasRestoredTarget = true;
+    }
+
+    // Pulse highlight the row so the reader's gaze immediately locks onto it
+    if (targetRow) {
+      clearHighlight();
+      activeHighlightedRow = targetRow;
+      targetRow.setAttribute('data-row-anchor-highlight', 'true');
+      highlightTimer = setTimeout(() => {
+        clearHighlight();
+      }, 2200);
+    }
+
+    // Clean up temporary styles and reveal page now that scroll position is restored
+    if (docEl) {
+      docEl.classList.remove('restoring-scroll');
+      requestAnimationFrame(() => {
+        docEl.style.minHeight = '';
+        docEl.style.scrollBehavior = '';
+      });
+    }
+  }
+
+  if (savedState) {
+    currentStatusFilter = savedState.statusFilter || 'all';
+    currentSearch = savedState.search || '';
+    currentAuthor = savedState.author || 'all';
+
+    // Restore UI controls
+    if (searchInput && currentSearch) {
+      searchInput.value = currentSearch;
+    }
+    if (authorSelect && currentAuthor !== 'all') {
+      authorSelect.value = currentAuthor;
+    }
+    if (currentStatusFilter !== 'all') {
+      statusTabs.forEach((tab) => {
+        const isActive = (tab.dataset.statusFilter || 'all') === currentStatusFilter;
+        tab.classList.toggle('is-active', isActive);
+        tab.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
+    if (savedState.sortColumn) {
+      applySort(savedState.sortColumn, savedState.sortAsc ?? false, false);
+    }
+  }
+
   // Immediate sync from local cache
   updateStats();
-  renderTable();
+  renderTable(initialRenderCount);
+  restoreScrollAndTarget();
 
-  // Verify after server state is fetched
+  // Handle Back-Forward Cache (BFCache) restoration on instant navigation
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      clearHighlight();
+      hasRestoredTarget = false;
+      if (docEl) {
+        docEl.style.scrollBehavior = 'auto';
+      }
+      updateStats();
+      restoreScrollAndTarget();
+    }
+  });
+
+  // Verify after server state is fetched without wiping existing DOM rows
   fetchReadingState().then(() => {
     updateStats();
-    renderTable();
+    if (currentStatusFilter !== 'all') {
+      renderTable(renderedCount);
+      restoreScrollAndTarget();
+    }
   });
 }

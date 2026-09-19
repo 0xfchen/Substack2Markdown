@@ -1,7 +1,6 @@
 ---
 import '../styles/pages/posts-index.css';
 import { getCollection } from 'astro:content';
-import readingTimeLib from 'reading-time';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ReadingStatusButton from '../components/ReadingStatusButton.astro';
 import FormattedDate from '../components/FormattedDate.astro';
@@ -31,7 +30,7 @@ try {
 // Prepare article data rows
 const articleRows = posts.map((post) => {
   const words = post.data.wordcount || (post.body ? post.body.trim().split(/\s+/).length : 0);
-  const estMinutes = Math.max(1, Math.round(readingTimeLib(post.body ?? '').minutes));
+  const estMinutes = Math.max(1, Math.round(words / 200));
   const stateEntry = initialReadingState[post.id];
   let initialProgress = 0;
   if (stateEntry?.status === 'completed') {
@@ -70,6 +69,27 @@ const articleRows = posts.map((post) => {
 ---
 
 <BaseLayout title={SITE_TITLE} description={SITE_DESCRIPTION}>
+  <Fragment slot="head">
+    <script is:inline>
+      (function () {
+        try {
+          var raw = sessionStorage.getItem('posts_index_view_state');
+          if (raw) {
+            var s = JSON.parse(raw);
+            if (s && typeof s.scrollY === 'number' && s.scrollY > 40 && Date.now() - (s.timestamp || 0) < 7200000) {
+              document.documentElement.classList.add('restoring-scroll');
+              document.documentElement.style.minHeight = (s.scrollY + window.innerHeight + 200) + 'px';
+              window.scrollTo(0, s.scrollY);
+            }
+          }
+        } catch (e) {}
+        setTimeout(function () {
+          document.documentElement.classList.remove('restoring-scroll');
+        }, 500);
+      })();
+    </script>
+  </Fragment>
+
   <main id="main-content" class="reading-list-main">
     <header class="reading-header">
       <div class="reading-title-wrap">
@@ -168,6 +188,8 @@ const articleRows = posts.map((post) => {
             articleRows.map((row) => (
               <tr
                 class="article-row"
+                id={`row-${row.id}`}
+                data-slug={row.id}
                 data-row-id={row.id}
                 data-author={row.author}
                 data-date={row.pubDateStr}
@@ -227,6 +249,11 @@ const articleRows = posts.map((post) => {
 </script>
 
 <style>
+  :global(html.restoring-scroll body) {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+
   .reading-list-main {
     width: 100%;
     max-width: 68rem;
@@ -497,6 +524,13 @@ const articleRows = posts.map((post) => {
 
   .article-row[data-current-status='completed'] .row-title-text {
     color: var(--label-secondary);
+  }
+
+  .article-row[data-row-anchor-highlight='true'] {
+    outline: 2px solid var(--color-teal, #0d9488);
+    outline-offset: -2px;
+    box-shadow: 0 0 16px var(--color-teal-glow, rgba(45, 212, 191, 0.4));
+    transition: outline-color 1.8s ease-out, box-shadow 1.8s ease-out;
   }
 
   .th-status,

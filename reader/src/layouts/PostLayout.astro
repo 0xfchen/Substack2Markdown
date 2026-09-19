@@ -65,6 +65,7 @@ const jsonLd = serializeScriptJson({
   updatedDate={updatedDateISO}
   bodyClass="post-page"
   showFloatingNavigation={true}
+  slug={slug}
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={jsonLd} />
@@ -75,7 +76,15 @@ const jsonLd = serializeScriptJson({
   <main id="main-content" class="post-main" data-post-slug={slug}>
     <article data-pagefind-body>
       <div class="post-top-nav">
-        <a href={libraryBase} class="back-link">{tr.backLink}</a>
+        <a
+          href={libraryBase}
+          class="back-link"
+          data-astro-prefetch="hover"
+          data-slug={slug}
+          id="post-top-back-link"
+        >
+          {tr.backLink}
+        </a>
         {slug && <ReadingStatusButton slug={slug} />}
       </div>
 
@@ -134,7 +143,19 @@ const jsonLd = serializeScriptJson({
 
   <script>
     import { mountReadingRailLoader } from '../scripts/reading-rail-loader';
+    import { handleBackToLibrary } from '../scripts/navigation-utils';
 
     mountReadingRailLoader();
+
+    const topBackLink = document.getElementById('post-top-back-link');
+    if (topBackLink) {
+      topBackLink.addEventListener('click', (e) => {
+        const slug = topBackLink.getAttribute('data-slug');
+        const targetHref = topBackLink.getAttribute('href') || '/';
+        if (handleBackToLibrary(slug, targetHref)) {
+          e.preventDefault();
+        }
+      });
+    }
   </script>
 </BaseLayout>
