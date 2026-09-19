@@ -191,7 +191,17 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         """
         for attempt in range(1, max_attempts + 1):
             try:
-                self.page.goto(url, wait_until="domcontentloaded")
+                try:
+                    self.page.goto(url, wait_until="domcontentloaded")
+                except PlaywrightError as exc:
+                    if "interrupted by another navigation" in str(exc).lower():
+                        logger.debug("Navigation interrupted by redirect. Awaiting settled load state: %s", exc)
+                        try:
+                            self.page.wait_for_load_state("domcontentloaded", timeout=15000)
+                        except PlaywrightError:
+                            pass
+                    else:
+                        raise
 
                 # Wait for content or paywall selectors to be present
                 try:
@@ -236,7 +246,16 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             except RuntimeError:
                 raise
             except PlaywrightError as exc:
-                raise ValueError(f"Error fetching page: {url}. Error: {exc}") from exc
+                if attempt == max_attempts:
+                    raise ValueError(f"Error fetching page: {url}. Error: {exc}") from exc
+                logger.warning(
+                    "[%s/%s] Playwright error fetching %s: %s. Retrying in 2 seconds...",
+                    attempt,
+                    max_attempts,
+                    url,
+                    exc,
+                )
+                sleep(2)
 
         raise RuntimeError(f"Failed to fetch page after {max_attempts} attempts: {url}")
 
