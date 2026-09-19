@@ -56,34 +56,34 @@ For premium scraping, you will also need either **Google Chrome** or **Microsoft
 
 Scrape an entire publication:
 ```bash
-uv run substack_scraper --url https://example.substack.com
+uv run scraper --url https://example.substack.com
 # Or using python module:
-python -m substack_scraper --url https://example.substack.com
+python -m scraper --url https://example.substack.com
 ```
 
 Scrape a single post directly:
 ```bash
-uv run substack_scraper --url https://example.substack.com/p/my-post
+uv run scraper --url https://example.substack.com/p/my-post
 ```
 
 Limit the number of posts to scrape:
 ```bash
-uv run substack_scraper --url https://example.substack.com --number 5
+uv run scraper --url https://example.substack.com --number 5
 ```
 
 Download images locally and rewrite markdown image links:
 ```bash
-uv run substack_scraper --url https://example.substack.com --images
+uv run scraper --url https://example.substack.com --images
 ```
 
 Keep raw promotional widgets (disable cleaning):
 ```bash
-uv run substack_scraper --url https://example.substack.com --no-clean
+uv run scraper --url https://example.substack.com --no-clean
 ```
 
 Specify custom output base directory:
 ```bash
-uv run substack_scraper --url https://example.substack.com --directory /path/to/save/content
+uv run scraper --url https://example.substack.com --directory /path/to/save/content
 ```
 
 ### Premium Scraping (Subscriber-Only Content)
@@ -92,7 +92,7 @@ Premium posts require subscriber access. Automation uses **Playwright** with zer
 
 Scrape premium content using Chrome or Edge:
 ```bash
-uv run substack_scraper --url https://example.substack.com --premium --browser chrome
+uv run scraper --url https://example.substack.com --premium --browser chrome
 ```
 
 #### Reusing Existing Sessions (No Repeated Logins)
@@ -101,19 +101,19 @@ uv run substack_scraper --url https://example.substack.com --premium --browser c
 Saves your logged-in state to `~/.substack_scraper/<browser>_profile`:
 ```bash
 # First run: logs in or solve CAPTCHA interactively once
-uv run substack_scraper --url https://example.substack.com --premium --persistent-profile
+uv run scraper --url https://example.substack.com --premium --persistent-profile
 
 # Subsequent runs: reuse the session automatically
-uv run substack_scraper --url https://example.substack.com --premium --persistent-profile --skip-login
+uv run scraper --url https://example.substack.com --premium --persistent-profile --skip-login
 ```
 
 **Option 2: Storage State JSON**
 Playwright automatically exports auth tokens and cookies to `~/.substack_scraper/storage_state.json` upon successful login:
 ```bash
 # Run headlessly reusing saved cookies
-uv run substack_scraper --url https://example.substack.com --premium --headless --skip-login
+uv run scraper --url https://example.substack.com --premium --headless --skip-login
 # Or specify a custom state file:
-uv run substack_scraper --url https://example.substack.com --premium --storage-state path/to/state.json
+uv run scraper --url https://example.substack.com --premium --storage-state path/to/state.json
 ```
 
 **Option 3: Attach Directly to Active Browser (CDP)**
@@ -123,7 +123,7 @@ Connect directly to an already-open personal Chrome/Edge window without logging 
 chrome.exe --remote-debugging-port=9222
 
 # 2. Scrape directly using the active browser's tabs and cookies:
-uv run substack_scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
+uv run scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
 ```
 
 ## Local Reader (Astro)

@@ -1,4 +1,4 @@
-from substack_scraper import main
+from scraper import main
 
 if __name__ == "__main__":
     main()

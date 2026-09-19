@@ -6,7 +6,7 @@ from .config import BASE_CONTENT_DIR
 from .scrapers.free import SubstackScraper
 from .scrapers.premium import PremiumSubstackScraper
 
-logger = logging.getLogger("substack_scraper")
+logger = logging.getLogger("scraper")
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,25 +21,25 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   # Free publication
-  substack_scraper --url https://example.substack.com
+  scraper --url https://example.substack.com
 
   # Scrape single post
-  substack_scraper --url https://example.substack.com/p/some-post-title
+  scraper --url https://example.substack.com/p/some-post-title
 
   # Scrape with downloaded images
-  substack_scraper --url https://example.substack.com --images
+  scraper --url https://example.substack.com --images
 
   # Premium content using Chrome or Edge
-  substack_scraper --url https://example.substack.com --premium --browser chrome
+  scraper --url https://example.substack.com --premium --browser chrome
 
   # First run: log in and solve CAPTCHA interactively (saved to persistent profile)
-  substack_scraper --url https://example.substack.com --premium --persistent-profile
+  scraper --url https://example.substack.com --premium --persistent-profile
 
   # Subsequent runs: reuse saved session without logging in again
-  substack_scraper --url https://example.substack.com --premium --persistent-profile --skip-login
+  scraper --url https://example.substack.com --premium --persistent-profile --skip-login
 
   # Connect directly to active personal browser window (CDP)
-  substack_scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
+  scraper --url https://example.substack.com --premium --cdp-url http://localhost:9222
         """,
     )
 
@@ -174,8 +174,8 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    # Allow monkeypatched globals from the substack_scraper package/module
-    ss = sys.modules.get("substack_scraper")
+    # Allow monkeypatched globals from the scraper package/module
+    ss = sys.modules.get("scraper")
     base_content_dir = getattr(ss, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if ss else BASE_CONTENT_DIR
 
     if args.directory is None:

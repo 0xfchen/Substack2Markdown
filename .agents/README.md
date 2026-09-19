@@ -27,6 +27,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-019`** | **Issue** | `fix` | Premium Scraper Session Redirect Timeout and SSR Hydration Paywall Check | [`issues/stm-019-premium-auth-redirect-and-ssr-hydration.md`](issues/stm-019-premium-auth-redirect-and-ssr-hydration.md) |
 | **`stm-020`** | **Plan** | `feat` | Todo-Style Reading Tracker and Progress Management | [`plans/stm-020-todo-style-reading-tracker.md`](plans/stm-020-todo-style-reading-tracker.md) |
 | **`stm-021`** | **Issue** | `fix` | Playwright Navigation Interruption Handling and Transient Page Fetch Retry | [`issues/stm-021-playwright-navigation-interruption-and-timeout-retry.md`](issues/stm-021-playwright-navigation-interruption-and-timeout-retry.md) |
+| **`stm-022`** | **Issue** | `refactor` | Rename package and CLI from `substack_scraper` to `scraper` | [`issues/stm-022-rename-package-to-scraper.md`](issues/stm-022-rename-package-to-scraper.md) |
 
 ---
 

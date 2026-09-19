@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-import substack_scraper as ss
+import scraper as ss
 
 
 class FakeScraper(ss.BaseSubstackScraper):
@@ -60,7 +60,7 @@ def test_parse_args_supports_images_flag(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["substack_scraper.py", "--url", "https://example.substack.com/p/post", "--images"],
+        ["scraper.py", "--url", "https://example.substack.com/p/post", "--images"],
     )
 
     args = ss.parse_args()
@@ -175,7 +175,7 @@ def test_get_post_slug(url, expected):
 
 
 # 6. test_process_markdown_images
-@patch("substack_scraper.download_image")
+@patch("scraper.download_image")
 def test_process_markdown_images(mock_download):
     """Mock requests.get and verify image download + path rewriting."""
     mock_download.return_value = "data/images/testauthor/test-post/photo.jpg"
@@ -198,7 +198,7 @@ def test_process_markdown_images(mock_download):
 
 
 # 7. test_download_image_error_handling
-@patch("substack_scraper.requests.get")
+@patch("scraper.requests.get")
 def test_download_image_error_handling(mock_get, tmp_path):
     """Mock network error, verify graceful handling (returns None)."""
     mock_get.side_effect = ConnectionError("Network unreachable")
@@ -310,7 +310,7 @@ def test_default_use_premium_is_false():
 
 
 def test_main_bare_command_shows_help_and_exits(monkeypatch, capsys):
-    monkeypatch.setattr(sys, "argv", ["substack_scraper.py"])
+    monkeypatch.setattr(sys, "argv", ["scraper.py"])
     with pytest.raises(SystemExit) as exc_info:
         ss.main()
     assert exc_info.value.code != 0
@@ -432,7 +432,7 @@ def test_browser_manager_launch_cdp():
     mock_cdp_browser.contexts = [mock_context]
     mock_pw_instance.chromium.connect_over_cdp.return_value = mock_cdp_browser
 
-    with patch("substack_scraper.browser.sync_playwright") as mock_sync_pw:
+    with patch("scraper.browser.sync_playwright") as mock_sync_pw:
         mock_sync_pw.return_value.start.return_value = mock_pw_instance
         session = ss.BrowserManager.launch(cdp_url="http://localhost:9222")
         assert session.context == mock_context
@@ -441,9 +441,9 @@ def test_browser_manager_launch_cdp():
 
 def test_premium_scraper_requires_credentials_when_not_skipping():
     with (
-        patch("substack_scraper.scrapers.premium.get_credentials", return_value=("", "")),
+        patch("scraper.scrapers.premium.get_credentials", return_value=("", "")),
         patch(
-            "substack_scraper.scrapers.premium.BrowserManager.DEFAULT_STORAGE_STATE_PATH",
+            "scraper.scrapers.premium.BrowserManager.DEFAULT_STORAGE_STATE_PATH",
             "/nonexistent/path/storage.json",
         ),
     ):
@@ -462,7 +462,7 @@ def test_premium_scraper_init_with_skip_login():
     mock_context.pages = [mock_page]
     mock_session.context = mock_context
 
-    with patch("substack_scraper.scrapers.premium.BrowserManager.launch", return_value=mock_session):
+    with patch("scraper.scrapers.premium.BrowserManager.launch", return_value=mock_session):
         scraper = ss.PremiumSubstackScraper(
             base_substack_url="https://example.substack.com",
             content_save_dir="content",
@@ -483,8 +483,8 @@ def test_download_image_retries_on_failure_and_succeeds(tmp_path):
 
     dest = tmp_path / "retry_success.jpg"
     with (
-        patch("substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_ok]) as mock_get,
-        patch("substack_scraper.images.sleep") as mock_sleep,
+        patch("scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_ok]) as mock_get,
+        patch("scraper.images.sleep") as mock_sleep,
     ):
         result = ss.download_image("https://example.com/retry.jpg", dest, max_retries=3)
 
@@ -500,10 +500,8 @@ def test_download_image_fails_after_max_retries(tmp_path):
 
     dest = tmp_path / "retry_fail.jpg"
     with (
-        patch(
-            "substack_scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_fail, mock_resp_fail]
-        ) as mock_get,
-        patch("substack_scraper.images.sleep") as mock_sleep,
+        patch("scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_fail, mock_resp_fail]) as mock_get,
+        patch("scraper.images.sleep") as mock_sleep,
     ):
         result = ss.download_image("https://example.com/fail.jpg", dest, max_retries=3)
 
@@ -582,7 +580,7 @@ def test_cli_force_flag_sets_overwrite(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["substack_scraper.py", "--url", "https://example.substack.com", "--force"],
+        ["scraper.py", "--url", "https://example.substack.com", "--force"],
     )
     args = ss.parse_args()
     assert args.overwrite is True
@@ -590,7 +588,7 @@ def test_cli_force_flag_sets_overwrite(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["substack_scraper.py", "--url", "https://example.substack.com", "--overwrite"],
+        ["scraper.py", "--url", "https://example.substack.com", "--overwrite"],
     )
     args_alias = ss.parse_args()
     assert args_alias.overwrite is True
@@ -774,7 +772,7 @@ def test_parse_args_verbose_and_quiet_mutually_exclusive(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["substack_scraper", "--url", "https://example.substack.com", "-v", "-q"],
+        ["scraper", "--url", "https://example.substack.com", "-v", "-q"],
     )
     with pytest.raises(SystemExit):
         ss.parse_args()
@@ -784,7 +782,7 @@ def test_parse_args_verbose_flag(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["substack_scraper", "--url", "https://example.substack.com", "--verbose"],
+        ["scraper", "--url", "https://example.substack.com", "--verbose"],
     )
     args = ss.parse_args()
     assert args.verbose is True
@@ -795,7 +793,7 @@ def test_parse_args_quiet_flag(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["substack_scraper", "--url", "https://example.substack.com", "-q"],
+        ["scraper", "--url", "https://example.substack.com", "-q"],
     )
     args = ss.parse_args()
     assert args.quiet is True
@@ -806,7 +804,7 @@ def test_premium_auto_skip_login_when_credentials_missing_but_profile_exists(tmp
     profile_dir = tmp_path / "chrome_profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr("substack_scraper.scrapers.premium.get_credentials", lambda: (None, None))
+    monkeypatch.setattr("scraper.scrapers.premium.get_credentials", lambda: (None, None))
     monkeypatch.setattr(ss.BrowserManager, "get_user_data_dir", lambda browser: str(profile_dir))
 
     fake_session = MagicMock()
@@ -854,7 +852,7 @@ def test_clean_post_html_strips_comment_and_promo_buttons():
         <div class="post-footer">Footer promo content</div>
     </div>
     """
-    from substack_scraper.scrapers.base import BaseSubstackScraper
+    from scraper.scrapers.base import BaseSubstackScraper
 
     md = BaseSubstackScraper.html_to_md(html, clean_content=True)
     assert "This is the real article body paragraph." in md

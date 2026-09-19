@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def _get_requests():
     """Retrieve requests module or monkeypatched version from sys.modules."""
-    ss = sys.modules.get("substack_scraper")
+    ss = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
     return getattr(ss, "requests", requests) if ss else requests
 
 
@@ -201,7 +201,7 @@ def download_image(
 
 def _call_download_image(*args, **kwargs):
     """Invoke download_image with support for module-level test patches."""
-    ss = sys.modules.get("substack_scraper")
+    ss = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
     downloader = getattr(ss, "download_image", download_image) if ss else download_image
     return downloader(*args, **kwargs)
 
@@ -227,7 +227,7 @@ def process_markdown_images(
     Returns:
         str: Updated markdown content with CDN links replaced by relative paths.
     """
-    ss = sys.modules.get("substack_scraper")
+    ss = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
     current_content_dir = getattr(ss, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if ss else BASE_CONTENT_DIR
     target_content_dir = Path(base_content_dir or current_content_dir)
 

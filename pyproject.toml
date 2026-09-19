@@ -34,11 +34,10 @@ dev = [
 ]
 
 [project.scripts]
-substack2markdown = "substack_scraper:main"
-substack_scraper = "substack_scraper:main"
+scraper = "scraper:main"
 
 [tool.setuptools]
-packages = ["substack_scraper"]
+packages = ["scraper", "scraper.scrapers"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
