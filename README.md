@@ -4,26 +4,33 @@ Substack2Markdown is a Python tool for downloading free and premium Substack pos
 
 Once you run the scraper, it saves markdown files into `content/<author>/posts/` and an author catalog into `content/<author>/metadata.json`. When image downloading is enabled (`--images`), post images are saved locally into `content/<author>/images/<post_slug>/` and rewritten with relative links.
 
+<p align="center">
+  <img src="reader/public/library-preview.png" alt="Substack Reader Library" width="850" />
+</p>
+
 ## Features
 
-- Converts Substack posts into clean Markdown files with rich YAML frontmatter.
-- Cleans distracting promotional widgets (subscription banners, paywall prompts, footers) with `--no-clean` opt-out.
-- Preserves code block language syntax identifiers (` ```python `) for syntax highlighting.
-- Extracts rich post metadata (`post_id`, `tags`, `description`, `wordcount`, `audience`, `canonical_url`) with zero extra network requests.
-- Author-centric content organization (`content/<author>/posts/`, `images/`, `metadata.json`).
-- Supports both free and premium publications (with active subscription).
-- Supports Chrome and Microsoft Edge browsers with automated driver discovery and caching.
-- Supports persistent browser profiles to remember login sessions and solve CAPTCHAs interactively.
-- Supports single-post scraping via post URL (e.g. `/p/post-slug`).
-- Downloads post images locally with `--images` and rewrites markdown image links.
-- Scaffolds a local static reader in `reader/` powered by Astro.
+### Scraping Engine
+- **Free & Subscriber Content**: Archives public newsletters and paid subscriber-only posts (requires active subscription).
+- **Clean Markdown & Frontmatter**: Converts posts to markdown with sanitized HTML, stripped promotional clutter (subscribe buttons, paywall banners, footers), and preserved code syntax blocks.
+- **Rich Metadata Extraction**: Captures `post_id`, `tags`, `description`, `wordcount`, `audience`, and `canonical_url` with zero extra network overhead.
+- **Local Asset Pipeline**: Downloads embedded images into `content/<author>/images/<slug>/` and rewrites markdown image links with `--images`.
+- **Author-Centric Organization**: Cleanly arranges posts, images, and author catalog into `content/<author>/`.
+- **Browser Automation & Session Reuse**: Launches desktop Chrome or Edge via Playwright with persistent profiles, storage state JSON, or CDP attach (solving CAPTCHAs interactively once and reusing sessions).
+- **Flexible Scoping**: Scrapes entire publications, single posts by URL (e.g. `/p/slug`), or limits post count with `--number`.
+
+### Modern Astro Reader (`reader/`)
+- **Reading Progress & Tracker**: Todo-style status tracking (`pending`, `in-progress`, `completed`), read counters, completion progress bar, and persistence via local storage and `data/reading-state.json`.
+- **Instant Back-Navigation & State Preservation**: Returns from articles with zero latency (BFCache), preserving loaded row batches, exact scroll coordinates, active filters, search queries, and pulse-highlighting the active post row.
+- **Full-Text Search & Filtering**: Client-side search (Pagefind), author filtering, and multi-column sorting (status, title, author, date, length).
+- **Reading Experience**: Dark mode support, image lightbox, syntax-highlighted code blocks, and floating navigation controls.
 
 ## Installation
 
 Clone the repository and install dependencies using `uv` (recommended) or `pip`:
 
 ```bash
-git clone https://github.com/yourusername/Substack2Markdown.git
+git clone https://github.com/0xfchen/Substack2Markdown.git
 cd Substack2Markdown
 
 # Install dependencies with uv (or pip install .)
@@ -129,6 +136,10 @@ uv run scraper --url https://example.substack.com --premium --cdp-url http://loc
 ## Local Reader (Astro)
 
 A modern static reader is provided in the `reader/` directory.
+
+<p align="center">
+  <img src="reader/public/post-preview.png" alt="Substack Reader Article View" width="850" />
+</p>
 
 To run the local reader:
 ```bash
