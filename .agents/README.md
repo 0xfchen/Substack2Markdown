@@ -29,6 +29,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-021`** | **Issue** | `fix` | Playwright Navigation Interruption Handling and Transient Page Fetch Retry | [`issues/stm-021-playwright-navigation-interruption-and-timeout-retry.md`](issues/stm-021-playwright-navigation-interruption-and-timeout-retry.md) |
 | **`stm-022`** | **Issue** | `refactor` | Rename package and CLI from `substack_scraper` to `scraper` | [`issues/stm-022-rename-package-to-scraper.md`](issues/stm-022-rename-package-to-scraper.md) |
 | **`stm-023`** | **Plan** | `feat` | Restore Table View State and Row Anchor on Back-Navigation | [`plans/stm-023-restore-table-state-and-anchor.md`](plans/stm-023-restore-table-state-and-anchor.md) |
+| **`stm-024`** | **Issue** | `refactor` | Streamline Library Hero Header and Eliminate Duplicate Site Title | [`issues/stm-024-streamline-library-hero-header.md`](issues/stm-024-streamline-library-hero-header.md) |
 
 ---
 
