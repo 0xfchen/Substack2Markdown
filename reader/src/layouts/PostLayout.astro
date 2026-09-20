@@ -35,7 +35,6 @@ const {
 
 const tr = getUiText();
 const libraryBase = withBase('/');
-const postsBase = withBase('/posts');
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const pubDateISO = pubDate.toISOString();
@@ -128,7 +127,7 @@ const jsonLd = serializeScriptJson({
           <section class="related-section" data-pagefind-ignore="all">
             <div class="related-header">
               <p class="related-label">{tr.relatedPosts}</p>
-              <a href={postsBase} class="related-view-all">
+              <a href={libraryBase} class="related-view-all">
                 {tr.allPosts}
               </a>
             </div>
