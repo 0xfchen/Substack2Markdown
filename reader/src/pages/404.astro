@@ -1,6 +1,7 @@
 ---
 import '../styles/pages/not-found.css';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Three404Scene from '../components/Three404Scene.astro';
 import { withBase } from '../utils/paths';
 ---
 
@@ -12,13 +13,18 @@ import { withBase } from '../utils/paths';
   pageUrl={withBase('/404.html')}
 >
   <main class="not-found-main" id="main-content">
-    <div class="not-found-inner">
-      <p class="not-found-code">404</p>
-      <h1 class="not-found-title">Page not found</h1>
-      <p class="not-found-desc">The URL may be wrong, or the page may have been removed.</p>
-      <div class="not-found-actions">
-        <a href={withBase('/')} class="btn btn-primary">Library</a>
-        <a href={withBase('/search')} class="btn btn-secondary">Search</a>
+    <div class="not-found-grid">
+      <div class="not-found-inner">
+        <p class="not-found-code">404</p>
+        <h1 class="not-found-title">Page not found</h1>
+        <p class="not-found-desc">The URL may be wrong, or the page may have drifted away into the void.</p>
+        <div class="not-found-actions">
+          <a href={withBase('/')} class="btn btn-primary">Library</a>
+          <a href={withBase('/search')} class="btn btn-secondary">Search</a>
+        </div>
+      </div>
+      <div class="not-found-visual">
+        <Three404Scene />
       </div>
     </div>
   </main>

@@ -49,11 +49,13 @@
     "rehype-autolink-headings": "^7.1.0",
     "rehype-slug": "^6.0.0",
     "sharp": "^0.34.3",
+    "three": "^0.186.0",
     "toc-rail": "^0.1.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@eslint/js": "^9.39.4",
+    "@types/three": "^0.186.0",
     "eslint": "^9.39.4",
     "eslint-plugin-astro": "^1.7.0",
     "pagefind": "^1.5.2",
