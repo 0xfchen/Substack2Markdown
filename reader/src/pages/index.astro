@@ -5,6 +5,8 @@ import ReadingStatusButton from '../components/ReadingStatusButton.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import { withBase } from '../utils/paths';
+import { countMarkdownWords } from '../utils/graph-data';
+import { getTagColors } from '../utils/graph-colors';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,7 +30,7 @@ try {
 
 // Prepare article data rows
 const articleRows = posts.map((post) => {
-  const words = post.data.wordcount || (post.body ? post.body.trim().split(/\s+/).length : 0);
+  const words = post.data.wordcount || countMarkdownWords(post.body || '');
   const estMinutes = Math.max(1, Math.round(words / 200));
   const stateEntry = initialReadingState[post.id];
   let initialProgress = 0;
@@ -219,9 +221,14 @@ const articleRows = posts.map((post) => {
                 </td>
                 <td class="td-tags">
                   <div class="tags-wrap">
-                    {row.tags.slice(0, 3).map((tag) => (
-                      <span class="tag-pill">{tag}</span>
-                    ))}
+                    {row.tags.slice(0, 3).map((tag) => {
+                      const { style } = getTagColors(tag);
+                      return (
+                        <span class="tag-pill" style={style}>
+                          {tag}
+                        </span>
+                      );
+                    })}
                   </div>
                 </td>
               </tr>
@@ -310,7 +317,7 @@ const articleRows = posts.map((post) => {
   }
 
   .stat-pending {
-    color: var(--color-status-pending, #be123c);
+    color: var(--color-status-pending, #64748b);
   }
 
   .stat-reading {
@@ -617,16 +624,43 @@ const articleRows = posts.map((post) => {
   }
 
   .tag-pill {
+    --tag-color: var(--tag-color-light, var(--label-secondary));
     display: inline-block;
     padding: 0.15rem 0.45rem;
     border-radius: 4px;
-    background: var(--fill-quaternary);
-    color: var(--label-tertiary);
     font-size: var(--text-caption-2, 0.6875rem);
+    font-weight: 500;
     line-height: 1.3;
     white-space: normal;
     word-break: break-word;
     max-width: 100%;
+    color: var(--tag-color);
+    background: color-mix(in srgb, var(--tag-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tag-color) 24%, transparent);
+    transition:
+      color var(--duration-fast) ease,
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+  }
+
+  :global([data-theme='dark']) .tag-pill {
+    --tag-color: var(--tag-color-dark, var(--label-secondary));
+    background: color-mix(in srgb, var(--tag-color) 16%, transparent);
+    border-color: color-mix(in srgb, var(--tag-color) 32%, transparent);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .tag-pill {
+      --tag-color: var(--tag-color-dark, var(--label-secondary));
+      background: color-mix(in srgb, var(--tag-color) 16%, transparent);
+      border-color: color-mix(in srgb, var(--tag-color) 32%, transparent);
+    }
+  }
+
+  :global([data-theme='light']) .tag-pill {
+    --tag-color: var(--tag-color-light, var(--label-secondary));
+    background: color-mix(in srgb, var(--tag-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--tag-color) 24%, transparent);
   }
 
   .table-empty {

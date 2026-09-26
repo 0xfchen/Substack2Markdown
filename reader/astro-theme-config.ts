@@ -26,6 +26,7 @@ const config = {
   // Header navigation links
   nav: [
     { label: 'Library', href: '/' },
+    { label: 'Graph', href: '/graph' },
     { label: 'Search', href: '/search' },
   ] as NavItem[],
 

@@ -5,21 +5,26 @@
   min-height: calc(100dvh - var(--nav-height) - 120px);
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .not-found-grid {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr 380px;
   align-items: center;
   gap: var(--space-8, 2rem);
   width: 100%;
+  position: relative;
+  z-index: 2;
 }
 
 .not-found-visual {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 0;
+  width: 380px;
+  min-width: 320px;
 }
 
 .not-found-inner {
@@ -28,14 +33,34 @@
   gap: var(--space-5);
 }
 
-.not-found-code {
-  font-size: clamp(5rem, 20vw, 10rem);
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.05em;
-  line-height: 1;
-  margin: 0;
-  color: var(--label-secondary);
+.not-found-code-container {
+  width: 280px;
+  max-width: 100%;
+  height: 150px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   user-select: none;
+  margin: 0;
+  margin-bottom: -0.25rem;
+  cursor: pointer;
+}
+
+.not-found-code-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  outline: none;
+}
+
+@media (max-width: 768px) {
+  .not-found-code-container {
+    max-width: 300px;
+    height: 140px;
+    margin: 0 auto -0.5rem auto;
+    justify-content: center;
+  }
 }
 
 .not-found-title {
@@ -44,6 +69,7 @@
   letter-spacing: var(--tracking-tight);
   margin: 0;
   color: var(--label-primary);
+  width: fit-content;
 }
 
 .not-found-desc {

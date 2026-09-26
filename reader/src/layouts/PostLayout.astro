@@ -14,6 +14,7 @@ import { SITE_AUTHOR, SITE_LANG, SITE_TITLE } from '../consts';
 import { getUiText } from '../ui';
 import { withBase } from '../utils/paths';
 import { serializeScriptJson } from '../utils/serialize-script-json';
+import { getTagColors } from '../utils/graph-colors';
 
 type Props = CollectionEntry<'posts'>['data'] & {
   slug?: string;
@@ -30,6 +31,7 @@ const {
   heroImage,
   readingTime,
   focusEffect,
+  tags = [],
   relatedPosts = [],
 } = Astro.props;
 
@@ -112,6 +114,20 @@ const jsonLd = serializeScriptJson({
         </div>
         <h1 class="post-title" data-pagefind-meta="title">{title}</h1>
         {description && <p class="post-description">{description}</p>}
+        {
+          tags && tags.length > 0 && (
+            <div class="post-tags">
+              {tags.map((tag) => {
+                const { style } = getTagColors(tag);
+                return (
+                  <span class="tag-pill" style={style}>
+                    {tag}
+                  </span>
+                );
+              })}
+            </div>
+          )
+        }
       </header>
 
       <div class="post-divider"></div>

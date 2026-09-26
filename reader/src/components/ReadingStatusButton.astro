@@ -21,130 +21,10 @@ const { slug } = Astro.props;
 </div>
 
 <script>
-  import {
-    fetchReadingState,
-    getReadingStatus,
-    getReadCount,
-    toggleReadingStatus,
-    READING_STATUS_CHANGE_EVENT,
-    type ReadingStatus,
-    type ReadingStatusChangeEventDetail,
-  } from '../scripts/reading-tracker';
+  import { initReadingStatusButtons } from '../scripts/reading-status-button';
 
-  declare global {
-    interface Window {
-      __readingControlListenerAttached?: boolean;
-    }
-  }
-
-  function updateControlUI(control: HTMLElement, status: ReadingStatus, readCount: number = 0) {
-    control.setAttribute('data-status', status);
-    control.setAttribute('data-read-count', String(readCount));
-    const icon = control.querySelector('[data-status-icon]');
-    const text = control.querySelector('[data-status-text]');
-    const badge = control.querySelector<HTMLElement>('[data-read-count]');
-    const btn = control.querySelector<HTMLButtonElement>('[data-status-btn]');
-
-    if (status === 'completed') {
-      if (icon) icon.textContent = '✓';
-      if (text) text.textContent = 'Complete';
-      if (btn) {
-        btn.title = readCount > 1
-          ? `Read ${readCount} times • Click to start reread (reset to To Read)`
-          : 'Complete • Click to start reread (reset to To Read)';
-      }
-      if (badge) {
-        if (readCount > 1) {
-          badge.textContent = `${readCount}×`;
-          badge.hidden = false;
-        } else {
-          badge.hidden = true;
-        }
-      }
-    } else if (status === 'in-progress') {
-      if (icon) icon.textContent = '◑';
-      if (text) text.textContent = 'Reading';
-      if (badge) {
-        if (readCount >= 1) {
-          badge.textContent = `${readCount}×`;
-          badge.hidden = false;
-        } else {
-          badge.hidden = true;
-        }
-      }
-      if (btn) {
-        btn.title = readCount >= 1
-          ? `Reading (read ${readCount}× before) • Click to mark complete`
-          : 'Reading • Click to mark complete';
-      }
-    } else {
-      if (icon) icon.textContent = '○';
-      if (text) text.textContent = 'To Read';
-      if (badge) {
-        if (readCount >= 1) {
-          badge.textContent = `${readCount}×`;
-          badge.hidden = false;
-        } else {
-          badge.hidden = true;
-        }
-      }
-      if (btn) {
-        btn.title = readCount >= 1
-          ? `To Read (read ${readCount}× before) • Click to start reading`
-          : 'Click to toggle reading status (To Read -> Reading -> Complete)';
-      }
-    }
-  }
-
-  function syncAllControls(targetSlug?: string, targetStatus?: ReadingStatus, targetCount?: number) {
-    const controls = document.querySelectorAll<HTMLElement>('[data-reading-status-control]');
-    controls.forEach((control) => {
-      const itemSlug = control.dataset.slug;
-      if (!itemSlug) return;
-      if (!targetSlug || itemSlug === targetSlug) {
-        const status = targetSlug && targetStatus ? targetStatus : getReadingStatus(itemSlug);
-        const count = targetSlug && targetCount !== undefined ? targetCount : getReadCount(itemSlug);
-        updateControlUI(control, status, count);
-      }
-    });
-  }
-
-  // Ensure global listeners are attached exactly once
-  if (!window.__readingControlListenerAttached) {
-    window.__readingControlListenerAttached = true;
-
-    // Delegated click handler on document
-    document.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement | null;
-      const btn = target?.closest<HTMLButtonElement>('[data-status-btn]');
-      if (!btn) return;
-
-      const control = btn.closest<HTMLElement>('[data-reading-status-control]');
-      const slug = control?.dataset.slug;
-      if (!slug) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      toggleReadingStatus(slug);
-    });
-
-    // Reactive status change event listener
-    window.addEventListener(READING_STATUS_CHANGE_EVENT, ((e: CustomEvent<ReadingStatusChangeEventDetail>) => {
-      const { slug, status, state } = e.detail || {};
-      syncAllControls(slug, status, state?.readCount);
-    }) as EventListener);
-  }
-
-  // Initialize UI
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => syncAllControls(), { once: true });
-  } else {
-    syncAllControls();
-  }
-
-  fetchReadingState().then(() => {
-    syncAllControls();
-  });
+  initReadingStatusButtons();
+  document.addEventListener('astro:page-load', () => initReadingStatusButtons());
 </script>
 
 <style>
@@ -204,14 +84,14 @@ const { slug } = Astro.props;
   }
 
   .reading-status-control[data-status='pending'] .status-btn {
-    color: var(--color-status-pending, #be123c);
-    border-color: color-mix(in srgb, var(--color-status-pending, #be123c) 35%, transparent);
-    background: color-mix(in srgb, var(--color-status-pending, #be123c) 10%, transparent);
+    color: var(--color-status-pending, #64748b);
+    border-color: color-mix(in srgb, var(--color-status-pending, #64748b) 35%, transparent);
+    background: color-mix(in srgb, var(--color-status-pending, #64748b) 10%, transparent);
   }
 
   .reading-status-control[data-status='pending'] .status-btn:hover {
-    border-color: color-mix(in srgb, var(--color-status-pending, #be123c) 55%, transparent);
-    background: color-mix(in srgb, var(--color-status-pending, #be123c) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-status-pending, #64748b) 55%, transparent);
+    background: color-mix(in srgb, var(--color-status-pending, #64748b) 18%, transparent);
   }
 
   .read-count-badge {

@@ -5,7 +5,7 @@ Substack2Markdown is a Python tool for downloading free and premium Substack pos
 Once you run the scraper, it saves markdown files into `content/<author>/posts/` and an author catalog into `content/<author>/metadata.json`. When image downloading is enabled (`--images`), post images are saved locally into `content/<author>/images/<post_slug>/` and rewritten with relative links.
 
 <p align="center">
-  <img src="reader/public/library-preview.png" alt="Substack Reader Library" width="850" />
+  <img src="reader/public/preview/light/library.png" alt="Substack Reader Library" width="850" />
 </p>
 
 ## Features
@@ -22,8 +22,10 @@ Once you run the scraper, it saves markdown files into `content/<author>/posts/`
 ### Modern Astro Reader (`reader/`)
 - **Reading Progress & Tracker**: Todo-style status tracking (`pending`, `in-progress`, `completed`), read counters, completion progress bar, and persistence via local storage and `data/reading-state.json`.
 - **Instant Back-Navigation & State Preservation**: Returns from articles with zero latency (BFCache), preserving loaded row batches, exact scroll coordinates, active filters, search queries, and pulse-highlighting the active post row.
-- **Full-Text Search & Filtering**: Client-side search (Pagefind), author filtering, and multi-column sorting (status, title, author, date, length).
-- **Reading Experience**: Dark mode support, image lightbox, syntax-highlighted code blocks, and floating navigation controls.
+- **3D Knowledge Graph**: Interactive Three.js force-directed universe with dual-theme shape taxonomy (cosmic ringed planets, nebula hubs, and asteroids in dark mode; architectural spheres, prismatic diamonds, and document folios in light mode), real-time physics, chronological timeline scrubber, and topic/reading status color modes.
+- **Interactive 404 Origami Scene**: Procedural Three.js aerospace flight experience on missing routes, featuring a duo-tone origami paper plane (or SpaceX Starship in dark mode), matching origami paper "404" typography in light mode, continuous 3D banking flight path, twinkling starfield, and instant vessel switching.
+- **Full-Text Search & Filtering**: Fast client-side search (Pagefind) with live snippet highlighting, keyboard shortcut launcher (`Cmd/Ctrl+K`), author filtering, and multi-column sorting.
+- **Reading Experience**: Dark/light modes, image lightbox, syntax-highlighted code blocks, left reading progress rail, and right floating table-of-contents outline.
 
 ## Installation
 
@@ -135,16 +137,49 @@ uv run scraper --url https://example.substack.com --premium --cdp-url http://loc
 
 ## Local Reader (Astro)
 
-A modern static reader is provided in the `reader/` directory.
+A modern static reader is provided in the `reader/` directory, built with Astro, Three.js, and Pagefind.
+
+### Article Reading View
+Distraction-free reading experience with a left reading-progress tick rail, right floating table-of-contents outline, code syntax highlighting, and responsive dark/light modes:
 
 <p align="center">
-  <img src="reader/public/post-preview.png" alt="Substack Reader Article View" width="850" />
+  <img src="reader/public/preview/light/post.png" alt="Substack Reader Article View" width="850" />
 </p>
 
-To run the local reader:
+### 3D Knowledge Graph (`/graph`)
+Interactive 3D force-directed graph mapping your entire reading library. Distinct 3D geometric shapes identify entity types: in Dark Mode, publication hubs (**Ringed Planets**), topic hubs (**Nebula Spheres**), and articles (**Asteroids**); in Light Mode, publication hubs (**Solid Spheres**), topic hubs (**Prismatic Diamonds**), and articles (**Document Folios**). Features real-time physics, orbital camera navigation, topic/reading-status coloring, chronological timeline scrubbing, and instant node search:
+
+<p align="center">
+  <img src="reader/public/preview/light/graph.png" alt="Substack Reader 3D Knowledge Graph" width="850" />
+</p>
+
+### Instant Full-Text Search (`/search`)
+Lightning-fast client-side search powered by Pagefind with keyword highlighting, snippet previews, and instant keyboard launcher (`Cmd/Ctrl + K` or `/`):
+
+<p align="center">
+  <img src="reader/public/preview/light/search.png" alt="Substack Reader Full-Text Search" width="850" />
+</p>
+
+### Interactive 404 Origami Scene (`/404`)
+Playful 3D aerospace scene for missing routes featuring a duo-tone origami paper plane (cotton white top surface, slate craft gray underside) or SpaceX Starship gliding through a continuous 3D aerospace flight trajectory, complete with matching origami paper "404" typography in light mode, mouse parallax banking, starfield particles, and responsive dark/light theme duality:
+
+<p align="center">
+  <img src="reader/public/preview/light/404.png" alt="Substack Reader 404 Origami Scene" width="850" />
+</p>
+
+### Running the Reader
+
+Start the local development server:
 ```bash
 cd reader
 pnpm install
 pnpm dev
 ```
-Open [http://localhost:4321](http://localhost:4321) in your browser to read through all scraped newsletters with full search, tag filtering, and syntax highlighting.
+Open [http://localhost:4321](http://localhost:4321) in your browser to browse your library, search articles, and explore the 3D knowledge graph.
+
+To build the static site and compile the Pagefind search index:
+```bash
+cd reader
+pnpm build
+pnpm preview
+```

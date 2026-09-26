@@ -1,0 +1,254 @@
+---
+/**
+ * ThreeGraphScene.astro
+ *
+ * Interactive 3D Force-Directed Knowledge Graph powered by Three.js.
+ * Features GPU-accelerated node rendering, spring physics simulation,
+ * OrbitControls, raycasting hover tooltips, click-to-focus camera tweening,
+ * dynamic search filtering, cluster isolation, and Dark/Light theme adaptation.
+ */
+import type { GraphData } from '../utils/graph-data';
+import { serializeScriptJson } from '../utils/serialize-script-json';
+
+interface Props {
+  graphData: GraphData;
+  authors?: string[];
+}
+
+const { graphData } = Astro.props;
+---
+
+<div class="graph-page-container" data-graph-container>
+  <canvas class="graph-canvas" data-graph-canvas></canvas>
+
+  <!-- Top Floating HUD -->
+  <div class="graph-hud">
+    <!-- Top Left Interaction Controls Hint -->
+    <div class="graph-hud-left">
+      <div class="graph-controls-hint">Drag to rotate • Scroll to zoom • Click node to focus</div>
+    </div>
+
+    <div class="graph-hud-center">
+      <!-- Search Input -->
+      <div class="graph-panel graph-search-box">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="text"
+          class="graph-search-input"
+          placeholder="Search articles or topics..."
+          aria-label="Filter nodes"
+          data-graph-search
+        />
+      </div>
+
+      <!-- Filter Pills: Single-Row Dynamic Filter Pills (Switches between Topics and Reading Status) -->
+      <div class="graph-filter-row" data-graph-filters>
+        <div class="graph-filter-mode-group" data-filters-topic>
+          <button type="button" class="graph-filter-btn active" data-filter="all">All ({graphData.nodes.length})</button>
+          <button type="button" class="graph-filter-btn" data-filter="publications">Publications</button>
+          <button type="button" class="graph-filter-btn" data-filter="tags">Topics</button>
+          <button type="button" class="graph-filter-btn" data-filter="articles">Articles</button>
+        </div>
+        <div class="graph-filter-mode-group hidden" data-filters-reading>
+          <button type="button" class="graph-filter-btn active" data-filter="all">All ({graphData.nodes.length})</button>
+          <button type="button" class="graph-filter-btn" data-filter="status:completed">Read</button>
+          <button type="button" class="graph-filter-btn" data-filter="status:in-progress">In Progress</button>
+          <button type="button" class="graph-filter-btn" data-filter="status:unread">Unread</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Controls: Color Mode & Reset -->
+    <div class="graph-hud-right">
+      <div class="graph-actions-row">
+
+        <button type="button" class="graph-action-btn" data-color-mode-btn title="Toggle Color Mode">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10"></path>
+          </svg>
+          <span data-color-mode-label>Color: Topics</span>
+        </button>
+
+        <button type="button" class="graph-action-btn" data-reset-camera-btn title="Reset Camera">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+          Reset View
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inspector Card (Bottom-Right) -->
+  <div class="graph-panel graph-inspector hidden" data-graph-inspector>
+    <div class="graph-inspector-header">
+      <div class="graph-inspector-badges">
+        <span class="graph-inspector-badge" data-inspector-badge>Article</span>
+        <span class="graph-inspector-status-badge hidden" data-inspector-status>Read</span>
+        <span class="graph-inspector-count-badge hidden" data-inspector-count>0 articles</span>
+      </div>
+      <button type="button" class="graph-inspector-close" data-inspector-close aria-label="Close inspector">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <h3 class="graph-inspector-title" data-inspector-title>Node Title</h3>
+    <div class="graph-inspector-meta" data-inspector-meta>
+      <span data-inspector-author>Author</span>
+      <span data-inspector-date>Date</span>
+      <span data-inspector-time>5 min read</span>
+    </div>
+    <p class="graph-inspector-desc" data-inspector-desc>Summary or description...</p>
+
+    <!-- Rich Topic / Publication Hub Details -->
+    <div class="graph-inspector-hub-details hidden" data-inspector-hub-details>
+      <div class="graph-inspector-progress-bar-wrap">
+        <div class="graph-inspector-progress-bar">
+          <div class="graph-inspector-progress-fill" data-inspector-hub-progress style="width: 0%"></div>
+        </div>
+        <span class="graph-inspector-progress-text" data-inspector-hub-progress-text>0/0 read (0%)</span>
+      </div>
+      <div class="graph-inspector-section-label" data-inspector-articles-label>Connected Articles</div>
+      <div class="graph-inspector-articles-list" data-inspector-articles-list></div>
+    </div>
+
+    <div class="graph-inspector-tags" data-inspector-tags></div>
+    <div class="graph-inspector-action" data-inspector-action>
+      <a href="#" class="graph-read-btn" data-inspector-link>
+        <span data-inspector-btn-text>Read Article</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Dynamic Cursor Tooltip -->
+  <div class="graph-tooltip" data-graph-tooltip>
+    <div class="graph-tooltip-title" data-tooltip-title>Title</div>
+    <div class="graph-tooltip-sub" data-tooltip-sub>Author • Tag</div>
+  </div>
+
+  <!-- Bottom-Center Timeline / Universe Expansion HUD -->
+  <div class="graph-timeline-hud" data-graph-timeline-hud>
+    <div class="graph-timeline-header">
+      <div class="graph-timeline-title-wrap">
+        <span class="graph-timeline-pulse-dot"></span>
+        <span class="graph-timeline-title" data-timeline-title>Universe Expansion</span>
+      </div>
+      <div class="graph-timeline-date-badge" data-timeline-date-badge>
+        <span class="graph-timeline-date" data-timeline-date>All Time</span>
+        <span class="graph-timeline-count" data-timeline-count>{graphData.nodes.filter(n => n.type === 'post').length} articles</span>
+      </div>
+    </div>
+
+    <div class="graph-timeline-controls">
+      <!-- Play / Pause Button -->
+      <button type="button" class="graph-timeline-btn graph-timeline-play-btn" data-timeline-play-btn title="Play / Pause Universe Expansion" aria-label="Play timeline">
+        <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <svg class="icon-pause hidden" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
+      </button>
+
+      <!-- Range Scrubber Slider -->
+      <div class="graph-timeline-slider-wrap">
+        <input
+          type="range"
+          min="0"
+          max="1000"
+          value="1000"
+          step="1"
+          class="graph-timeline-slider"
+          aria-label="Universe timeline scrubber"
+          data-timeline-slider
+        />
+        <div class="graph-timeline-progress-fill" data-timeline-progress-fill style="width: 100%;"></div>
+      </div>
+
+      <!-- Playback Speed -->
+      <button type="button" class="graph-timeline-btn graph-timeline-speed-btn" data-timeline-speed-btn title="Playback Speed" aria-label="Playback speed">
+        <span data-timeline-speed-label>1x</span>
+      </button>
+
+      <!-- Jump to Present -->
+      <button type="button" class="graph-timeline-btn graph-timeline-present-btn active" data-timeline-present-btn title="Reset to Present (Full Cosmos)" aria-label="Jump to present">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 4 15 12 5 20 5 4"></polygon>
+          <line x1="19" y1="5" x2="19" y2="19"></line>
+        </svg>
+        <span>Present</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom-Left Legend -->
+  <div class="graph-legend" data-graph-legend>
+    <div class="graph-legend-group" data-legend-topics>
+      <div class="graph-legend-item" title="Publication (Ringed Planet)">
+        <span class="graph-legend-dot author ringed"></span>
+        <span data-legend-label="author">Publication (Planet)</span>
+      </div>
+      <div class="graph-legend-item" title="Topic (Luminous Star)">
+        <span class="graph-legend-dot tag star-sphere"></span>
+        <span data-legend-label="tag">Topic (Star)</span>
+      </div>
+      <div class="graph-legend-item" title="Article (Faceted Asteroid)">
+        <span class="graph-legend-dot post asteroid"></span>
+        <span data-legend-label="post">Article (Asteroid)</span>
+      </div>
+    </div>
+    <div class="graph-legend-group hidden" data-legend-reading>
+      <div class="graph-legend-item">
+        <span class="graph-legend-dot completed"></span>
+        <span>Read</span>
+      </div>
+      <div class="graph-legend-item">
+        <span class="graph-legend-dot in-progress"></span>
+        <span>In Progress</span>
+      </div>
+      <div class="graph-legend-item">
+        <span class="graph-legend-dot unread"></span>
+        <span>Unread</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Embedded Graph Data -->
+<script is:inline type="application/json" id="graph-data-payload" set:html={serializeScriptJson(graphData)} />
+
+<script>
+  import { initThreeGraph } from '../scripts/three-graph';
+
+  let currentTeardown: (() => void) | null = null;
+
+  function setup() {
+    if (typeof currentTeardown === 'function') {
+      currentTeardown();
+      currentTeardown = null;
+    }
+    currentTeardown = initThreeGraph();
+  }
+
+  // Handle Astro View Transitions lifecycle
+  document.addEventListener('astro:page-load', setup);
+
+  // Fallback for standard DOM ready when ClientRouter is not active
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup, { once: true });
+  } else if (!currentTeardown) {
+    setup();
+  }
+</script>

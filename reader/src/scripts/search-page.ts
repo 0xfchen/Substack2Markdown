@@ -15,7 +15,6 @@ declare global {
   }
 }
 
-const isProductionBuild = import.meta.env.PROD;
 
 function loadPagefindCss() {
   if (document.querySelector('link[data-pagefind-ui-css]')) return;
@@ -29,9 +28,6 @@ function loadPagefindCss() {
 
 async function loadPagefindUi() {
   if (window.PagefindUI) return Promise.resolve();
-  if (!isProductionBuild) {
-    throw new Error('Pagefind UI is not available');
-  }
 
   loadPagefindCss();
 

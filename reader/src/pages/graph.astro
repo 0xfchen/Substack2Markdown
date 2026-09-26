@@ -1,0 +1,46 @@
+---
+/**
+ * graph.astro
+ *
+ * 3D Interactive Knowledge Graph View (Constellation View).
+ * Visualizes the entire Substack newsletter archive as an interactive 3D universe.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ThreeGraphScene from '../components/ThreeGraphScene.astro';
+import { buildGraphData } from '../utils/graph-data';
+import { withBase } from '../utils/paths';
+import '../styles/pages/graph.css';
+
+const posts = (await getCollection('posts'))
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const authors = [...new Set(posts.map((p) => p.data.author || 'Unknown'))].sort();
+
+// Load reading state from content/reading_state.json if available
+let readingState: Record<string, { status?: string }> = {};
+try {
+  const statePath = path.resolve(process.cwd(), '..', 'content', 'reading_state.json');
+  if (fs.existsSync(statePath)) {
+    readingState = JSON.parse(fs.readFileSync(statePath, 'utf-8') || '{}');
+  }
+} catch {
+  readingState = {};
+}
+
+const graphData = buildGraphData(posts, readingState, withBase);
+---
+
+<BaseLayout
+  title="Knowledge Graph"
+  description="Explore the Substack library as an interactive 3D constellation of articles, topics, and authors."
+  pageUrl={withBase('/graph/')}
+>
+  <main id="main-content" style="padding: 0; margin: 0; max-width: 100%;">
+    <ThreeGraphScene graphData={graphData} authors={authors} />
+  </main>
+</BaseLayout>
+

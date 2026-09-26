@@ -12,6 +12,10 @@ setup.py
 .idea/
 .vscode/
 
+# Keep the worktree marker, but ignore generated worktree contents
+.agents/worktrees/*
+!.agents/worktrees/.gitkeep
+
 # Ignore all files in content/ except README.md
 content/*
 !content/README.md
@@ -20,5 +24,6 @@ content/*
 node_modules/
 .astro/
 dist/
+reader/public/pagefind/
 .github/
 
