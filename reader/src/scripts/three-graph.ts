@@ -18,6 +18,7 @@ import {
   getNodeReadingColor,
   getNodeTopicColor,
 } from '../utils/graph-colors';
+import { GRAPH_SCENE_COLORS } from '../utils/colors';
 import type { GraphData, GraphLink, GraphNode, SimNode, ActiveLink } from './graph/types';
 import { createGraphGeometries, createGraphMaterials } from './graph/mesh-factory';
 import { showGraphInspector, hideGraphInspector } from './graph/inspector';
@@ -101,7 +102,7 @@ export function initThreeGraph(): (() => void) | null {
   scene.add(dirLight1);
 
   const dirLight2 = new THREE.DirectionalLight(
-    isDarkTheme() ? 0x38bdf8 : 0xe2e8f0,
+    isDarkTheme() ? GRAPH_SCENE_COLORS.dirLightDark : GRAPH_SCENE_COLORS.dirLightLight,
     isDarkTheme() ? 1.0 : 0.7
   );
   dirLight2.position.set(-100, -100, -80);
@@ -595,21 +596,29 @@ export function initThreeGraph(): (() => void) | null {
   // 13. Theme Changes Observer
   function updateTheme() {
     const dark = isDarkTheme();
-    materials.linkMaterial.color.setHex(dark ? 0x334155 : 0xcbd5e1);
+    materials.linkMaterial.color.setHex(
+      dark ? GRAPH_SCENE_COLORS.linksDark : GRAPH_SCENE_COLORS.linksLightFaint
+    );
 
     ambientLight.intensity = dark ? 1.4 : 1.5;
     dirLight1.intensity = dark ? 1.5 : 1.4;
-    dirLight2.color.setHex(dark ? 0x38bdf8 : 0xe2e8f0);
+    dirLight2.color.setHex(
+      dark ? GRAPH_SCENE_COLORS.dirLightDark : GRAPH_SCENE_COLORS.dirLightLight
+    );
     dirLight2.intensity = dark ? 1.0 : 0.7;
 
     stars.visible = dark;
 
-    materials.linkMaterial.color.setHex(dark ? 0x334155 : 0x94a3b8);
+    materials.linkMaterial.color.setHex(
+      dark ? GRAPH_SCENE_COLORS.linksDark : GRAPH_SCENE_COLORS.linksLight
+    );
     materials.linkMaterial.opacity =
       currentHighlightedIdx !== null
         ? (dark ? 0.015 : 0.04)
         : (dark ? 0.1 : 0.22);
-    materials.activeLinkMaterial.color.setHex(dark ? 0x38bdf8 : 0x0284c7);
+    materials.activeLinkMaterial.color.setHex(
+      dark ? GRAPH_SCENE_COLORS.activeLinkDark : GRAPH_SCENE_COLORS.activeLinkLight
+    );
 
     if (colorMode === 'reading') {
       nodeMeshes.forEach((m) => {

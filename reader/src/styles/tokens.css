@@ -85,6 +85,12 @@
   --color-status-pending: #be123c;
   --color-status-in-progress: #c9a200;
   --color-status-completed: #166534;
+  --color-status-unread: #64748b;
+
+  /* Graph Visualization Semantic Tokens */
+  --color-graph-author: #d97706;
+  --color-graph-tag: #7c3aed;
+  --color-graph-post: #0284c7;
 
   /* Label Colors */
   --label-primary: rgba(0, 0, 0, 1);
@@ -118,18 +124,30 @@
   /* ------------------------------------------------------------
      3. SPACING — 4pt base grid
      ------------------------------------------------------------ */
-  --space-1: 0.25rem; /* 4pt */
-  --space-2: 0.5rem; /* 8pt */
-  --space-3: 0.75rem; /* 12pt */
-  --space-4: 1rem; /* 16pt */
-  --space-5: 1.25rem; /* 20pt */
-  --space-6: 1.5rem; /* 24pt */
-  --space-8: 2rem; /* 32pt */
-  --space-10: 2.5rem; /* 40pt */
-  --space-12: 3rem; /* 48pt */
-  --space-16: 4rem; /* 64pt */
-  --space-20: 5rem; /* 80pt */
-  --space-24: 6rem; /* 96pt */
+  --space-1: 0.25rem;
+  /* 4pt */
+  --space-2: 0.5rem;
+  /* 8pt */
+  --space-3: 0.75rem;
+  /* 12pt */
+  --space-4: 1rem;
+  /* 16pt */
+  --space-5: 1.25rem;
+  /* 20pt */
+  --space-6: 1.5rem;
+  /* 24pt */
+  --space-8: 2rem;
+  /* 32pt */
+  --space-10: 2.5rem;
+  /* 40pt */
+  --space-12: 3rem;
+  /* 48pt */
+  --space-16: 4rem;
+  /* 64pt */
+  --space-20: 5rem;
+  /* 80pt */
+  --space-24: 6rem;
+  /* 96pt */
 
   /* ------------------------------------------------------------
      4. BORDER RADIUS
@@ -214,6 +232,11 @@
     --color-status-pending: #fb7185;
     --color-status-in-progress: #facc15;
     --color-status-completed: #30d158;
+    --color-status-unread: #94a3b8;
+
+    --color-graph-author: #f59e0b;
+    --color-graph-tag: #a855f7;
+    --color-graph-post: #38bdf8;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 4px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -255,6 +278,11 @@
   --color-status-pending: #fb7185;
   --color-status-in-progress: #facc15;
   --color-status-completed: #30d158;
+  --color-status-unread: #94a3b8;
+
+  --color-graph-author: #f59e0b;
+  --color-graph-tag: #a855f7;
+  --color-graph-post: #38bdf8;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 4px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-lg:
@@ -290,4 +318,9 @@
   --color-status-pending: #be123c;
   --color-status-in-progress: #c9a200;
   --color-status-completed: #166534;
+  --color-status-unread: #64748b;
+
+  --color-graph-author: #d97706;
+  --color-graph-tag: #7c3aed;
+  --color-graph-post: #0284c7;
 }

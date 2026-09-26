@@ -70,6 +70,7 @@
 .dot {
   color: var(--label-quaternary);
 }
+
 .meta-updated {
   color: var(--label-quaternary);
 }
@@ -256,7 +257,7 @@
 .reading-progress-toast .toast-icon {
   font-size: 0.85em;
   font-weight: 700;
-  color: var(--color-teal, #0d9488);
+  color: var(--color-teal);
 }
 
 @media (max-width: 640px) {

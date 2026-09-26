@@ -317,19 +317,19 @@ const articleRows = posts.map((post) => {
   }
 
   .stat-unread {
-    color: var(--color-status-unread, #64748b);
+    color: var(--color-status-unread);
   }
 
   .stat-pending {
-    color: var(--color-status-pending, #be123c);
+    color: var(--color-status-pending);
   }
 
   .stat-reading {
-    color: var(--color-status-in-progress, #c9a200);
+    color: var(--color-status-in-progress);
   }
 
   .stat-completed {
-    color: var(--color-status-completed, #166534);
+    color: var(--color-status-completed);
   }
 
   .stat-label {
@@ -357,7 +357,7 @@ const articleRows = posts.map((post) => {
   .progress-bar-fill {
     height: 100%;
     border-radius: 999px;
-    background: var(--color-green, #34c759);
+    background: var(--color-green);
     transition: width 300ms ease;
   }
 
@@ -527,9 +527,9 @@ const articleRows = posts.map((post) => {
   }
 
   .article-row[data-row-anchor-highlight='true'] {
-    outline: 2px solid var(--color-teal, #0d9488);
+    outline: 2px solid var(--color-teal);
     outline-offset: -2px;
-    box-shadow: 0 0 16px var(--color-teal-glow, rgba(45, 212, 191, 0.4));
+    box-shadow: 0 0 16px var(--color-teal-glow);
     transition: outline-color 1.8s ease-out, box-shadow 1.8s ease-out;
   }
 

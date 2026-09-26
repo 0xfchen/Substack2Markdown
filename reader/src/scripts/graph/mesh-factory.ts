@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { GRAPH_SCENE_COLORS } from '../../utils/colors';
 import type { GraphNode } from './types';
 
 export function createRingedPlanetGeo(): THREE.BufferGeometry {
@@ -134,14 +135,14 @@ export interface GraphMaterials {
 
 export function createGraphMaterials(isDark: boolean): GraphMaterials {
   const starMat = new THREE.PointsMaterial({
-    color: isDark ? 0x93c5fd : 0x64748b,
+    color: isDark ? GRAPH_SCENE_COLORS.starMatDark : GRAPH_SCENE_COLORS.starMatLight,
     size: 1.2,
     transparent: true,
     opacity: isDark ? 0.6 : 0.25,
   });
 
   const linkMaterial = new THREE.LineBasicMaterial({
-    color: isDark ? 0x334155 : 0x94a3b8,
+    color: isDark ? GRAPH_SCENE_COLORS.linksDark : GRAPH_SCENE_COLORS.linksLight,
     transparent: true,
     opacity: isDark ? 0.1 : 0.22,
     blending: THREE.NormalBlending,
@@ -149,7 +150,7 @@ export function createGraphMaterials(isDark: boolean): GraphMaterials {
   });
 
   const activeLinkMaterial = new THREE.LineBasicMaterial({
-    color: isDark ? 0x38bdf8 : 0x0284c7,
+    color: isDark ? GRAPH_SCENE_COLORS.activeLinkDark : GRAPH_SCENE_COLORS.activeLinkLight,
     transparent: true,
     opacity: 0.95,
     blending: THREE.NormalBlending,
