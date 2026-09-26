@@ -98,6 +98,7 @@ export default defineConfig({
               request.on('end', async () => {
                 try {
                   const updates = JSON.parse(body || '{}');
+                  /** @type {Record<string, any>} */
                   let existing = {};
                   try {
                     const raw = await fs.readFile(filePath, 'utf-8');
@@ -106,8 +107,14 @@ export default defineConfig({
                     existing = {};
                   }
 
-                  const merged = { ...existing, ...updates };
-                  await fs.writeFile(filePath, JSON.stringify(merged, null, 2), 'utf-8');
+                  for (const [slug, item] of Object.entries(updates)) {
+                    if (!item || item.status === 'unread') {
+                      delete existing[slug];
+                    } else {
+                      existing[slug] = item;
+                    }
+                  }
+                  await fs.writeFile(filePath, JSON.stringify(existing, null, 2), 'utf-8');
                   response.setHeader('Content-Type', 'application/json');
                   response.end(JSON.stringify({ ok: true, count: Object.keys(updates).length }));
                 } catch (error) {

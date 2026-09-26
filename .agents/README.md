@@ -33,6 +33,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-025`** | **Issue** | `refactor` | Remove Redundant Feed Page and Streamline Reader Navigation | [`issues/stm-025-remove-redundant-feed-page.md`](issues/stm-025-remove-redundant-feed-page.md) |
 | **`stm-026`** | **Plan** | `feat` | Interactive 3D Origami Crane for 404 Page and Contrast Enhancement | [`plans/stm-026-3d-origami-crane-404-scene.md`](plans/stm-026-3d-origami-crane-404-scene.md) |
 | **`stm-027`** | **Plan** | `feat` | 3D Interactive Knowledge Graph View (Constellation View) | [`plans/stm-027-3d-knowledge-graph-view.md`](plans/stm-027-3d-knowledge-graph-view.md) |
+| **`stm-028`** | **Plan** | `feat` | Four-State Reading Queue with Zero-Schema-Change Persistence | [`plans/stm-028-four-state-reading-queue.md`](plans/stm-028-four-state-reading-queue.md) |
 
 ---
 

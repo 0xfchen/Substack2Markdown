@@ -681,6 +681,8 @@ export function initThreeGraph(): (() => void) | null {
         node.readingStatus = 'completed';
       } else if (clientStatus === 'in-progress') {
         node.readingStatus = 'in-progress';
+      } else if (clientStatus === 'pending') {
+        node.readingStatus = 'pending';
       } else {
         node.readingStatus = 'unread';
       }

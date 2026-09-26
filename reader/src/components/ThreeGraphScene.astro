@@ -56,6 +56,7 @@ const { graphData } = Astro.props;
           <button type="button" class="graph-filter-btn active" data-filter="all">All ({graphData.nodes.length})</button>
           <button type="button" class="graph-filter-btn" data-filter="status:completed">Read</button>
           <button type="button" class="graph-filter-btn" data-filter="status:in-progress">In Progress</button>
+          <button type="button" class="graph-filter-btn" data-filter="status:pending">To Read</button>
           <button type="button" class="graph-filter-btn" data-filter="status:unread">Unread</button>
         </div>
       </div>
@@ -217,6 +218,10 @@ const { graphData } = Astro.props;
       <div class="graph-legend-item">
         <span class="graph-legend-dot in-progress"></span>
         <span>In Progress</span>
+      </div>
+      <div class="graph-legend-item">
+        <span class="graph-legend-dot to-read"></span>
+        <span>To Read</span>
       </div>
       <div class="graph-legend-item">
         <span class="graph-legend-dot unread"></span>

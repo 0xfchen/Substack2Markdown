@@ -660,7 +660,8 @@
 }
 
 .graph-legend-dot.author {
-  background: #d97706; /* Architectural Bronze Ochre */
+  background: #d97706;
+  /* Architectural Bronze Ochre */
   border-radius: 50%;
   border: 1.5px solid #d97706;
   box-shadow: inset 0 0 0 1.5px #ffffff;
@@ -679,7 +680,8 @@
 }
 
 .graph-legend-dot.tag {
-  background: #7c3aed; /* Deep Imperial Violet */
+  background: #7c3aed;
+  /* Deep Imperial Violet */
   border-radius: 50%;
   width: 9px;
   height: 9px;
@@ -697,7 +699,8 @@
 }
 
 .graph-legend-dot.post {
-  background: #0284c7; /* Blueprint Cobalt */
+  background: #0284c7;
+  /* Blueprint Cobalt */
   clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
   width: 8px;
   height: 8px;
@@ -721,6 +724,15 @@
 .graph-legend-dot.in-progress {
   background: #facc15;
   border-radius: 50%;
+}
+
+.graph-legend-dot.to-read {
+  background: #e11d48;
+  border-radius: 50%;
+}
+
+:root[data-theme='dark'] .graph-legend-dot.to-read {
+  background: #ff453a;
 }
 
 .graph-legend-dot.unread {
@@ -827,8 +839,17 @@
 }
 
 @keyframes timeline-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
 }
 
 .graph-timeline-title {

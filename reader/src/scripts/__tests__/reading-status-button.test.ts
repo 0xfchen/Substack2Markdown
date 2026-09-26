@@ -161,12 +161,22 @@ describe('reading-status-button runtime', () => {
   }
 
   describe('updateControlUI', () => {
+    it('updates control to unread state', () => {
+      const el = createMockControl('post-0');
+      updateControlUI(el, 'unread', 0);
+
+      expect(el.getAttribute('data-status')).toBe('unread');
+      expect(el.querySelector('[data-status-icon]')?.textContent).toBe('○');
+      expect(el.querySelector('[data-status-text]')?.textContent).toBe('Unread');
+      expect(el.querySelector<HTMLElement>('[data-read-count]')?.hidden).toBe(true);
+    });
+
     it('updates control to pending / To Read state', () => {
       const el = createMockControl('post-1');
       updateControlUI(el, 'pending', 0);
 
       expect(el.getAttribute('data-status')).toBe('pending');
-      expect(el.querySelector('[data-status-icon]')?.textContent).toBe('○');
+      expect(el.querySelector('[data-status-icon]')?.textContent).toBe('🔖');
       expect(el.querySelector('[data-status-text]')?.textContent).toBe('To Read');
       expect(el.querySelector<HTMLElement>('[data-read-count]')?.hidden).toBe(true);
     });

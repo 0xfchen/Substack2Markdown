@@ -1,4 +1,4 @@
-export type ReadingStatus = 'pending' | 'in-progress' | 'completed';
+export type ReadingStatus = 'unread' | 'pending' | 'in-progress' | 'completed';
 
 export interface ReadingItemState {
   status: ReadingStatus;
@@ -31,8 +31,9 @@ function sanitizeState(state: ReadingState): ReadingState {
   const result: ReadingState = {};
   for (const [slug, item] of Object.entries(state)) {
     if (!item) continue;
-    let status: ReadingStatus;
     const rawStatus = (item as any).status;
+    if (rawStatus === 'unread') continue; // Unread items occupy 0 bytes, not stored in state
+    let status: ReadingStatus;
     if (rawStatus === 'completed' || rawStatus === 'done') {
       status = 'completed';
     } else if (
@@ -135,7 +136,7 @@ export const getReadingState = getAllReadingStates;
  * Get reading status for a specific article slug synchronously.
  */
 export function getReadingStatus(slug: string): ReadingStatus {
-  return getReadingEntry(slug)?.status || 'pending';
+  return getReadingEntry(slug)?.status || 'unread';
 }
 
 /**
@@ -163,12 +164,13 @@ export function setReadingStatus(
     options.scrollRatio !== undefined
       ? options.scrollRatio
       : status === 'completed'
-      ? 1
-      : status === 'pending'
-      ? 0
-      : existing?.scrollRatio ?? 0.1;
+        ? 1
+        : status === 'pending' || status === 'unread'
+          ? 0
+          : existing?.scrollRatio ?? 0.1;
 
-  const statusChanged = existing?.status !== status;
+  const currentStatus = existing?.status || 'unread';
+  const statusChanged = currentStatus !== status;
   const ratioChanged = Math.abs(oldRatio - newRatio) >= 0.02;
 
   // Don't no-op if ratio has noticeably changed even when status remains the same
@@ -190,28 +192,39 @@ export function setReadingStatus(
     newReadCount = existingCount + 1;
   }
 
-  const entry: ReadingItemState = {
-    status,
-    scrollRatio: finalRatio,
+  if (status === 'unread') {
+    delete inMemoryState[slug];
+  } else {
+    const entry: ReadingItemState = {
+      status,
+      scrollRatio: finalRatio,
+      updatedAt: now,
+      completedAt: status === 'completed' ? (existing?.completedAt || now) : undefined,
+      readCount: newReadCount,
+    };
+    inMemoryState[slug] = entry;
+  }
+
+  cacheState(inMemoryState);
+
+  const broadcastEntry: ReadingItemState = inMemoryState[slug] || {
+    status: 'unread',
+    scrollRatio: 0,
     updatedAt: now,
-    completedAt: status === 'completed' ? (existing?.completedAt || now) : undefined,
     readCount: newReadCount,
   };
-
-  inMemoryState[slug] = entry;
-  cacheState(inMemoryState);
 
   // Dispatch custom event for reactive UI updates
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent<ReadingStatusChangeEventDetail>(READING_STATUS_CHANGE_EVENT, {
-        detail: { slug, status, state: entry },
+        detail: { slug, status, state: broadcastEntry },
       })
     );
   }
 
-  // Queue server flush
-  pendingUpdates[slug] = entry;
+  // Queue server flush: sending { status: 'unread' } instructs server to remove from reading_state.json
+  pendingUpdates[slug] = status === 'unread' ? { status: 'unread' } : inMemoryState[slug];
   if (pendingSaveTimer) {
     clearTimeout(pendingSaveTimer);
   }
@@ -224,7 +237,7 @@ export function setReadingStatus(
 export function getReadingProgressPercent(slug: string): number {
   const status = getReadingStatus(slug);
   if (status === 'completed') return 100;
-  if (status === 'pending') return 0;
+  if (status === 'pending' || status === 'unread') return 0;
 
   const entry = getReadingEntry(slug);
   const ratio = entry?.scrollRatio;
@@ -254,7 +267,7 @@ export function updateReadingProgress(
   if (clampedRatio >= 0.90 && current !== 'completed') {
     nextStatus = 'completed';
     statusChanged = true;
-  } else if (clampedRatio >= 0.10 && current === 'pending') {
+  } else if (clampedRatio >= 0.08 && (current === 'unread' || current === 'pending')) {
     nextStatus = 'in-progress';
     statusChanged = true;
   }
@@ -277,22 +290,24 @@ export function updateReadingProgress(
 }
 
 /**
- * Toggle reading status across pending -> in-progress -> completed -> pending.
- * When cycling from completed -> pending, preserves readCount and resets scrollRatio to 0
- * to begin tracking the subsequent read.
+ * Toggle reading status across unread -> pending -> in-progress -> completed -> unread.
+ * When cycling from completed -> unread, removes entry from stored state.
  */
 export function toggleReadingStatus(slug: string): ReadingStatus {
   const current = getReadingStatus(slug);
-  let next: ReadingStatus = 'in-progress';
+  let next: ReadingStatus = 'pending';
   let ratio = 0;
-  if (current === 'pending') {
+  if (current === 'unread') {
+    next = 'pending';
+    ratio = 0;
+  } else if (current === 'pending') {
     next = 'in-progress';
     ratio = 0.1;
   } else if (current === 'in-progress') {
     next = 'completed';
     ratio = 1.0;
   } else if (current === 'completed') {
-    next = 'pending';
+    next = 'unread';
     ratio = 0;
   }
 

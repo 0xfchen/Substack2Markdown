@@ -45,7 +45,7 @@ export interface GraphNode {
   url?: string;
   author?: string;
   tags?: string[];
-  readingStatus?: 'unread' | 'in-progress' | 'completed';
+  readingStatus?: 'unread' | 'pending' | 'in-progress' | 'completed';
   readingTime?: number;
   dateStr?: string;
   timestamp?: number;
@@ -193,11 +193,13 @@ export function buildGraphData(
 
     const author = post.data.author || 'Unknown';
     const stateEntry = readingState[post.id];
-    let readingStatus: 'unread' | 'in-progress' | 'completed' = 'unread';
+    let readingStatus: 'unread' | 'pending' | 'in-progress' | 'completed' = 'unread';
     if (stateEntry?.status === 'completed') {
       readingStatus = 'completed';
     } else if (stateEntry?.status === 'in-progress') {
       readingStatus = 'in-progress';
+    } else if (stateEntry?.status === 'pending') {
+      readingStatus = 'pending';
     }
 
     const words = post.data.wordcount || countMarkdownWords(post.body || '');
