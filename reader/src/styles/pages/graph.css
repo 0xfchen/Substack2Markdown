@@ -193,10 +193,11 @@
 }
 
 .graph-filter-btn.active {
-  background: var(--color-blue, #0284c7);
-  border-color: var(--color-blue, #0284c7);
+  background: var(--color-blue);
+  border-color: var(--color-blue);
   color: #ffffff;
 }
+
 
 /* Control Action Buttons (Reset, Modes) */
 .graph-actions-row {
@@ -235,17 +236,12 @@
 }
 
 .graph-action-btn.active {
-  background: color-mix(in srgb, var(--color-blue, #0284c7) 18%, transparent);
-  border-color: var(--color-blue, #0284c7);
-  color: var(--color-blue, #0284c7);
+  background: color-mix(in srgb, var(--color-blue) 18%, transparent);
+  border-color: var(--color-blue);
+  color: var(--color-blue);
   font-weight: var(--weight-medium, 500);
 }
 
-:root[data-theme='dark'] .graph-action-btn.active {
-  background: color-mix(in srgb, #38bdf8 20%, transparent);
-  border-color: #38bdf8;
-  color: #38bdf8;
-}
 
 /* Bottom Right Inspector Card */
 .graph-inspector {
@@ -424,10 +420,11 @@
 
 .graph-inspector-progress-fill {
   height: 100%;
-  background: var(--color-green, #10b981);
+  background: var(--color-green);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
+
 
 .graph-inspector-progress-text {
   font-size: var(--text-caption-2, 0.6875rem);
@@ -469,7 +466,7 @@
 
 .graph-inspector-article-item:hover {
   background: var(--fill-tertiary);
-  color: var(--color-blue, #0284c7);
+  color: var(--color-blue);
 }
 
 .graph-inspector-article-title {
@@ -488,27 +485,26 @@
 }
 
 .graph-inspector-article-status.completed {
-  background: color-mix(in srgb, #22c55e 18%, transparent);
-  color: #16a34a;
-}
-
-:root[data-theme='dark'] .graph-inspector-article-status.completed {
-  color: #4ade80;
+  background: color-mix(in srgb, var(--color-status-completed) 18%, transparent);
+  color: var(--color-status-completed);
 }
 
 .graph-inspector-article-status.in-progress {
-  background: color-mix(in srgb, #facc15 18%, transparent);
-  color: #ca8a04;
+  background: color-mix(in srgb, var(--color-status-in-progress) 18%, transparent);
+  color: var(--color-status-in-progress);
 }
 
-:root[data-theme='dark'] .graph-inspector-article-status.in-progress {
-  color: #fde047;
+.graph-inspector-article-status.pending,
+.graph-inspector-article-status.to-read {
+  background: color-mix(in srgb, var(--color-status-pending) 18%, transparent);
+  color: var(--color-status-pending);
 }
 
 .graph-inspector-article-status.unread {
-  background: color-mix(in srgb, var(--color-status-pending, #64748b) 14%, transparent);
-  color: var(--color-status-pending, #64748b);
+  background: color-mix(in srgb, var(--color-status-unread) 14%, transparent);
+  color: var(--color-status-unread);
 }
+
 
 .graph-inspector-tags {
   display: flex;
@@ -570,7 +566,7 @@
   gap: 6px;
   width: 100%;
   padding: 7px 14px;
-  background: var(--color-blue, #0284c7);
+  background: var(--color-blue);
   color: #ffffff;
   border-radius: var(--radius-md, 8px);
   font-size: var(--text-caption-1, 0.75rem);
@@ -578,6 +574,7 @@
   text-decoration: none;
   transition: opacity var(--duration-fast) ease;
 }
+
 
 .graph-read-btn:hover {
   opacity: 0.92;
@@ -660,85 +657,58 @@
 }
 
 .graph-legend-dot.author {
-  background: #d97706;
-  /* Architectural Bronze Ochre */
+  background: var(--color-graph-author);
   border-radius: 50%;
-  border: 1.5px solid #d97706;
-  box-shadow: inset 0 0 0 1.5px #ffffff;
+  border: 1.5px solid var(--color-graph-author);
+  box-shadow: inset 0 0 0 1.5px var(--bg-primary);
 }
 
 .graph-legend-dot.author.ringed {
   border-radius: 50%;
-  border: 1.5px solid #d97706;
-  box-shadow: inset 0 0 0 1.5px #ffffff;
+  border: 1.5px solid var(--color-graph-author);
+  box-shadow: inset 0 0 0 1.5px var(--bg-primary);
 }
 
-:root[data-theme='dark'] .graph-legend-dot.author {
-  background: #f59e0b;
-  border-color: #f59e0b;
-  box-shadow: inset 0 0 0 1.5px #030712;
-}
-
-.graph-legend-dot.tag {
-  background: #7c3aed;
-  /* Deep Imperial Violet */
-  border-radius: 50%;
-  width: 9px;
-  height: 9px;
-}
-
+.graph-legend-dot.tag,
 .graph-legend-dot.tag.star-sphere {
+  background: var(--color-graph-tag);
   border-radius: 50%;
   width: 9px;
   height: 9px;
 }
 
 :root[data-theme='dark'] .graph-legend-dot.tag {
-  background: #a855f7;
-  box-shadow: 0 0 6px rgba(168, 85, 247, 0.45);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-graph-tag) 45%, transparent);
 }
 
-.graph-legend-dot.post {
-  background: #0284c7;
-  /* Blueprint Cobalt */
-  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
-  width: 8px;
-  height: 8px;
-}
-
+.graph-legend-dot.post,
 .graph-legend-dot.post.asteroid {
+  background: var(--color-graph-post);
   clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
   width: 8px;
   height: 8px;
-}
-
-:root[data-theme='dark'] .graph-legend-dot.post {
-  background: #38bdf8;
 }
 
 .graph-legend-dot.completed {
-  background: #22c55e;
+  background: var(--color-status-completed);
   border-radius: 50%;
 }
 
 .graph-legend-dot.in-progress {
-  background: #facc15;
+  background: var(--color-status-in-progress);
   border-radius: 50%;
 }
 
 .graph-legend-dot.to-read {
-  background: #e11d48;
+  background: var(--color-status-pending);
   border-radius: 50%;
-}
-
-:root[data-theme='dark'] .graph-legend-dot.to-read {
-  background: #ff453a;
 }
 
 .graph-legend-dot.unread {
-  background: #64748b;
+  background: var(--color-status-unread);
   border-radius: 50%;
 }
+
 
 @media (max-width: 1100px) {
   .graph-hud-left {
@@ -912,39 +882,28 @@
   height: 30px;
   padding: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--color-blue, #0284c7) 15%, transparent);
-  border-color: color-mix(in srgb, var(--color-blue, #0284c7) 30%, transparent);
-  color: var(--color-blue, #0284c7);
-}
-
-[data-theme='dark'] .graph-timeline-play-btn {
-  background: color-mix(in srgb, #38bdf8 20%, transparent);
-  border-color: color-mix(in srgb, #38bdf8 40%, transparent);
-  color: #38bdf8;
+  background: color-mix(in srgb, var(--color-blue) 15%, transparent);
+  border-color: color-mix(in srgb, var(--color-blue) 30%, transparent);
+  color: var(--color-blue);
 }
 
 .graph-timeline-play-btn:hover {
   transform: scale(1.08);
-  background: var(--color-blue, #0284c7);
+  background: var(--color-blue);
   color: #ffffff;
 }
 
 [data-theme='dark'] .graph-timeline-play-btn:hover {
-  background: #38bdf8;
-  color: #030712;
+  background: var(--color-blue);
+  color: var(--bg-primary);
 }
 
 .graph-timeline-present-btn.active {
-  background: color-mix(in srgb, #10b981 18%, transparent);
-  border-color: #10b981;
-  color: #059669;
+  background: color-mix(in srgb, var(--color-green) 18%, transparent);
+  border-color: var(--color-green);
+  color: var(--color-green);
 }
 
-[data-theme='dark'] .graph-timeline-present-btn.active {
-  background: color-mix(in srgb, #34d399 22%, transparent);
-  border-color: #34d399;
-  color: #34d399;
-}
 
 .graph-timeline-slider-wrap {
   position: relative;

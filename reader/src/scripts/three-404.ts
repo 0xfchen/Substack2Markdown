@@ -25,6 +25,7 @@ import {
   create3D404Typography,
   generatePaperTextures,
 } from './four-oh-four/vessel-factory';
+import { AEROSPACE_404_COLORS } from '../utils/colors';
 
 export function initThree404(): (() => void) | null {
   const canvas = document.querySelector<HTMLCanvasElement>('[data-three-canvas]');
@@ -68,36 +69,39 @@ export function initThree404(): (() => void) | null {
   }
 
   // 3. Studio Lighting Rig
-  const ambientLight = new THREE.AmbientLight(0xffffff, isDark() ? 1.4 : 0.65);
+  const ambientLight = new THREE.AmbientLight(AEROSPACE_404_COLORS.ambientLight, isDark() ? 1.4 : 0.65);
   scene.add(ambientLight);
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, isDark() ? 2.8 : 2.4);
+  const keyLight = new THREE.DirectionalLight(AEROSPACE_404_COLORS.keyLight, isDark() ? 2.8 : 2.4);
   keyLight.position.set(3, 6, 8);
   scene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0xe2e8f0, isDark() ? 2.0 : 0.85);
+  const fillLight = new THREE.DirectionalLight(AEROSPACE_404_COLORS.fillLight, isDark() ? 2.0 : 0.85);
   fillLight.position.set(-5, 4, 7);
   scene.add(fillLight);
 
-  const rimLightL = new THREE.DirectionalLight(0x93c5fd, isDark() ? 2.4 : 0.6);
+  const rimLightL = new THREE.DirectionalLight(
+    isDark() ? AEROSPACE_404_COLORS.rimLightLDark : AEROSPACE_404_COLORS.rimLightLLight,
+    isDark() ? 2.4 : 0.6
+  );
   rimLightL.position.set(-8, 1, -3);
   scene.add(rimLightL);
 
-  const rimLightR = new THREE.DirectionalLight(0xe0f2fe, isDark() ? 2.2 : 0.6);
+  const rimLightR = new THREE.DirectionalLight(AEROSPACE_404_COLORS.rimLightR, isDark() ? 2.2 : 0.6);
   rimLightR.position.set(8, 2, -2);
   scene.add(rimLightR);
 
-  const topLight = new THREE.DirectionalLight(0xffffff, isDark() ? 1.6 : 0.8);
+  const topLight = new THREE.DirectionalLight(AEROSPACE_404_COLORS.topLight, isDark() ? 1.6 : 0.8);
   topLight.position.set(0, 9, 2);
   scene.add(topLight);
 
-  const engineLight = new THREE.PointLight(0x38bdf8, 0, 12);
+  const engineLight = new THREE.PointLight(AEROSPACE_404_COLORS.engineLight, 0, 12);
   engineLight.position.set(0, -1.5, 0);
   scene.add(engineLight);
 
   // 4. Shared Materials
   const chromeMaterial = new THREE.MeshStandardMaterial({
-    color: 0xe2e8f0,
+    color: AEROSPACE_404_COLORS.chromeDark,
     roughness: 0.04,
     metalness: 1.0,
     envMapIntensity: 2.4,
@@ -107,7 +111,7 @@ export function initThree404(): (() => void) | null {
   const { diffuse: paperTexture, bump: paperBumpTexture } = generatePaperTextures();
 
   const paperFrontMaterial = new THREE.MeshStandardMaterial({
-    color: 0xede9e1,
+    color: AEROSPACE_404_COLORS.paperFront,
     flatShading: true,
     map: paperTexture,
     bumpMap: paperBumpTexture,
@@ -121,7 +125,7 @@ export function initThree404(): (() => void) | null {
   });
 
   const paperSideMaterial = new THREE.MeshStandardMaterial({
-    color: 0xcbd5e1,
+    color: AEROSPACE_404_COLORS.paperSide,
     flatShading: true,
     map: paperTexture,
     bumpMap: paperBumpTexture,
@@ -135,19 +139,19 @@ export function initThree404(): (() => void) | null {
   });
 
   const paperCodeCreaseMaterial = new THREE.LineBasicMaterial({
-    color: 0x334155,
+    color: AEROSPACE_404_COLORS.creaseLines,
     transparent: true,
     opacity: 0.85,
   });
 
   const engineBellMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1e293b,
+    color: AEROSPACE_404_COLORS.engineBell,
     roughness: 0.3,
     metalness: 0.9,
   });
 
   const plumeMaterial = new THREE.MeshBasicMaterial({
-    color: 0x38bdf8,
+    color: AEROSPACE_404_COLORS.plume,
     transparent: true,
     opacity: 0,
     blending: THREE.AdditiveBlending,
@@ -155,7 +159,7 @@ export function initThree404(): (() => void) | null {
   });
 
   const corePlumeMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: AEROSPACE_404_COLORS.corePlume,
     transparent: true,
     opacity: 0,
     blending: THREE.AdditiveBlending,
@@ -214,7 +218,7 @@ export function initThree404(): (() => void) | null {
   starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
 
   const starMaterial = new THREE.PointsMaterial({
-    color: isDark() ? 0x93c5fd : 0x64748b,
+    color: isDark() ? AEROSPACE_404_COLORS.starMotesDark : AEROSPACE_404_COLORS.starMotesLight,
     size: 0.055,
     transparent: true,
     opacity: 0.4,
@@ -397,11 +401,15 @@ export function initThree404(): (() => void) | null {
   // 11. Theme Synchronization
   function updateThemeColors() {
     const dark = isDark();
-    chromeMaterial.color.setHex(0xe2e8f0);
-    chromeMaterial.roughness = 0.04;
+    chromeMaterial.color.setHex(
+      dark ? AEROSPACE_404_COLORS.chromeDark : AEROSPACE_404_COLORS.chromeLight
+    );
+    chromeMaterial.roughness = dark ? 0.04 : 0.06;
     chromeMaterial.metalness = 1.0;
-    chromeMaterial.envMapIntensity = 2.4;
-    starMaterial.color.setHex(dark ? 0x7dd3fc : 0x94a3b8);
+    chromeMaterial.envMapIntensity = dark ? 2.4 : 2.0;
+    starMaterial.color.setHex(
+      dark ? AEROSPACE_404_COLORS.starMotesDark : AEROSPACE_404_COLORS.starMotesLight
+    );
 
     // 404 Typography: Chrome in Dark Mode, Archival Papercraft in Light Mode
     if (typography?.chromeGroup && typography?.paperGroup) {
@@ -412,7 +420,9 @@ export function initThree404(): (() => void) | null {
     ambientLight.intensity = dark ? 1.4 : 0.65;
     keyLight.intensity = dark ? 2.8 : 2.4;
     fillLight.intensity = dark ? 2.0 : 0.85;
-    rimLightL.color.setHex(dark ? 0x38bdf8 : 0xf8fafc);
+    rimLightL.color.setHex(
+      dark ? AEROSPACE_404_COLORS.rimLightLDark : AEROSPACE_404_COLORS.rimLightLLight
+    );
     rimLightL.intensity = dark ? 2.4 : 0.6;
     rimLightR.intensity = dark ? 2.2 : 0.6;
     topLight.intensity = dark ? 1.6 : 0.8;

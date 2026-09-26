@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import type { RocketVessel, PaperPlaneVessel, Typography3D } from './types';
+import { AEROSPACE_404_COLORS } from '../../utils/colors';
 
 // ==========================================
 // 1. SpaceX Starship Procedural Geometries
@@ -193,7 +194,7 @@ export function createStarshipRocket(
   seamGeo.rotateX(Math.PI / 2);
   geometries.push(seamGeo);
   const seamMaterial = new THREE.MeshStandardMaterial({
-    color: 0x64748b,
+    color: AEROSPACE_404_COLORS.seam,
     roughness: 0.35,
     metalness: 0.8,
   });
@@ -316,7 +317,7 @@ export function generatePaperTextures(): { diffuse: THREE.CanvasTexture; bump: T
   const bCtx = bCanvas.getContext('2d')!;
 
   // 1. Warm archival cotton paper base wash
-  dCtx.fillStyle = '#f8f6f0';
+  dCtx.fillStyle = AEROSPACE_404_COLORS.paperBase;
   dCtx.fillRect(0, 0, size, size);
 
   bCtx.fillStyle = '#808080';
@@ -351,7 +352,7 @@ export function generatePaperTextures(): { diffuse: THREE.CanvasTexture; bump: T
 
   // 3. Faint ruled notebook / editorial drafting lines
   dCtx.lineWidth = 1.2;
-  dCtx.strokeStyle = 'rgba(70, 110, 180, 0.20)';
+  dCtx.strokeStyle = AEROSPACE_404_COLORS.paperRuling;
   bCtx.lineWidth = 1.2;
   bCtx.strokeStyle = 'rgba(120, 120, 120, 0.25)';
   const lineSpacing = 52;
@@ -369,7 +370,7 @@ export function generatePaperTextures(): { diffuse: THREE.CanvasTexture; bump: T
 
   // Faint vertical margin line
   dCtx.lineWidth = 1.5;
-  dCtx.strokeStyle = 'rgba(239, 68, 68, 0.22)';
+  dCtx.strokeStyle = AEROSPACE_404_COLORS.paperMargin;
   dCtx.beginPath();
   dCtx.moveTo(140, 0);
   dCtx.lineTo(140, size);
@@ -456,7 +457,7 @@ export function createOrigamiPaperPlane(): PaperPlaneVessel {
   });
 
   const creaseMaterial = new THREE.LineBasicMaterial({
-    color: 0x334155,
+    color: AEROSPACE_404_COLORS.creaseLines,
     transparent: true,
     opacity: 0.85,
   });

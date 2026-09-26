@@ -5,6 +5,7 @@
  */
 
 import type { BgStar, FlightMotion } from './types';
+import { AEROSPACE_404_COLORS } from '../../utils/colors';
 
 export class StarfieldEngine {
   private canvas: HTMLCanvasElement;
@@ -121,15 +122,15 @@ export class StarfieldEngine {
 
       const color = isDark
         ? s.colorType === 'blue'
-          ? `rgba(186, 230, 253, ${alpha})`
+          ? `rgba(${AEROSPACE_404_COLORS.starfieldBlueDark}, ${alpha})`
           : s.colorType === 'gold'
-            ? `rgba(254, 240, 138, ${alpha})`
+            ? `rgba(${AEROSPACE_404_COLORS.starfieldGoldDark}, ${alpha})`
             : `rgba(255, 255, 255, ${alpha})`
         : s.colorType === 'blue'
-          ? `rgba(56, 189, 248, ${alpha * 0.88})`
+          ? `rgba(${AEROSPACE_404_COLORS.starfieldBlueLight}, ${alpha * 0.88})`
           : s.colorType === 'gold'
-            ? `rgba(234, 179, 8, ${alpha * 0.78})`
-            : `rgba(100, 116, 139, ${alpha * 0.85})`;
+            ? `rgba(${AEROSPACE_404_COLORS.starfieldGoldLight}, ${alpha * 0.78})`
+            : `rgba(${AEROSPACE_404_COLORS.starfieldMoteLight}, ${alpha * 0.85})`;
 
       // Draw motion streak connecting previous position along the zoom vector
       const pk = fov / s.pz;

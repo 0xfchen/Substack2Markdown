@@ -62,36 +62,48 @@ const { slug } = Astro.props;
 
   /* Status specific styles */
   .reading-status-control[data-status='completed'] .status-btn {
-    color: var(--color-status-completed, #166534);
-    border-color: color-mix(in srgb, var(--color-status-completed, #166534) 40%, transparent);
-    background: color-mix(in srgb, var(--color-status-completed, #166534) 10%, transparent);
+    color: var(--color-status-completed);
+    border-color: color-mix(in srgb, var(--color-status-completed) 40%, transparent);
+    background: color-mix(in srgb, var(--color-status-completed) 10%, transparent);
   }
 
   .reading-status-control[data-status='completed'] .status-btn:hover {
-    border-color: color-mix(in srgb, var(--color-status-completed, #166534) 60%, transparent);
-    background: color-mix(in srgb, var(--color-status-completed, #166534) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-status-completed) 60%, transparent);
+    background: color-mix(in srgb, var(--color-status-completed) 18%, transparent);
   }
 
   .reading-status-control[data-status='in-progress'] .status-btn {
-    color: var(--color-status-in-progress, #c9a200);
-    border-color: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 40%, transparent);
-    background: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 10%, transparent);
+    color: var(--color-status-in-progress);
+    border-color: color-mix(in srgb, var(--color-status-in-progress) 40%, transparent);
+    background: color-mix(in srgb, var(--color-status-in-progress) 10%, transparent);
   }
 
   .reading-status-control[data-status='in-progress'] .status-btn:hover {
-    border-color: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 65%, transparent);
-    background: color-mix(in srgb, var(--color-status-in-progress, #c9a200) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-status-in-progress) 65%, transparent);
+    background: color-mix(in srgb, var(--color-status-in-progress) 18%, transparent);
   }
 
   .reading-status-control[data-status='pending'] .status-btn {
-    color: var(--color-status-pending, #be123c);
-    border-color: color-mix(in srgb, var(--color-status-pending, #be123c) 35%, transparent);
-    background: color-mix(in srgb, var(--color-status-pending, #be123c) 10%, transparent);
+    color: var(--color-status-pending);
+    border-color: color-mix(in srgb, var(--color-status-pending) 35%, transparent);
+    background: color-mix(in srgb, var(--color-status-pending) 10%, transparent);
   }
 
   .reading-status-control[data-status='pending'] .status-btn:hover {
-    border-color: color-mix(in srgb, var(--color-status-pending, #be123c) 55%, transparent);
-    background: color-mix(in srgb, var(--color-status-pending, #be123c) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-status-pending) 55%, transparent);
+    background: color-mix(in srgb, var(--color-status-pending) 18%, transparent);
+  }
+
+  .reading-status-control[data-status='unread'] .status-btn {
+    color: var(--color-status-unread);
+    border-color: var(--separator);
+    background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+  }
+
+  .reading-status-control[data-status='unread'] .status-btn:hover {
+    color: var(--label-primary);
+    border-color: var(--color-blue);
+    background: color-mix(in srgb, var(--color-blue) 8%, var(--bg-primary));
   }
 
   .read-count-badge {
