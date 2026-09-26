@@ -61,12 +61,12 @@ describe('reading-tracker', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 1. getReadingStatus – unknown slug returns 'pending'
+  // 1. getReadingStatus – unknown slug returns 'unread'
   // -----------------------------------------------------------------------
   describe('getReadingStatus', () => {
-    it('returns "pending" for an unknown slug', async () => {
+    it('returns "unread" for an unknown slug', async () => {
       const mod = await importFresh();
-      expect(mod.getReadingStatus('does-not-exist')).toBe('pending');
+      expect(mod.getReadingStatus('does-not-exist')).toBe('unread');
     });
 
     it('returns the correct status for a known slug', async () => {
@@ -94,6 +94,20 @@ describe('reading-tracker', () => {
       expect(stored).toBeDefined();
       const parsed = JSON.parse(stored!);
       expect(parsed['article-1'].status).toBe('in-progress');
+    });
+
+    it('removes the entry from memory and cache when set to "unread"', async () => {
+      const mod = await importFresh();
+      mod.setReadingStatus('article-del', 'completed');
+      expect(mod.getReadingStatus('article-del')).toBe('completed');
+
+      mod.setReadingStatus('article-del', 'unread');
+      expect(mod.getReadingStatus('article-del')).toBe('unread');
+      expect(mod.getReadingEntry('article-del')).toBeUndefined();
+
+      const stored = mockStorage.get('substack_reading_state_cache_v1');
+      const parsed = JSON.parse(stored!);
+      expect(parsed['article-del']).toBeUndefined();
     });
 
     it('dispatches a CustomEvent with correct detail', async () => {
@@ -165,35 +179,41 @@ describe('reading-tracker', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 5. toggleReadingStatus – cycle
+  // 5. toggleReadingStatus – 4-state cycle
   // -----------------------------------------------------------------------
   describe('toggleReadingStatus', () => {
-    it('cycles pending → in-progress → completed → pending', async () => {
+    it('cycles unread → pending → in-progress → completed → unread', async () => {
       const mod = await importFresh();
 
-      expect(mod.getReadingStatus('cycle-test')).toBe('pending');
+      expect(mod.getReadingStatus('cycle-test')).toBe('unread');
 
       const s1 = mod.toggleReadingStatus('cycle-test');
-      expect(s1).toBe('in-progress');
-      expect(mod.getReadingStatus('cycle-test')).toBe('in-progress');
+      expect(s1).toBe('pending');
+      expect(mod.getReadingStatus('cycle-test')).toBe('pending');
 
       const s2 = mod.toggleReadingStatus('cycle-test');
-      expect(s2).toBe('completed');
-      expect(mod.getReadingStatus('cycle-test')).toBe('completed');
+      expect(s2).toBe('in-progress');
+      expect(mod.getReadingStatus('cycle-test')).toBe('in-progress');
 
       const s3 = mod.toggleReadingStatus('cycle-test');
-      expect(s3).toBe('pending');
-      expect(mod.getReadingStatus('cycle-test')).toBe('pending');
+      expect(s3).toBe('completed');
+      expect(mod.getReadingStatus('cycle-test')).toBe('completed');
+
+      const s4 = mod.toggleReadingStatus('cycle-test');
+      expect(s4).toBe('unread');
+      expect(mod.getReadingStatus('cycle-test')).toBe('unread');
     });
 
     it('sets scrollRatio = 0.1 when toggling to in-progress', async () => {
       const mod = await importFresh();
-      mod.toggleReadingStatus('slug-toggle');
+      mod.toggleReadingStatus('slug-toggle'); // unread -> pending
+      mod.toggleReadingStatus('slug-toggle'); // pending -> in-progress
       expect(mod.getReadingEntry('slug-toggle')!.scrollRatio).toBe(0.1);
     });
 
     it('sets scrollRatio = 1 when toggling to completed', async () => {
       const mod = await importFresh();
+      mod.toggleReadingStatus('slug-toggle'); // -> pending
       mod.toggleReadingStatus('slug-toggle'); // -> in-progress
       mod.toggleReadingStatus('slug-toggle'); // -> completed
       expect(mod.getReadingEntry('slug-toggle')!.scrollRatio).toBe(1);
@@ -249,7 +269,7 @@ describe('reading-tracker', () => {
   // 7. updateReadingProgress – threshold transitions
   // -----------------------------------------------------------------------
   describe('updateReadingProgress', () => {
-    it('transitions pending → in-progress at 10% scroll', async () => {
+    it('transitions unread → in-progress at 10% scroll', async () => {
       const mod = await importFresh();
       const result = mod.updateReadingProgress('article-up', 0.10);
       expect(result.statusChanged).toBe(true);
@@ -257,11 +277,11 @@ describe('reading-tracker', () => {
       expect(mod.getReadingStatus('article-up')).toBe('in-progress');
     });
 
-    it('does NOT transition pending → in-progress below 10%', async () => {
+    it('does NOT transition unread → in-progress below 8%', async () => {
       const mod = await importFresh();
       const result = mod.updateReadingProgress('article-up2', 0.05);
       expect(result.statusChanged).toBe(false);
-      expect(result.status).toBe('pending');
+      expect(result.status).toBe('unread');
     });
 
     it('transitions in-progress → completed at 90% scroll', async () => {

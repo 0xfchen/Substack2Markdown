@@ -110,6 +110,9 @@ export const ARCHITECTURAL_AUTHOR_PALETTE: readonly number[] = [
 export const READING_COLORS = {
   completed: 0x22c55e, // Green
   inProgress: 0xfacc15, // Yellow
+  toReadDark: 0xff453a, // Coral Red (Dark Mode)
+  toReadLight: 0xe11d48, // Rose / Coral Red (Light Mode)
+  toRead: 0xf43f5e, // Rose / Coral fallback
   unreadDark: 0x475569, // Slate 600
   unreadLight: 0x94a3b8, // Slate 400
   nonPost: 0x64748b, // Slate 500
@@ -223,12 +226,13 @@ export function getNodeTopicColor(
  * @returns 24-bit integer color code
  */
 export function getNodeReadingColor(
-  node: Pick<GraphNode, 'type'> & { readingStatus?: 'unread' | 'in-progress' | 'completed' },
+  node: Pick<GraphNode, 'type'> & { readingStatus?: 'unread' | 'pending' | 'in-progress' | 'completed' },
   isDark = true
 ): number {
   if (node.type !== 'post') return READING_COLORS.nonPost;
   if (node.readingStatus === 'completed') return READING_COLORS.completed;
   if (node.readingStatus === 'in-progress') return READING_COLORS.inProgress;
+  if (node.readingStatus === 'pending') return isDark ? READING_COLORS.toReadDark : READING_COLORS.toReadLight;
   return isDark ? READING_COLORS.unreadDark : READING_COLORS.unreadLight;
 }
 

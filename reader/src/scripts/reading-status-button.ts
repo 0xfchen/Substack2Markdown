@@ -36,8 +36,8 @@ export function updateControlUI(control: HTMLElement, status: ReadingStatus, rea
     if (btn) {
       btn.title =
         readCount > 1
-          ? 'Read ' + readCount + ' times \u2022 Click to start reread (reset to To Read)'
-          : 'Complete \u2022 Click to start reread (reset to To Read)';
+          ? 'Read ' + readCount + ' times \u2022 Click to reset to Unread'
+          : 'Complete \u2022 Click to reset to Unread';
     }
     if (badge) {
       if (readCount > 1) {
@@ -64,8 +64,8 @@ export function updateControlUI(control: HTMLElement, status: ReadingStatus, rea
           ? 'Reading (read ' + readCount + '\u00d7 before) \u2022 Click to mark complete'
           : 'Reading \u2022 Click to mark complete';
     }
-  } else {
-    if (icon) icon.textContent = '\u25cb';
+  } else if (status === 'pending') {
+    if (icon) icon.textContent = '\u{1F516}';
     if (text) text.textContent = 'To Read';
     if (badge) {
       if (readCount >= 1) {
@@ -79,7 +79,17 @@ export function updateControlUI(control: HTMLElement, status: ReadingStatus, rea
       btn.title =
         readCount >= 1
           ? 'To Read (read ' + readCount + '\u00d7 before) \u2022 Click to start reading'
-          : 'Click to toggle reading status (To Read -> Reading -> Complete)';
+          : 'To Read queue \u2022 Click to start reading';
+    }
+  } else {
+    // 'unread' (default archive state)
+    if (icon) icon.textContent = '\u25cb';
+    if (text) text.textContent = 'Unread';
+    if (badge) {
+      badge.hidden = true;
+    }
+    if (btn) {
+      btn.title = 'Unread archive \u2022 Click to add to reading queue';
     }
   }
 }

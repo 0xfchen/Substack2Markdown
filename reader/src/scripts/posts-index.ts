@@ -113,9 +113,14 @@ export function compareRows(
   asc: boolean
 ): number {
   if (column === 'status') {
-    const statusOrder: Record<string, number> = { completed: 3, 'in-progress': 2, pending: 1 };
-    const statA = statusOrder[a.status || 'pending'] || 0;
-    const statB = statusOrder[b.status || 'pending'] || 0;
+    const statusOrder: Record<string, number> = {
+      completed: 4,
+      'in-progress': 3,
+      pending: 2,
+      unread: 1,
+    };
+    const statA = statusOrder[a.status || 'unread'] || 1;
+    const statB = statusOrder[b.status || 'unread'] || 1;
     if (statA !== statB) {
       return asc ? statA - statB : statB - statA;
     }
@@ -154,6 +159,7 @@ export function matchesRow(
   const matchesStatus =
     options.statusFilter === 'all' ||
     (options.statusFilter === 'pending' && status === 'pending') ||
+    (options.statusFilter === 'unread' && status === 'unread') ||
     (options.statusFilter === 'in-progress' && status === 'in-progress') ||
     (options.statusFilter === 'completed' && status === 'completed');
 
@@ -258,6 +264,7 @@ export function initReadingTable(): void {
   }
 
   function updateStats(): void {
+    let unread = 0;
     let pending = 0;
     let inProgress = 0;
     let completed = 0;
@@ -278,13 +285,15 @@ export function initReadingTable(): void {
 
       if (status === 'completed') completed++;
       else if (status === 'in-progress') inProgress++;
-      else pending++;
+      else if (status === 'pending') pending++;
+      else unread++;
     });
 
     const total = allRows.length;
     const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     const elTotal = document.querySelector('[data-stat-total]');
+    const elUnread = document.querySelector('[data-stat-unread]');
     const elPending = document.querySelector('[data-stat-pending]');
     const elReading = document.querySelector('[data-stat-reading]');
     const elCompleted = document.querySelector('[data-stat-completed]');
@@ -293,6 +302,7 @@ export function initReadingTable(): void {
     const elProgressFill = document.querySelector<HTMLElement>('[data-progress-fill]');
 
     if (elTotal) elTotal.textContent = String(total);
+    if (elUnread) elUnread.textContent = String(unread);
     if (elPending) elPending.textContent = String(pending);
     if (elReading) elReading.textContent = String(inProgress);
     if (elCompleted) elCompleted.textContent = String(completed);
@@ -317,7 +327,7 @@ export function initReadingTable(): void {
 
     filteredRows = allRows.filter((row) => {
       const id = row.dataset.rowId;
-      const status = id ? getReadingStatus(id) : 'pending';
+      const status = id ? getReadingStatus(id) : 'unread';
       const searchTarget = row.dataset.search || '';
       const author = row.dataset.author || '';
 
@@ -368,7 +378,7 @@ export function initReadingTable(): void {
 
     allRows.sort((a, b) => {
       const fieldA: RowSortFields = {
-        status: a.dataset.currentStatus || 'pending',
+        status: a.dataset.currentStatus || 'unread',
         readCount: Number(a.dataset.readCount || 0),
         title: a.dataset.title || '',
         author: a.dataset.author || '',
@@ -376,7 +386,7 @@ export function initReadingTable(): void {
         words: Number(a.dataset.words || 0),
       };
       const fieldB: RowSortFields = {
-        status: b.dataset.currentStatus || 'pending',
+        status: b.dataset.currentStatus || 'unread',
         readCount: Number(b.dataset.readCount || 0),
         title: b.dataset.title || '',
         author: b.dataset.author || '',

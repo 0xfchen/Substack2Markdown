@@ -168,7 +168,7 @@ describe('posts-index state caching and row restoration', () => {
     };
 
     it('sorts by status ascending and descending', () => {
-      // status order: completed (3) > in-progress (2) > pending (1)
+      // status order: completed (4) > in-progress (3) > pending (2) > unread (1)
       expect(compareRows(rowA, rowB, 'status', true)).toBeGreaterThan(0);
       expect(compareRows(rowA, rowB, 'status', false)).toBeLessThan(0);
     });
@@ -203,6 +203,7 @@ describe('posts-index state caching and row restoration', () => {
 
     it('matches any row when filters are default', () => {
       expect(matchesRow('pending', 'clean code by uncle bob', 'Robert Martin', baseOptions)).toBe(true);
+      expect(matchesRow('unread', 'clean code by uncle bob', 'Robert Martin', baseOptions)).toBe(true);
       expect(matchesRow('completed', 'system design bytebytego', 'Alex Xu', baseOptions)).toBe(true);
     });
 
@@ -211,6 +212,11 @@ describe('posts-index state caching and row restoration', () => {
       expect(matchesRow('in-progress', 'title', 'Author', opts)).toBe(true);
       expect(matchesRow('pending', 'title', 'Author', opts)).toBe(false);
       expect(matchesRow('completed', 'title', 'Author', opts)).toBe(false);
+      expect(matchesRow('unread', 'title', 'Author', opts)).toBe(false);
+
+      const pendingOpts = { ...baseOptions, statusFilter: 'pending' };
+      expect(matchesRow('pending', 'title', 'Author', pendingOpts)).toBe(true);
+      expect(matchesRow('unread', 'title', 'Author', pendingOpts)).toBe(false);
     });
 
     it('filters strictly by author', () => {

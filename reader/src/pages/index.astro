@@ -105,6 +105,10 @@ const articleRows = posts.map((post) => {
           <span class="stat-label">Total Articles</span>
         </div>
         <div class="stat-item">
+          <span class="stat-value stat-unread" data-stat-unread>{articleRows.length}</span>
+          <span class="stat-label">Unread</span>
+        </div>
+        <div class="stat-item">
           <span class="stat-value stat-pending" data-stat-pending>0</span>
           <span class="stat-label">To Read</span>
         </div>
@@ -115,10 +119,6 @@ const articleRows = posts.map((post) => {
         <div class="stat-item">
           <span class="stat-value stat-completed" data-stat-completed>0</span>
           <span class="stat-label">Completed</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value stat-reads" data-stat-reads>0</span>
-          <span class="stat-label">Total Reads</span>
         </div>
         <div class="stat-item stat-progress-wrap">
           <div class="progress-bar-container">
@@ -316,8 +316,12 @@ const articleRows = posts.map((post) => {
     font-variant-numeric: tabular-nums;
   }
 
+  .stat-unread {
+    color: var(--color-status-unread, #64748b);
+  }
+
   .stat-pending {
-    color: var(--color-status-pending, #64748b);
+    color: var(--color-status-pending, #be123c);
   }
 
   .stat-reading {
