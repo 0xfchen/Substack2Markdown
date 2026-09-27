@@ -860,3 +860,85 @@ def test_clean_post_html_strips_comment_and_promo_buttons():
     assert "[Leave a comment]" not in md
     assert "[Subscribe now]" not in md
     assert "Footer promo content" not in md
+
+
+def test_html_to_md_formats_cleanly_with_mdformat():
+    """Verify html_to_md normalizes lists with dashes, default alt text, and mdformat formatting."""
+    html = """
+    <div class="available-content">
+        <p>Introductory text.</p>
+        <ul>
+            <li>First item</li>
+            <li>Second item</li>
+        </ul>
+        <img src="https://example.com/photo.png">
+        <blockquote>
+            <p>A quote here.</p>
+        </blockquote>
+    </div>
+    """
+    md = ss.BaseSubstackScraper.html_to_md(html)
+    assert "- First item" in md
+    assert "- Second item" in md
+    assert "* First item" not in md
+    assert "![image](https://example.com/photo.png)" in md
+    assert "> A quote here." in md
+
+
+def test_combine_metadata_and_content_trailing_newline():
+    """Verify combine_metadata_and_content always terminates with a newline character."""
+    output = ss.BaseSubstackScraper.combine_metadata_and_content(
+        title="Sample Post",
+        subtitle="",
+        date="2026-09-26",
+        author="Author",
+        cover_image="",
+        content="Hello world",
+    )
+    assert output.endswith("\n")
+    assert not output.endswith("\n\n\n")
+
+
+def test_save_to_file_ensures_trailing_newline(tmp_path):
+    """Verify save_to_file guarantees a trailing newline on written files."""
+    scraper = FakeScraper("https://example.substack.com", str(tmp_path))
+    file_path = str(tmp_path / "test.md")
+    scraper.save_to_file(file_path, "no newline at end")
+    with open(file_path, encoding="utf-8") as f:
+        saved_text = f.read()
+    assert saved_text.endswith("\n")
+
+
+def test_check_markdown_script_functions(tmp_path):
+    """Verify check_markdown CLI utility formatting and violation parsing."""
+    import importlib.util
+    from pathlib import Path
+
+    script_path = Path(__file__).resolve().parent.parent / "scripts" / "check_markdown.py"
+    spec = importlib.util.spec_from_file_location("check_markdown", script_path)
+    assert spec is not None and spec.loader is not None
+    check_md = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(check_md)
+
+    # Test parser
+    raw_lines = [
+        "file.md:10:1: MD007: Unordered list indentation [Expected: 0, Actual=2] (ul-indent)",
+        "file.md:20:1: MD045: Images should have alternate text (alt text) (no-alt-text)",
+    ]
+    violations = check_md._parse_violations(raw_lines)
+    assert len(violations) == 2
+    assert violations[0].rule == "MD007"
+    assert violations[1].rule == "MD045"
+
+    # Test file fixing with mdformat
+    sample_file = tmp_path / "sample.md"
+    sample_file.write_text(
+        '---\ntitle: "Test"\n---\n\n* Unordered list item 1\n* Unordered list item 2\n\n',
+        encoding="utf-8",
+    )
+    modified, unchanged = check_md._fix_markdown_files([sample_file])
+    assert modified == 1
+    assert unchanged == 0
+    formatted_content = sample_file.read_text(encoding="utf-8")
+    assert "- Unordered list item 1" in formatted_content
+    assert formatted_content.endswith("\n")

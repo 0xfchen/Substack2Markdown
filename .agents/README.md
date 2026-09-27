@@ -35,6 +35,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-027`** | **Plan** | `feat` | 3D Interactive Knowledge Graph View (Constellation View) | [`plans/stm-027-3d-knowledge-graph-view.md`](plans/stm-027-3d-knowledge-graph-view.md) |
 | **`stm-028`** | **Plan** | `feat` | Four-State Reading Queue with Zero-Schema-Change Persistence | [`plans/stm-028-four-state-reading-queue.md`](plans/stm-028-four-state-reading-queue.md) |
 | **`stm-029`** | **Issue** | `refactor` | Consolidate Color System into Central TypeScript Registry and Tokens | [`issues/stm-029-consolidate-color-system.md`](issues/stm-029-consolidate-color-system.md) |
+| **`stm-030`** | **Issue** | `fix` | Fix Systematic Markdown Lint Violations in Scraper Pipeline | [`issues/stm-030-markdown-lint-pipeline-fixes.md`](issues/stm-030-markdown-lint-pipeline-fixes.md) |
 
 ---
 

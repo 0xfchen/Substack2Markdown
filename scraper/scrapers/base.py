@@ -10,6 +10,7 @@ from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
 import html2text
+import mdformat
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
@@ -33,6 +34,8 @@ class SubstackHTML2Text(html2text.HTML2Text):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self.dash_unordered_list = True
+        self.default_image_alt = "image"
         self.backquote_code_style = True
         self.body_width = 0
         self._current_code_lang: str = ""
@@ -287,7 +290,10 @@ class BaseSubstackScraper(ABC):
             BaseSubstackScraper._clean_post_html(soup)
 
         converter = SubstackHTML2Text()
-        return converter.handle(str(soup)).strip()
+        raw_md = converter.handle(str(soup)).strip()
+        if not raw_md:
+            return ""
+        return mdformat.text(raw_md, extensions={"gfm"}).strip()
 
     def save_to_file(self, filepath: str, content: str, overwrite: bool = False) -> None:
         """Write content string to specified file with overwrite guard.
@@ -307,6 +313,9 @@ class BaseSubstackScraper(ABC):
         if os.path.exists(filepath) and not overwrite:
             logger.info("File already exists: %s", filepath)
             return
+
+        if not content.endswith("\n"):
+            content += "\n"
 
         with open(filepath, "w", encoding="utf-8") as file:
             file.write(content)
@@ -559,7 +568,7 @@ class BaseSubstackScraper(ABC):
         if not body.startswith("# "):
             body = f"# {title}\n\n{body}"
 
-        return frontmatter + body
+        return frontmatter + body + "\n"
 
     def extract_post_data(
         self,
