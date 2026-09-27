@@ -37,6 +37,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-029`** | **Issue** | `refactor` | Consolidate Color System into Central TypeScript Registry and Tokens | [`issues/stm-029-consolidate-color-system.md`](issues/stm-029-consolidate-color-system.md) |
 | **`stm-030`** | **Issue** | `fix` | Fix Systematic Markdown Lint Violations in Scraper Pipeline | [`issues/stm-030-markdown-lint-pipeline-fixes.md`](issues/stm-030-markdown-lint-pipeline-fixes.md) |
 | **`stm-031`** | **Plan** | `feat` | Incremental Delta Sync via Substack API | [`plans/stm-031-incremental-delta-sync.md`](plans/stm-031-incremental-delta-sync.md) |
+| **`stm-032`** | **Issue** | `fix` | CLI Flag Validation and Conflicting Option Guards | [`issues/stm-032-cli-flag-validation-and-guards.md`](issues/stm-032-cli-flag-validation-and-guards.md) |
 
 ---
 

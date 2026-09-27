@@ -10,8 +10,76 @@ from .url_utils import is_post_url
 logger = logging.getLogger("scraper")
 
 
-def parse_args() -> argparse.Namespace:
+def _validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Validate argument combinations and enforce mutual exclusivity constraints."""
+    # 1. Premium-only flags passed without --premium
+    browser_flags: list[str] = []
+    if args.browser is not None:
+        browser_flags.append(f"--browser {args.browser}")
+    if args.headless:
+        browser_flags.append("--headless")
+    if args.persistent_profile:
+        browser_flags.append("--persistent-profile")
+    if args.skip_login:
+        browser_flags.append("--skip-login")
+    if args.storage_state:
+        browser_flags.append("--storage-state")
+    if args.cdp_url:
+        browser_flags.append("--cdp-url")
+    if args.browser_path:
+        browser_flags.append("--browser-path")
+    if args.user_agent:
+        browser_flags.append("--user-agent")
+
+    if not args.premium and browser_flags:
+        flags_str = ", ".join(browser_flags)
+        parser.error(f"Browser automation options ({flags_str}) require the -p / --premium flag.")
+
+    # 2. --cdp-url combined with browser launch options
+    if args.cdp_url:
+        incompatible_with_cdp: list[str] = []
+        if args.headless:
+            incompatible_with_cdp.append("--headless")
+        if args.browser is not None:
+            incompatible_with_cdp.append(f"--browser {args.browser}")
+        if args.browser_path:
+            incompatible_with_cdp.append("--browser-path")
+        if args.persistent_profile:
+            incompatible_with_cdp.append("--persistent-profile")
+        if args.storage_state:
+            incompatible_with_cdp.append("--storage-state")
+
+        if incompatible_with_cdp:
+            flags_str = ", ".join(incompatible_with_cdp)
+            parser.error(
+                f"--cdp-url attaches directly to an active external browser window and cannot be combined with: {flags_str}."
+            )
+
+    # 3. --persistent-profile vs --storage-state
+    if args.persistent_profile and args.storage_state:
+        parser.error("--persistent-profile and --storage-state are mutually exclusive session persistence strategies.")
+
+    # 4. Single-post URL validation
+    if is_post_url(args.url):
+        if args.number > 1:
+            parser.error(f"--number cannot be greater than 1 when scraping a single post URL ({args.url}).")
+
+    # 5. Incremental sync validation
+    if args.sync and args.number != 0:
+        parser.error(
+            "--sync cannot be combined with --number / -n. "
+            "--sync automatically discovers and downloads all new posts published since the last sync."
+        )
+
+    if args.sync and is_post_url(args.url):
+        parser.error("--sync can only be used with publication URLs, not individual post URLs.")
+
+
+def parse_args(args_list: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments for the Substack2Markdown scraper CLI.
+
+    Args:
+        args_list: Optional explicit command-line argument list (defaults to sys.argv[1:]).
 
     Returns:
         argparse.Namespace: Parsed command-line options and flags.
@@ -94,12 +162,12 @@ Examples:
         "-p",
         "--premium",
         action="store_true",
-        help="Use browser automation to access premium/paid content.",
+        help="Use authenticated browser automation to scrape all posts (both free and paid subscriber-only content).",
     )
     premium_group.add_argument(
         "--browser",
         type=str,
-        default="chrome",
+        default=None,
         choices=["chrome", "edge"],
         help="Browser to use for premium scraping (default: chrome).",
     )
@@ -157,21 +225,15 @@ Examples:
         help="Silence informational output; only log warnings and errors (sets level to WARNING).",
     )
 
-    if len(sys.argv) == 1:
-        parser.print_help(sys.stderr)
-        sys.exit(1)
+    if args_list is None:
+        if len(sys.argv) == 1:
+            parser.print_help(sys.stderr)
+            sys.exit(1)
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args_list)
 
-    args = parser.parse_args()
-
-    if args.sync and args.number != 0:
-        parser.error(
-            "--sync cannot be combined with --number / -n. "
-            "--sync automatically discovers and downloads all new posts published since the last sync."
-        )
-
-    if args.sync and is_post_url(args.url):
-        parser.error("--sync can only be used with publication URLs, not individual post URLs.")
-
+    _validate_args(args, parser)
     return args
 
 
@@ -203,7 +265,7 @@ def main() -> None:
             base_substack_url=args.url,
             content_save_dir=args.directory,
             download_images=args.images,
-            browser=args.browser,
+            browser=args.browser or "chrome",
             headless=args.headless,
             browser_path=args.browser_path,
             user_agent=args.user_agent,

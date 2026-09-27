@@ -1210,3 +1210,91 @@ def test_is_cutoff_reached_predicate():
     assert (
         BaseSubstackScraper._is_cutoff_reached(post_item, since_datetime=datetime_day_next, is_date_only=True) is True
     )
+
+
+# 22. CLI Validation & Incompatible Option Guards
+
+
+@pytest.mark.parametrize(
+    "flag_args",
+    [
+        ["--headless"],
+        ["--persistent-profile"],
+        ["--skip-login"],
+        ["--storage-state", "cookies.json"],
+        ["--cdp-url", "http://localhost:9222"],
+        ["--browser-path", "/usr/bin/chrome"],
+        ["--user-agent", "custom-agent"],
+        ["--browser", "edge"],
+    ],
+)
+def test_cli_validation_browser_flags_require_premium(flag_args, capsys):
+    """Verify browser automation flags without -p / --premium raise an error."""
+    with pytest.raises(SystemExit) as exc_info:
+        ss.parse_args(["--url", "https://example.substack.com", *flag_args])
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "require the -p / --premium flag" in captured.err
+
+
+@pytest.mark.parametrize(
+    "incompatible_args",
+    [
+        ["--headless"],
+        ["--browser", "edge"],
+        ["--browser-path", "/bin/chrome"],
+        ["--persistent-profile"],
+        ["--storage-state", "state.json"],
+    ],
+)
+def test_cli_validation_cdp_url_incompatibilities(incompatible_args, capsys):
+    """Verify --cdp-url cannot be combined with browser launch options."""
+    cmd = [
+        "--url",
+        "https://example.substack.com",
+        "--premium",
+        "--cdp-url",
+        "http://localhost:9222",
+        *incompatible_args,
+    ]
+    with pytest.raises(SystemExit) as exc_info:
+        ss.parse_args(cmd)
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "--cdp-url attaches directly to an active external browser window" in captured.err
+
+
+def test_cli_validation_persistent_profile_and_storage_state_mutually_exclusive(capsys):
+    """Verify --persistent-profile and --storage-state cannot be used together."""
+    cmd = [
+        "--url",
+        "https://example.substack.com",
+        "--premium",
+        "--persistent-profile",
+        "--storage-state",
+        "cookies.json",
+    ]
+    with pytest.raises(SystemExit) as exc_info:
+        ss.parse_args(cmd)
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "mutually exclusive session persistence strategies" in captured.err
+
+
+def test_cli_validation_single_post_number_guard(capsys):
+    """Verify scraping an individual post with --number > 1 raises an error."""
+    cmd = ["--url", "https://example.substack.com/p/my-post", "--number", "5"]
+    with pytest.raises(SystemExit) as exc_info:
+        ss.parse_args(cmd)
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "--number cannot be greater than 1 when scraping a single post URL" in captured.err
+
+
+def test_cli_validation_valid_single_post_number_one():
+    """Verify scraping an individual post with --number 1 or default 0 is allowed."""
+    args = ss.parse_args(["--url", "https://example.substack.com/p/my-post", "--number", "1"])
+    assert args.number == 1
+
+    args_default = ss.parse_args(["--url", "https://example.substack.com/p/my-post"])
+    assert args_default.number == 0
