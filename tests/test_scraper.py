@@ -594,9 +594,7 @@ def test_cli_force_flag_sets_overwrite(monkeypatch):
     assert args_alias.overwrite is True
 
 
-# ---------------------------------------------------------------------------
-# Catalog & Metadata Synchronization Tests
-# ---------------------------------------------------------------------------
+# 20. Catalog & Metadata Synchronization Tests
 
 
 def test_extract_post_id_from_preloads():
@@ -687,7 +685,7 @@ def test_extract_preloaded_post_data():
     assert data["tags"] == ["tech", "ai"]
 
 
-def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path):
+def test_save_posts_data_to_json_updates_existing_entry_by_post_id(tmp_path):
     scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
 
     initial_entries = [
@@ -698,7 +696,7 @@ def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path):
             "file_link": "posts/initial.md",
         }
     ]
-    scraper.save_essays_data_to_json(initial_entries)
+    scraper.save_posts_data_to_json(initial_entries)
 
     updated_entries = [
         {
@@ -708,7 +706,7 @@ def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path):
             "file_link": "posts/new-renamed-slug.md",
         }
     ]
-    scraper.save_essays_data_to_json(updated_entries)
+    scraper.save_posts_data_to_json(updated_entries)
 
     import json
 
@@ -723,11 +721,11 @@ def test_save_essays_data_to_json_updates_existing_entry_by_post_id(tmp_path):
     assert saved_data[0]["file_link"] == "posts/new-renamed-slug.md"
 
 
-def test_save_essays_data_to_json_appends_genuinely_new_posts(tmp_path):
+def test_save_posts_data_to_json_appends_genuinely_new_posts(tmp_path):
     scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
 
-    scraper.save_essays_data_to_json([{"post_id": 101, "title": "First"}])
-    scraper.save_essays_data_to_json([{"post_id": 102, "title": "Second"}])
+    scraper.save_posts_data_to_json([{"post_id": 101, "title": "First"}])
+    scraper.save_posts_data_to_json([{"post_id": 102, "title": "Second"}])
 
     import json
 
@@ -737,6 +735,11 @@ def test_save_essays_data_to_json_appends_genuinely_new_posts(tmp_path):
     assert len(saved_data) == 2
     assert saved_data[0]["post_id"] == 101
     assert saved_data[1]["post_id"] == 102
+
+
+def test_save_essays_data_to_json_backward_compatibility_alias():
+    scraper = FakeScraper("https://example.substack.com")
+    assert scraper.save_essays_data_to_json == scraper.save_posts_data_to_json
 
 
 def test_scrape_posts_recovers_metadata_for_skipped_existing_files(tmp_path):
@@ -942,3 +945,268 @@ def test_check_markdown_script_functions(tmp_path):
     formatted_content = sample_file.read_text(encoding="utf-8")
     assert "- Unordered list item 1" in formatted_content
     assert formatted_content.endswith("\n")
+
+
+# 21. Incremental Delta Sync Tests
+
+
+def test_parse_args_supports_sync_flag(monkeypatch):
+    """Verify --sync flag parses successfully in CLI arguments."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["scraper", "--url", "https://example.substack.com", "--sync"],
+    )
+    args = ss.parse_args()
+    assert args.sync is True
+
+
+def test_parse_args_sync_and_number_mutually_exclusive(monkeypatch):
+    """Verify --sync and -n/--number cannot be used together."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["scraper", "--url", "https://example.substack.com", "--sync", "-n", "5"],
+    )
+    with pytest.raises(SystemExit):
+        ss.parse_args()
+
+
+def test_parse_args_sync_and_single_post_mutually_exclusive(monkeypatch):
+    """Verify --sync cannot be used with an individual post URL."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["scraper", "--url", "https://example.substack.com/p/my-post", "--sync"],
+    )
+    with pytest.raises(SystemExit):
+        ss.parse_args()
+
+
+def test_sync_state_load_and_save(tmp_path):
+    """Verify sync state persistence and loading."""
+    scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
+    assert scraper._load_sync_state() is None
+
+    test_state = {
+        "last_sync_at": "2026-09-27T10:00:00Z",
+        "last_post_date": "2026-09-26T18:30:00.000Z",
+        "last_post_id": 12345,
+        "last_post_slug": "test-slug",
+        "total_synced_posts": 10,
+    }
+    scraper._save_sync_state(test_state)
+
+    loaded = scraper._load_sync_state()
+    assert loaded == test_state
+
+
+def test_sync_state_bootstraps_from_metadata_json(tmp_path):
+    """Verify cursor bootstrapping from existing metadata.json if sync_state.json is missing."""
+    import json
+
+    author_dir = tmp_path / "example"
+    author_dir.mkdir(parents=True, exist_ok=True)
+    metadata_file = author_dir / "metadata.json"
+
+    metadata_data = [
+        {"slug": "older-post", "date": "2026-08-01", "post_id": 111},
+        {"slug": "newest-post", "date": "2026-09-20", "post_id": 222},
+        {"slug": "middle-post", "date": "2026-09-10", "post_id": 333},
+    ]
+    metadata_file.write_text(json.dumps(metadata_data), encoding="utf-8")
+
+    scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
+    bootstrapped = scraper._load_sync_state()
+
+    assert bootstrapped is not None
+    assert bootstrapped["last_post_date"] == "2026-09-20"
+    assert bootstrapped["last_post_id"] == 222
+    assert bootstrapped["last_post_slug"] == "newest-post"
+    assert bootstrapped["total_synced_posts"] == 3
+
+
+def test_fetch_posts_from_api_pagination_and_cutoff(monkeypatch):
+    """Verify API pagination terminates upon encountering cutoff date, id, or slug."""
+    page_1 = [
+        {"id": 300, "slug": "post-3", "post_date": "2026-09-25T12:00:00.000Z"},
+        {"id": 200, "slug": "post-2", "post_date": "2026-09-20T12:00:00.000Z"},
+    ]
+    page_2 = [
+        {"id": 100, "slug": "post-1", "post_date": "2026-09-15T12:00:00.000Z"},
+    ]
+
+    class FakeResponse:
+        def __init__(self, data, ok=True, status_code=200, content=b"<urlset></urlset>"):
+            self._data = data
+            self.ok = ok
+            self.status_code = status_code
+            self.content = content
+
+        def json(self):
+            return self._data
+
+    api_calls = []
+
+    def fake_get(url, timeout=30):
+        if "api/v1/posts" in url:
+            api_calls.append(url)
+            if "offset=0" in url:
+                return FakeResponse(page_1)
+            elif "offset=2" in url:
+                return FakeResponse(page_2)
+            return FakeResponse([])
+        return FakeResponse([], content=b"<urlset></urlset>")
+
+    monkeypatch.setattr(ss.requests, "get", fake_get)
+
+    scraper = FakeScraper("https://example.substack.com")
+
+    # Cutoff at post-2 (date 2026-09-20)
+    delta = scraper._fetch_posts_from_api(
+        since_date="2026-09-20T12:00:00.000Z",
+        limit=2,
+    )
+    assert len(delta) == 1
+    assert delta[0]["id"] == 300
+    assert len(api_calls) == 1
+
+
+def test_fetch_posts_from_api_handles_api_failure(monkeypatch):
+    """Verify API network failure or non-200 status returns None gracefully."""
+
+    class FakeErrorResponse:
+        ok = False
+        status_code = 500
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr(ss.requests, "get", lambda url, timeout=30: FakeErrorResponse())
+
+    scraper = FakeScraper("https://example.substack.com")
+    result = scraper._fetch_posts_from_api()
+    assert result is None
+
+
+def test_sync_posts_raises_on_single_post():
+    """Verify sync_posts raises ValueError if initialized on a single post URL."""
+    scraper = FakeScraper("https://example.substack.com/p/my-post")
+    with pytest.raises(ValueError, match="sync_posts"):
+        scraper.sync_posts()
+
+
+def test_sync_posts_up_to_date_when_no_delta(tmp_path):
+    """Verify sync_posts returns 0 and updates last_sync_at when already up to date."""
+    scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
+    initial_cursor = {
+        "last_sync_at": "2026-09-20T00:00:00Z",
+        "last_post_date": "2026-09-26T12:00:00.000Z",
+        "last_post_id": 999,
+        "last_post_slug": "latest-post",
+        "total_synced_posts": 5,
+    }
+    scraper._save_sync_state(initial_cursor)
+
+    scraper._fetch_posts_from_api = Mock(return_value=[])
+
+    synced_count = scraper.sync_posts()
+    assert synced_count == 0
+
+    updated_cursor = scraper._load_sync_state()
+    assert updated_cursor["total_synced_posts"] == 5
+    assert updated_cursor["last_post_date"] == "2026-09-26T12:00:00.000Z"
+    assert updated_cursor["last_sync_at"] != "2026-09-20T00:00:00Z"
+
+
+def test_sync_posts_scrapes_delta_and_updates_cursor(tmp_path):
+    """Verify sync_posts scrapes only newly published posts and advances cursor."""
+    scraper = FakeScraper("https://example.substack.com", content_save_dir=str(tmp_path))
+    initial_cursor = {
+        "last_sync_at": "2026-09-20T00:00:00Z",
+        "last_post_date": "2026-09-20T10:00:00.000Z",
+        "last_post_id": 100,
+        "last_post_slug": "post-100",
+        "total_synced_posts": 10,
+    }
+    scraper._save_sync_state(initial_cursor)
+
+    delta_api_posts = [
+        {
+            "id": 200,
+            "slug": "newest-post",
+            "post_date": "2026-09-25T15:00:00.000Z",
+            "canonical_url": "https://example.substack.com/p/newest-post",
+        },
+        {
+            "id": 150,
+            "slug": "intermediate-post",
+            "post_date": "2026-09-22T10:00:00.000Z",
+            "canonical_url": "https://example.substack.com/p/intermediate-post",
+        },
+    ]
+    scraper._fetch_posts_from_api = Mock(return_value=delta_api_posts)
+
+    scraped_urls = []
+
+    def fake_scrape_single(url, progress_bar=None):
+        scraped_urls.append(url)
+        slug = url.split("/")[-1]
+        return {
+            "title": f"Title {slug}",
+            "slug": slug,
+            "post_id": 200 if slug == "newest-post" else 150,
+            "date": "2026-09-25" if slug == "newest-post" else "2026-09-22",
+        }
+
+    scraper._scrape_single_post = Mock(side_effect=fake_scrape_single)
+    scraper.save_posts_data_to_json = Mock()
+
+    synced_count = scraper.sync_posts()
+    assert synced_count == 2
+    assert scraped_urls == [
+        "https://example.substack.com/p/intermediate-post",
+        "https://example.substack.com/p/newest-post",
+    ]
+
+    scraper.save_posts_data_to_json.assert_called_once()
+    updated_cursor = scraper._load_sync_state()
+    assert updated_cursor["last_post_date"] == "2026-09-25T15:00:00.000Z"
+    assert updated_cursor["last_post_id"] == 200
+    assert updated_cursor["last_post_slug"] == "newest-post"
+    assert updated_cursor["total_synced_posts"] == 12
+
+
+def test_is_cutoff_reached_predicate():
+    """Verify _is_cutoff_reached predicate matches by post_id, slug, and timestamp comparisons."""
+    from datetime import UTC, datetime
+
+    from scraper.scrapers.base import BaseSubstackScraper
+
+    # Exact ID match
+    assert BaseSubstackScraper._is_cutoff_reached({"id": 123}, last_post_id=123) is True
+    assert BaseSubstackScraper._is_cutoff_reached({"id": 456}, last_post_id=123) is False
+
+    # Exact slug match
+    assert BaseSubstackScraper._is_cutoff_reached({"slug": "target-slug"}, last_post_slug="target-slug") is True
+    assert BaseSubstackScraper._is_cutoff_reached({"slug": "other-slug"}, last_post_slug="target-slug") is False
+
+    # Timestamp comparison
+    post_item = {"post_date": "2026-09-20T12:00:00.000Z"}
+    datetime_same = datetime(2026, 9, 20, 12, 0, tzinfo=UTC)
+    datetime_later = datetime(2026, 9, 21, 0, 0, tzinfo=UTC)
+    datetime_earlier = datetime(2026, 9, 19, 0, 0, tzinfo=UTC)
+
+    assert BaseSubstackScraper._is_cutoff_reached(post_item, since_datetime=datetime_same) is True
+    assert BaseSubstackScraper._is_cutoff_reached(post_item, since_datetime=datetime_later) is True
+    assert BaseSubstackScraper._is_cutoff_reached(post_item, since_datetime=datetime_earlier) is False
+
+    # Date-only format comparison
+    datetime_day_same = datetime(2026, 9, 20, tzinfo=UTC)
+    datetime_day_next = datetime(2026, 9, 21, tzinfo=UTC)
+    assert (
+        BaseSubstackScraper._is_cutoff_reached(post_item, since_datetime=datetime_day_same, is_date_only=True) is False
+    )
+    assert (
+        BaseSubstackScraper._is_cutoff_reached(post_item, since_datetime=datetime_day_next, is_date_only=True) is True
+    )

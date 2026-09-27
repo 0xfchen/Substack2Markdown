@@ -6,6 +6,8 @@ BASE_CONTENT_DIR: str = "content"
 NUM_POSTS_TO_SCRAPE: int = 0
 DEFAULT_REQUEST_TIMEOUT: int = 30
 MAX_IMAGE_WORKERS: int = 6
+DEFAULT_API_POST_LIMIT: int = 25
+MAX_API_SYNC_PAGES: int = 100
 
 
 def get_credentials() -> tuple[str, str]:

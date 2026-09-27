@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
@@ -15,7 +15,12 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from ..config import BASE_CONTENT_DIR, DEFAULT_REQUEST_TIMEOUT
+from ..config import (
+    BASE_CONTENT_DIR,
+    DEFAULT_API_POST_LIMIT,
+    DEFAULT_REQUEST_TIMEOUT,
+    MAX_API_SYNC_PAGES,
+)
 from ..images import count_images_in_markdown, process_markdown_images
 from ..url_utils import (
     extract_main_part,
@@ -678,14 +683,292 @@ class BaseSubstackScraper(ABC):
             "md_content": md,
         }
 
-    def save_essays_data_to_json(self, essays_data: list[dict]) -> None:
-        """Save essays metadata records to metadata.json in the author's directory.
+    def _get_sync_state_path(self) -> str:
+        """Return the absolute path to sync_state.json in author directory."""
+        return os.path.join(self.author_dir, "sync_state.json")
+
+    @staticmethod
+    def _parse_iso_datetime(date_string: str | None) -> datetime | None:
+        """Parse an ISO date/time string into a UTC-aware datetime object."""
+        if not date_string or date_string == "Date not found":
+            return None
+        try:
+            clean_date_string = date_string.replace("Z", "+00:00")
+            parsed_datetime = datetime.fromisoformat(clean_date_string)
+            if parsed_datetime.tzinfo is None:
+                parsed_datetime = parsed_datetime.replace(tzinfo=UTC)
+            return parsed_datetime
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _is_cutoff_reached(
+        post: dict[str, Any],
+        last_post_id: int | None = None,
+        last_post_slug: str | None = None,
+        since_datetime: datetime | None = None,
+        is_date_only: bool = False,
+    ) -> bool:
+        """Evaluate whether an API post record matches or precedes the sync cursor."""
+        post_id = post.get("id")
+        post_slug = post.get("slug")
+        if last_post_id is not None and post_id == last_post_id:
+            return True
+        if last_post_slug is not None and post_slug == last_post_slug:
+            return True
+        if since_datetime is None:
+            return False
+
+        post_datetime = BaseSubstackScraper._parse_iso_datetime(post.get("post_date"))
+        if post_datetime is None:
+            return False
+
+        if is_date_only:
+            return post_datetime.date() < since_datetime.date()
+        return post_datetime <= since_datetime
+
+    def _bootstrap_sync_state_from_metadata(self) -> dict[str, Any] | None:
+        """Bootstrap initial sync state from an existing metadata.json catalog."""
+        if not os.path.exists(self.metadata_file_path):
+            return None
+
+        try:
+            with open(self.metadata_file_path, encoding="utf-8") as file:
+                entries = json.load(file)
+        except (json.JSONDecodeError, OSError) as error:
+            logger.warning("Failed to bootstrap sync state from metadata.json: %s", error)
+            return None
+
+        if not isinstance(entries, list) or not entries:
+            return None
+
+        dated_entries = [
+            entry
+            for entry in entries
+            if isinstance(entry, dict) and entry.get("date") and entry.get("date") != "Date not found"
+        ]
+        if not dated_entries:
+            return None
+
+        dated_entries.sort(key=lambda entry: str(entry.get("date", "")), reverse=True)
+        newest_entry = dated_entries[0]
+        logger.info(
+            "Bootstrapping sync state from existing metadata.json (last post date: %s)",
+            newest_entry.get("date"),
+        )
+        return {
+            "last_sync_at": datetime.now(UTC).isoformat(),
+            "last_post_date": newest_entry.get("date"),
+            "last_post_id": newest_entry.get("post_id"),
+            "last_post_slug": newest_entry.get("slug"),
+            "total_synced_posts": len(entries),
+        }
+
+    def _load_sync_state(self) -> dict[str, Any] | None:
+        """Load sync state from disk or bootstrap from metadata.json if missing."""
+        sync_state_path = self._get_sync_state_path()
+        if os.path.exists(sync_state_path):
+            try:
+                with open(sync_state_path, encoding="utf-8") as file:
+                    data = json.load(file)
+                    if isinstance(data, dict):
+                        return data
+            except (json.JSONDecodeError, OSError) as error:
+                logger.warning("Failed to read %s: %s", sync_state_path, error)
+
+        return self._bootstrap_sync_state_from_metadata()
+
+    def _save_sync_state(self, state: dict[str, Any]) -> None:
+        """Save sync state dictionary to sync_state.json atomically."""
+        os.makedirs(self.author_dir, exist_ok=True)
+        sync_state_path = self._get_sync_state_path()
+        temporary_path = f"{sync_state_path}.tmp"
+        with open(temporary_path, "w", encoding="utf-8") as file:
+            json.dump(state, file, ensure_ascii=False, indent=4)
+        os.replace(temporary_path, sync_state_path)
+
+    def _fetch_posts_from_api(
+        self,
+        since_date: str | None = None,
+        last_post_id: int | None = None,
+        last_post_slug: str | None = None,
+        limit: int = DEFAULT_API_POST_LIMIT,
+        max_pages: int = MAX_API_SYNC_PAGES,
+    ) -> list[dict[str, Any]] | None:
+        """Fetch post metadata records from Substack API until cutoff is reached."""
+        delta_posts: list[dict[str, Any]] = []
+        since_datetime = self._parse_iso_datetime(since_date) if since_date else None
+        is_date_only = bool(since_date and len(since_date.strip()) == 10)
+
+        api_base_url = f"{self.base_substack_url}api/v1/posts"
+        offset = 0
+
+        for _ in range(max_pages):
+            api_page_url = f"{api_base_url}?offset={offset}&limit={limit}&sort=new"
+            try:
+                response = requests.get(api_page_url, timeout=DEFAULT_REQUEST_TIMEOUT)
+            except requests.RequestException as request_error:
+                logger.warning("Error requesting Substack API %s: %s", api_page_url, request_error)
+                return None if offset == 0 else delta_posts
+
+            if not response.ok:
+                logger.warning("Substack API returned status %s for %s", response.status_code, api_page_url)
+                return None if offset == 0 else delta_posts
+
+            try:
+                api_posts = response.json()
+            except (json.JSONDecodeError, ValueError) as json_error:
+                logger.warning("Failed to decode JSON from Substack API %s: %s", api_page_url, json_error)
+                return None if offset == 0 else delta_posts
+
+            if not isinstance(api_posts, list) or not api_posts:
+                break
+
+            stopped = False
+            for post in api_posts:
+                if not isinstance(post, dict):
+                    continue
+
+                if self._is_cutoff_reached(
+                    post=post,
+                    last_post_id=last_post_id,
+                    last_post_slug=last_post_slug,
+                    since_datetime=since_datetime,
+                    is_date_only=is_date_only,
+                ):
+                    stopped = True
+                    break
+
+                delta_posts.append(post)
+
+            if stopped or len(api_posts) < limit:
+                break
+
+            offset += limit
+
+        return delta_posts
+
+    def _scrape_single_post(
+        self,
+        url: str,
+        progress_bar: tqdm | None = None,
+    ) -> dict[str, Any] | None:
+        """Scrape a single post URL and return its metadata entry dictionary."""
+        markdown_filename = self.get_filename_from_url(url, filetype=".md")
+        markdown_filepath = os.path.join(self.posts_save_dir, markdown_filename)
+        slug = get_post_slug(url) if is_post_url(url) else url.rstrip("/").split("/")[-1]
+
+        if not self.overwrite and os.path.exists(markdown_filepath):
+            if progress_bar:
+                progress_bar.write(f"File already exists: {markdown_filepath}")
+            else:
+                logger.info("File already exists: %s", markdown_filepath)
+            existing_entry: dict[str, Any] = {
+                "file_link": os.path.relpath(markdown_filepath, self.author_dir).replace("\\", "/"),
+                "slug": slug,
+            }
+            extracted_metadata = self._extract_metadata_from_md(markdown_filepath)
+            if extracted_metadata:
+                existing_entry.update(extracted_metadata)
+            return existing_entry
+
+        soup = self.get_url_soup(url)
+        if soup is None:
+            return None
+
+        extracted = self.extract_post_data(soup, url)
+        if isinstance(extracted, tuple):
+            title, subtitle, author, date, cover_image = extracted[0:5]
+            raw_body = extracted[6] if len(extracted) > 6 else extracted[5]
+            preloads = self._extract_preloaded_post_data(str(soup))
+            post_id = self._extract_post_id(str(soup))
+            tags = preloads.get("tags", [])
+            description = preloads.get("description") or subtitle
+            wordcount = preloads.get("wordcount") or (len(raw_body.split()) if raw_body else 0)
+            audience = preloads.get("audience", "everyone")
+            canonical_url = preloads.get("canonical_url", url)
+        else:
+            title = extracted["title"]
+            subtitle = extracted["subtitle"]
+            author = extracted["author"]
+            date = extracted["date"]
+            cover_image = extracted["cover_image"]
+            raw_body = extracted["md_content"]
+            post_id = extracted.get("post_id")
+            tags = extracted.get("tags", [])
+            description = extracted.get("description", "") or subtitle
+            wordcount = extracted.get("wordcount") or (len(raw_body.split()) if raw_body else 0)
+            audience = extracted.get("audience", "everyone")
+            canonical_url = extracted.get("canonical_url", url)
+
+        content_element = soup.select_one("div.available-content")
+        if title == "Untitled" or content_element is None:
+            skip_message = (
+                f"[SKIP] Extraction failed for {url} "
+                f"(title={title!r}, content_present={content_element is not None}). See _debug dump."
+            )
+            if progress_bar:
+                progress_bar.write(skip_message)
+            else:
+                logger.warning(skip_message)
+            return None
+
+        if self.download_images:
+            total_images = count_images_in_markdown(raw_body)
+            with tqdm(
+                total=total_images,
+                desc=f"Downloading images for {slug}",
+                leave=False,
+            ) as image_progress_bar:
+                raw_body = process_markdown_images(
+                    raw_body,
+                    self.writer_name,
+                    slug,
+                    image_progress_bar,
+                    base_content_dir=self.base_content_dir,
+                )
+
+        final_markdown = self.combine_metadata_and_content(
+            title=title,
+            subtitle=subtitle,
+            date=date,
+            author=author,
+            cover_image=cover_image,
+            content=raw_body,
+            post_id=post_id,
+            tags=tags,
+            description=description,
+            wordcount=wordcount,
+            audience=audience,
+            canonical_url=canonical_url,
+        )
+
+        self.save_to_file(markdown_filepath, final_markdown, overwrite=self.overwrite)
+
+        return {
+            "title": title,
+            "subtitle": subtitle,
+            "description": description,
+            "author": author,
+            "date": date,
+            "cover_image": cover_image,
+            "post_id": post_id,
+            "tags": tags,
+            "wordcount": wordcount,
+            "audience": audience,
+            "canonical_url": canonical_url,
+            "file_link": os.path.relpath(markdown_filepath, self.author_dir).replace("\\", "/"),
+            "slug": slug,
+        }
+
+    def save_posts_data_to_json(self, posts_data: list[dict]) -> None:
+        """Save posts metadata records to metadata.json in the author's directory.
 
         Merges records in place by unique post_id first (if available), then by slug
         or file_link. Preserves original order and updates modified fields.
 
         Args:
-            essays_data: List of post metadata dictionaries to serialize.
+            posts_data: List of post metadata dictionaries to serialize.
         """
         os.makedirs(self.author_dir, exist_ok=True)
         json_path = self.metadata_file_path
@@ -716,7 +999,7 @@ class BaseSubstackScraper(ABC):
             key_to_index[key] = len(merged_data)
             merged_data.append(dict(item))
 
-        for item in essays_data:
+        for item in posts_data:
             key = _get_entry_key(item)
             if key in key_to_index:
                 index = key_to_index[key]
@@ -728,134 +1011,118 @@ class BaseSubstackScraper(ABC):
         with open(json_path, "w", encoding="utf-8") as file:
             json.dump(merged_data, file, ensure_ascii=False, indent=4)
 
-    def scrape_posts(self, num_posts_to_scrape: int = 0) -> None:
+    save_essays_data_to_json = save_posts_data_to_json
+
+    def scrape_posts(self, limit: int = 0) -> None:
         """Iterate over all post URLs, scraping and saving them to disk.
 
         Args:
-            num_posts_to_scrape: Number of posts to download (0 = scrape all).
+            limit: Number of posts to download (0 = scrape all).
         """
-        proc_imgs = process_markdown_images
-
-        essays_data = []
+        posts_data = []
         count = 0
-        total = num_posts_to_scrape if num_posts_to_scrape != 0 else len(self.post_urls)
-        with tqdm(total=total, desc="Scraping posts") as pbar:
+        total = limit if limit != 0 else len(self.post_urls)
+        with tqdm(total=total, desc="Scraping posts") as progress_bar:
             for url in self.post_urls:
                 try:
-                    md_filename = self.get_filename_from_url(url, filetype=".md")
-                    md_filepath = os.path.join(self.posts_save_dir, md_filename)
-                    slug = get_post_slug(url) if is_post_url(url) else url.rstrip("/").split("/")[-1]
-
-                    if self.overwrite or not os.path.exists(md_filepath):
-                        soup = self.get_url_soup(url)
-                        if soup is None:
-                            total += 1
-                            pbar.total = total
-                            pbar.refresh()
-                            continue
-
-                        extracted = self.extract_post_data(soup, url)
-                        if isinstance(extracted, tuple):
-                            title, subtitle, author, date, cover_image = extracted[0:5]
-                            raw_body = extracted[6] if len(extracted) > 6 else extracted[5]
-                            preloads = self._extract_preloaded_post_data(str(soup))
-                            post_id = self._extract_post_id(str(soup))
-                            tags = preloads.get("tags", [])
-                            description = preloads.get("description") or subtitle
-                            wordcount = preloads.get("wordcount") or (len(raw_body.split()) if raw_body else 0)
-                            audience = preloads.get("audience", "everyone")
-                            canonical_url = preloads.get("canonical_url", url)
-                        else:
-                            title = extracted["title"]
-                            subtitle = extracted["subtitle"]
-                            author = extracted["author"]
-                            date = extracted["date"]
-                            cover_image = extracted["cover_image"]
-                            raw_body = extracted["md_content"]
-                            post_id = extracted.get("post_id")
-                            tags = extracted.get("tags", [])
-                            description = extracted.get("description", "") or subtitle
-                            wordcount = extracted.get("wordcount") or (len(raw_body.split()) if raw_body else 0)
-                            audience = extracted.get("audience", "everyone")
-                            canonical_url = extracted.get("canonical_url", url)
-
-                        content_element = soup.select_one("div.available-content")
-                        if title == "Untitled" or content_element is None:
-                            pbar.write(
-                                f"[SKIP] Extraction failed for {url} (title={title!r}, content_present={content_element is not None}). See _debug dump."
-                            )
-                            count += 1
-                            pbar.update(1)
-                            if num_posts_to_scrape != 0 and count == num_posts_to_scrape:
-                                break
-                            continue
-
-                        if self.download_images:
-                            total_images = count_images_in_markdown(raw_body)
-                            with tqdm(
-                                total=total_images,
-                                desc=f"Downloading images for {slug}",
-                                leave=False,
-                            ) as img_pbar:
-                                raw_body = proc_imgs(
-                                    raw_body,
-                                    self.writer_name,
-                                    slug,
-                                    img_pbar,
-                                    base_content_dir=self.base_content_dir,
-                                )
-
-                        final_md = self.combine_metadata_and_content(
-                            title=title,
-                            subtitle=subtitle,
-                            date=date,
-                            author=author,
-                            cover_image=cover_image,
-                            content=raw_body,
-                            post_id=post_id,
-                            tags=tags,
-                            description=description,
-                            wordcount=wordcount,
-                            audience=audience,
-                            canonical_url=canonical_url,
-                        )
-
-                        self.save_to_file(md_filepath, final_md, overwrite=self.overwrite)
-
-                        entry_data = {
-                            "title": title,
-                            "subtitle": subtitle,
-                            "description": description,
-                            "author": author,
-                            "date": date,
-                            "cover_image": cover_image,
-                            "post_id": post_id,
-                            "tags": tags,
-                            "wordcount": wordcount,
-                            "audience": audience,
-                            "canonical_url": canonical_url,
-                            "file_link": os.path.relpath(md_filepath, self.author_dir).replace("\\", "/"),
-                            "slug": slug,
-                        }
-                        essays_data.append(entry_data)
+                    entry = self._scrape_single_post(url, progress_bar=progress_bar)
+                    if entry is not None:
+                        posts_data.append(entry)
                     else:
-                        pbar.write(f"File already exists: {md_filepath}")
-                        existing_entry: dict[str, Any] = {
-                            "file_link": os.path.relpath(md_filepath, self.author_dir).replace("\\", "/"),
-                            "slug": slug,
-                        }
-                        extracted_metadata = self._extract_metadata_from_md(md_filepath)
-                        if extracted_metadata:
-                            existing_entry.update(extracted_metadata)
-                        essays_data.append(existing_entry)
-                except Exception as e:
-                    pbar.write(f"Error scraping post: {e}")
+                        total += 1
+                        progress_bar.total = total
+                        progress_bar.refresh()
+                        continue
+                except Exception as error:
+                    progress_bar.write(f"Error scraping post: {error}")
 
                 count += 1
-                pbar.update(1)
-                if num_posts_to_scrape != 0 and count == num_posts_to_scrape:
+                progress_bar.update(1)
+                if limit != 0 and count == limit:
                     break
-        self.save_essays_data_to_json(essays_data=essays_data)
+        self.save_posts_data_to_json(posts_data=posts_data)
+
+    def sync_posts(self) -> int:
+        """Execute incremental delta synchronization for the publication.
+
+        Discovers new posts published since the last sync using Substack's public API,
+        scrapes the delta posts, updates metadata.json, and records the new sync cursor.
+
+        Returns:
+            int: Number of new posts scraped during the sync.
+
+        Raises:
+            ValueError: If invoked on an individual post URL instead of a publication.
+        """
+        if self.is_single_post:
+            raise ValueError("sync_posts() cannot be called on a single post URL.")
+
+        cursor = self._load_sync_state()
+        if cursor is None:
+            logger.info("No prior sync state found. Running full scrape to initialize archive.")
+            self.scrape_posts(limit=0)
+            new_cursor = self._load_sync_state()
+            if new_cursor:
+                self._save_sync_state(new_cursor)
+            return len(self.post_urls)
+
+        since_date = cursor.get("last_post_date")
+        last_post_id = cursor.get("last_post_id")
+        last_post_slug = cursor.get("last_post_slug")
+
+        logger.info("Checking for new posts since %s...", since_date)
+        delta_posts = self._fetch_posts_from_api(
+            since_date=since_date,
+            last_post_id=last_post_id,
+            last_post_slug=last_post_slug,
+        )
+
+        if delta_posts is None:
+            logger.warning("Substack API unavailable. Falling back to sitemap discovery.")
+            self.scrape_posts(limit=0)
+            new_cursor = self._load_sync_state()
+            if new_cursor:
+                self._save_sync_state(new_cursor)
+            return len(self.post_urls)
+
+        if not delta_posts:
+            logger.info("Sync up to date: 0 new posts found.")
+            cursor["last_sync_at"] = datetime.now(UTC).isoformat()
+            self._save_sync_state(cursor)
+            return 0
+
+        logger.info("Found %d new post(s) to sync.", len(delta_posts))
+
+        new_entries: list[dict[str, Any]] = []
+        with tqdm(total=len(delta_posts), desc="Syncing delta posts") as progress_bar:
+            for post in reversed(delta_posts):
+                post_url = post.get("canonical_url")
+                if not post_url:
+                    slug = post.get("slug")
+                    post_url = f"{self.base_substack_url}p/{slug}"
+
+                try:
+                    entry = self._scrape_single_post(post_url, progress_bar=progress_bar)
+                    if entry is not None:
+                        new_entries.append(entry)
+                except Exception as error:
+                    progress_bar.write(f"Error syncing post {post_url}: {error}")
+                progress_bar.update(1)
+
+        if new_entries:
+            self.save_posts_data_to_json(posts_data=new_entries)
+            newest_post = delta_posts[0]
+            cursor["last_sync_at"] = datetime.now(UTC).isoformat()
+            cursor["last_post_date"] = newest_post.get("post_date") or cursor.get("last_post_date")
+            if newest_post.get("id"):
+                cursor["last_post_id"] = newest_post["id"]
+            if newest_post.get("slug"):
+                cursor["last_post_slug"] = newest_post["slug"]
+            cursor["total_synced_posts"] = cursor.get("total_synced_posts", 0) + len(new_entries)
+            self._save_sync_state(cursor)
+
+        logger.info("Sync completed: %d post(s) synced successfully.", len(new_entries))
+        return len(new_entries)
 
     @abstractmethod
     def get_url_soup(self, url: str) -> BeautifulSoup | None:

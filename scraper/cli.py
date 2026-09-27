@@ -5,6 +5,7 @@ import sys
 from .config import BASE_CONTENT_DIR
 from .scrapers.free import SubstackScraper
 from .scrapers.premium import PremiumSubstackScraper
+from .url_utils import is_post_url
 
 logger = logging.getLogger("scraper")
 
@@ -81,6 +82,11 @@ Examples:
         action="store_true",
         help="Force rescraping and overwrite existing markdown files.",
     )
+    parser.add_argument(
+        "--sync",
+        action="store_true",
+        help="Incremental delta sync: scrape only posts published since the last sync.",
+    )
 
     # Premium scraping options
     premium_group = parser.add_argument_group("Premium scraping options")
@@ -155,7 +161,18 @@ Examples:
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.sync and args.number != 0:
+        parser.error(
+            "--sync cannot be combined with --number / -n. "
+            "--sync automatically discovers and downloads all new posts published since the last sync."
+        )
+
+    if args.sync and is_post_url(args.url):
+        parser.error("--sync can only be used with publication URLs, not individual post URLs.")
+
+    return args
 
 
 def main() -> None:
@@ -205,4 +222,7 @@ def main() -> None:
             overwrite=args.overwrite,
             clean_content=args.clean_content,
         )
-    scraper.scrape_posts(args.number)
+    if args.sync:
+        scraper.sync_posts()
+    else:
+        scraper.scrape_posts(args.number)
