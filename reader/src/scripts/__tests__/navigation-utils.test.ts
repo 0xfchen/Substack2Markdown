@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { handleBackToLibrary } from '../navigation-utils';
+import { handleBackToLibrary, initBackToLibraryLink } from '../navigation-utils';
 import * as readingTracker from '../reading-tracker';
 
 describe('handleBackToLibrary()', () => {
@@ -78,3 +78,39 @@ describe('handleBackToLibrary()', () => {
   });
 });
 
+
+describe('initBackToLibraryLink()', () => {
+  it('attaches click handler to target link and triggers handleBackToLibrary', () => {
+    let clickHandler: ((event: any) => void) | null = null;
+    const mockLink = {
+      getAttribute: (attr: string) => {
+        if (attr === 'data-slug') return 'test-slug';
+        if (attr === 'href') return '/';
+        return null;
+      },
+      addEventListener: vi.fn((event: string, fn: any) => {
+        if (event === 'click') clickHandler = fn;
+      }),
+    };
+
+    (global as any).document = {
+      querySelector: vi.fn((selector: string) => (selector === '#post-top-back-link' ? mockLink : null)),
+      referrer: 'http://localhost:4321/',
+    };
+    (global as any).window = {
+      location: { origin: 'http://localhost:4321', pathname: '/posts/test-slug/' },
+      history: { length: 2, back: vi.fn() },
+      sessionStorage: { setItem: vi.fn(), getItem: vi.fn(), removeItem: vi.fn() },
+    };
+
+    initBackToLibraryLink('#post-top-back-link');
+    expect(mockLink.addEventListener).toHaveBeenCalledWith('click', expect.any(Function));
+
+    const mockEvent = { preventDefault: vi.fn() };
+    if (clickHandler) (clickHandler as any)(mockEvent);
+    expect(mockEvent.preventDefault).toHaveBeenCalled();
+
+    delete (global as any).window;
+    delete (global as any).document;
+  });
+});

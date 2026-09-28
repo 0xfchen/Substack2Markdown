@@ -1,0 +1,64 @@
+---
+interface Props {
+  slug?: string;
+}
+
+const { slug = '' } = Astro.props;
+---
+
+<div class="annotations-drawer-backdrop" id="annotations-backdrop" tabindex="-1"></div>
+<aside
+  class="annotations-drawer"
+  id="annotations-drawer"
+  role="dialog"
+  aria-label="Annotations and notes"
+  aria-hidden="true"
+  data-slug={slug}
+>
+  <div class="annotations-drawer-header">
+    <h2 class="annotations-drawer-title">
+      <span>✏️</span> Notes & Highlights
+      <span class="post-notes-badge" id="drawer-notes-count" style="margin-left: 8px;">0</span>
+    </h2>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button
+        type="button"
+        class="annotation-action-btn"
+        id="drawer-export-btn"
+        title="Export highlights as Markdown"
+        aria-label="Export highlights"
+      >
+        <span>📋</span> Export
+      </button>
+      <button
+        type="button"
+        class="annotations-drawer-close"
+        id="annotations-drawer-close"
+        aria-label="Close notes drawer"
+      >
+        &times;
+      </button>
+    </div>
+  </div>
+  <div class="annotations-drawer-body" id="annotations-drawer-body">
+    <div class="annotations-empty-state" id="annotations-empty-state">
+      <div class="annotations-empty-icon">📝</div>
+      <p style="font-weight: 500; margin: 0;">No highlights yet</p>
+      <p style="font-size: var(--text-footnote); margin: 0;">
+        Select any text in the article to highlight or take notes.
+      </p>
+    </div>
+    <div
+      class="annotations-list"
+      id="annotations-list"
+      style="display: none; display: flex; flex-direction: column; gap: var(--space-3);"
+    >
+    </div>
+  </div>
+</aside>
+
+<script>
+  import { mountAnnotations } from '../scripts/annotations';
+
+  mountAnnotations();
+</script>

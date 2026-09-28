@@ -1,0 +1,484 @@
+/* ============================================================
+   Inline Highlighting & Annotations Component Styles
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. Highlight Marks (<mark.annotation-highlight>)
+   ------------------------------------------------------------ */
+mark.annotation-highlight {
+  background-color: var(--highlight-yellow-bg);
+  background-image: none !important;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0.12em 0.18em;
+  margin: 0 -0.05em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  text-decoration: none;
+  border-bottom: none;
+  transition:
+    background-color 0.15s ease,
+    filter 0.15s ease;
+}
+
+mark.annotation-highlight:hover {
+  filter: brightness(0.92);
+}
+
+[data-theme='dark'] mark.annotation-highlight:hover {
+  filter: brightness(1.2);
+}
+
+mark.annotation-highlight[data-color='yellow'] {
+  background-color: var(--highlight-yellow-bg);
+}
+
+mark.annotation-highlight[data-color='green'] {
+  background-color: var(--highlight-green-bg);
+}
+
+mark.annotation-highlight[data-color='blue'] {
+  background-color: var(--highlight-blue-bg);
+}
+
+mark.annotation-highlight[data-color='pink'] {
+  background-color: var(--highlight-pink-bg);
+}
+
+mark.annotation-highlight[data-color='purple'] {
+  background-color: var(--highlight-purple-bg);
+}
+
+/* Flash pulse animation when jumping from annotations panel */
+mark.annotation-highlight.annotation-pulse {
+  animation: annotationPulseAnim 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes annotationPulseAnim {
+  0% {
+    outline: 4px solid var(--color-accent);
+    box-shadow: 0 0 12px var(--color-accent);
+  }
+  100% {
+    outline: 0px solid transparent;
+    box-shadow: none;
+  }
+}
+
+/* Has attached note indicator */
+mark.annotation-highlight[data-has-note='true']::after {
+  content: ' 💬';
+  font-size: 0.7em;
+  vertical-align: super;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------------
+   2. Floating Selection Toolbar
+   ------------------------------------------------------------ */
+.annotation-toolbar {
+  position: absolute;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-2);
+  gap: var(--space-2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+  font-family: var(--font-sans);
+  max-width: 320px;
+}
+
+.annotation-toolbar.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.annotation-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.annotation-color-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.15s ease;
+}
+
+[data-theme='dark'] .annotation-color-btn {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.annotation-color-btn:hover {
+  transform: scale(1.18);
+}
+
+.annotation-color-btn.active {
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 2px var(--bg-tertiary),
+    0 0 0 4px var(--label-primary);
+}
+
+.annotation-color-btn[data-color='yellow'] {
+  background: var(--highlight-yellow-swatch);
+}
+
+.annotation-color-btn[data-color='green'] {
+  background: var(--highlight-green-swatch);
+}
+
+.annotation-color-btn[data-color='blue'] {
+  background: var(--highlight-blue-swatch);
+}
+
+.annotation-color-btn[data-color='pink'] {
+  background: var(--highlight-pink-swatch);
+}
+
+.annotation-color-btn[data-color='purple'] {
+  background: var(--highlight-purple-swatch);
+}
+
+.annotation-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--separator);
+  margin: 0 var(--space-1);
+}
+
+.annotation-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--label-secondary);
+  font-size: var(--text-footnote);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.annotation-action-btn:hover {
+  background: var(--fill-secondary);
+  color: var(--label-primary);
+}
+
+.annotation-action-btn.delete:hover {
+  color: var(--color-danger);
+  background: rgba(225, 29, 72, 0.1);
+}
+
+.annotation-note-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: 1px solid var(--separator);
+  padding-top: var(--space-2);
+}
+
+.annotation-note-input {
+  width: 100%;
+  min-height: 60px;
+  max-height: 160px;
+  resize: vertical;
+  background: var(--bg-primary);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-footnote);
+  color: var(--label-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.annotation-note-input:focus {
+  border-color: var(--color-accent);
+}
+
+.annotation-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.annotation-btn-primary {
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-caption-1);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.annotation-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.annotation-btn-secondary {
+  background: var(--fill-secondary);
+  color: var(--label-primary);
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-caption-1);
+  cursor: pointer;
+}
+
+.annotation-btn-secondary:hover {
+  background: var(--fill-primary);
+}
+
+/* ------------------------------------------------------------
+   3. Header Note Count Badge
+   ------------------------------------------------------------ */
+.post-notes-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--fill-tertiary);
+  border: 1px solid var(--separator);
+  color: var(--label-secondary);
+  font-size: var(--text-caption-1);
+  font-weight: var(--weight-medium);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.post-notes-badge:hover {
+  background: var(--fill-secondary);
+  color: var(--label-primary);
+  border-color: var(--color-accent);
+}
+
+.post-notes-badge[data-count='0'] {
+  opacity: 0.75;
+}
+
+/* ------------------------------------------------------------
+   4. Annotations Drawer / Panel
+   ------------------------------------------------------------ */
+.annotations-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.annotations-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.annotations-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--separator);
+  box-shadow: var(--shadow-xl);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.annotations-drawer.open {
+  transform: translateX(0);
+}
+
+.annotations-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--separator);
+  background: var(--bg-secondary);
+}
+
+.annotations-drawer-title {
+  font-size: var(--text-headline);
+  font-weight: var(--weight-semibold);
+  color: var(--label-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.annotations-drawer-close {
+  background: transparent;
+  border: none;
+  color: var(--label-tertiary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.annotations-drawer-close:hover {
+  color: var(--label-primary);
+  background: var(--fill-secondary);
+}
+
+.annotations-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.annotations-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  color: var(--label-tertiary);
+  gap: var(--space-2);
+}
+
+.annotations-empty-icon {
+  font-size: 2.25rem;
+  opacity: 0.6;
+}
+
+.annotation-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  position: relative;
+}
+
+.annotation-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.annotation-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.annotation-card-color {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.annotation-card-color[data-color='yellow'] {
+  background: var(--highlight-yellow-swatch);
+}
+.annotation-card-color[data-color='green'] {
+  background: var(--highlight-green-swatch);
+}
+.annotation-card-color[data-color='blue'] {
+  background: var(--highlight-blue-swatch);
+}
+.annotation-card-color[data-color='pink'] {
+  background: var(--highlight-pink-swatch);
+}
+.annotation-card-color[data-color='purple'] {
+  background: var(--highlight-purple-swatch);
+}
+
+.annotation-card-date {
+  font-size: var(--text-caption-2);
+  color: var(--label-quaternary);
+  font-family: var(--font-mono);
+}
+
+.annotation-card-quote {
+  font-size: var(--text-footnote);
+  font-style: italic;
+  color: var(--label-secondary);
+  border-left: 2px solid var(--separator);
+  padding-left: var(--space-2);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.annotation-card-note {
+  font-size: var(--text-footnote);
+  color: var(--label-primary);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-xs);
+  padding: var(--space-2);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.annotation-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}

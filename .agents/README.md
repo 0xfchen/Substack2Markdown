@@ -38,6 +38,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-030`** | **Issue** | `fix` | Fix Systematic Markdown Lint Violations in Scraper Pipeline | [`issues/stm-030-markdown-lint-pipeline-fixes.md`](issues/stm-030-markdown-lint-pipeline-fixes.md) |
 | **`stm-031`** | **Plan** | `feat` | Incremental Delta Sync via Substack API | [`plans/stm-031-incremental-delta-sync.md`](plans/stm-031-incremental-delta-sync.md) |
 | **`stm-032`** | **Issue** | `fix` | CLI Flag Validation and Conflicting Option Guards | [`issues/stm-032-cli-flag-validation-and-guards.md`](issues/stm-032-cli-flag-validation-and-guards.md) |
+| **`stm-033`** | **Plan** | `feat` | Inline Highlighting and Annotations | [`plans/stm-033-inline-highlighting-and-annotations.md`](plans/stm-033-inline-highlighting-and-annotations.md) |
 
 ---
 

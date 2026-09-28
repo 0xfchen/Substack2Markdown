@@ -87,6 +87,23 @@
   --color-status-completed: #166534;
   --color-status-unread: #64748b;
 
+  /* Inline Highlight Semantic Tokens (Apple Books Style - Light Mode) */
+  --highlight-yellow-bg: rgba(255, 214, 10, 0.42);
+  --highlight-yellow-swatch: #ffd60a;
+  --highlight-yellow-border: #ffd60a;
+  --highlight-green-bg: rgba(52, 199, 89, 0.32);
+  --highlight-green-swatch: #34c759;
+  --highlight-green-border: #34c759;
+  --highlight-blue-bg: rgba(0, 122, 255, 0.26);
+  --highlight-blue-swatch: #007aff;
+  --highlight-blue-border: #007aff;
+  --highlight-pink-bg: rgba(255, 45, 85, 0.28);
+  --highlight-pink-swatch: #ff2d55;
+  --highlight-pink-border: #ff2d55;
+  --highlight-purple-bg: rgba(175, 82, 222, 0.28);
+  --highlight-purple-swatch: #af52de;
+  --highlight-purple-border: #af52de;
+
   /* Graph Visualization Semantic Tokens */
   --color-graph-author: #d97706;
   --color-graph-tag: #7c3aed;
@@ -280,6 +297,23 @@
   --color-status-completed: #30d158;
   --color-status-unread: #94a3b8;
 
+  /* Inline Highlight Semantic Tokens (Apple Books Style - Dark Mode) */
+  --highlight-yellow-bg: rgba(255, 214, 10, 0.28);
+  --highlight-yellow-swatch: #ffd60a;
+  --highlight-yellow-border: #ffd60a;
+  --highlight-green-bg: rgba(48, 209, 88, 0.26);
+  --highlight-green-swatch: #30d158;
+  --highlight-green-border: #30d158;
+  --highlight-blue-bg: rgba(10, 132, 255, 0.26);
+  --highlight-blue-swatch: #0a84ff;
+  --highlight-blue-border: #0a84ff;
+  --highlight-pink-bg: rgba(255, 55, 95, 0.26);
+  --highlight-pink-swatch: #ff375f;
+  --highlight-pink-border: #ff375f;
+  --highlight-purple-bg: rgba(191, 90, 242, 0.26);
+  --highlight-purple-swatch: #bf5af2;
+  --highlight-purple-border: #bf5af2;
+
   --color-graph-author: #f59e0b;
   --color-graph-tag: #a855f7;
   --color-graph-post: #38bdf8;
@@ -319,6 +353,23 @@
   --color-status-in-progress: #c9a200;
   --color-status-completed: #166534;
   --color-status-unread: #64748b;
+
+  /* Inline Highlight Semantic Tokens (Apple Books Style - Light Mode Override) */
+  --highlight-yellow-bg: rgba(255, 214, 10, 0.42);
+  --highlight-yellow-swatch: #ffd60a;
+  --highlight-yellow-border: #ffd60a;
+  --highlight-green-bg: rgba(52, 199, 89, 0.32);
+  --highlight-green-swatch: #34c759;
+  --highlight-green-border: #34c759;
+  --highlight-blue-bg: rgba(0, 122, 255, 0.26);
+  --highlight-blue-swatch: #007aff;
+  --highlight-blue-border: #007aff;
+  --highlight-pink-bg: rgba(255, 45, 85, 0.28);
+  --highlight-pink-swatch: #ff2d55;
+  --highlight-pink-border: #ff2d55;
+  --highlight-purple-bg: rgba(175, 82, 222, 0.28);
+  --highlight-purple-swatch: #af52de;
+  --highlight-purple-border: #af52de;
 
   --color-graph-author: #d97706;
   --color-graph-tag: #7c3aed;

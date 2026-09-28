@@ -188,5 +188,6 @@ flowchart LR
    - `test:` Test additions or test refactoring.
    - `build:` Dependencies, packaging, `pyproject.toml`, or `uv.lock`.
    - `chore:` Routine repository maintenance or configuration tweaks.
+10. **Descriptive Variable Naming**: Variable names must always be clear, self-documenting noun phrases that describe the entity or data they represent, following each language's standard casing conventions (`snake_case` in Python, `camelCase` in TypeScript/JavaScript). Never use standalone adjectives or cryptic abbreviations as variable names. Adjectives should only serve as qualifiers to a noun when necessary to provide specific context or differentiation.
 
 

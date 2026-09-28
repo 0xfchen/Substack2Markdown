@@ -1,0 +1,64 @@
+---
+import { ANNOTATION_COLORS } from "../utils/colors";
+
+const colorKeys = Object.keys(ANNOTATION_COLORS) as (keyof typeof ANNOTATION_COLORS)[];
+---
+
+<div
+  class="annotation-toolbar"
+  id="annotation-toolbar"
+  role="dialog"
+  aria-label="Highlight toolbar"
+  tabindex="-1"
+>
+  <div class="annotation-toolbar-row">
+    {
+      colorKeys.map((color) => (
+        <button
+          type="button"
+          class="annotation-color-btn"
+          data-color={color}
+          title={`${ANNOTATION_COLORS[color].label} highlight`}
+          aria-label={`${ANNOTATION_COLORS[color].label} highlight`}
+        />
+      ))
+    }
+    <span class="annotation-divider"></span>
+    <button
+      type="button"
+      class="annotation-action-btn"
+      id="toolbar-add-note-btn"
+      title="Add note"
+      aria-label="Add note"
+    >
+      <span>💬</span> Note
+    </button>
+    <button
+      type="button"
+      class="annotation-action-btn delete"
+      id="toolbar-delete-btn"
+      title="Delete highlight"
+      aria-label="Delete highlight"
+      style="display: none;"
+    >
+      <span>🗑️</span>
+    </button>
+  </div>
+  <div class="annotation-note-container" id="toolbar-note-container" style="display: none;">
+    <textarea
+      class="annotation-note-input"
+      id="toolbar-note-input"
+      placeholder="Add a personal note..."
+      rows="2"
+      aria-label="Annotation note"
+    ></textarea>
+    <div class="annotation-note-actions">
+      <button type="button" class="annotation-btn-secondary" id="toolbar-note-cancel">
+        Cancel
+      </button>
+      <button type="button" class="annotation-btn-primary" id="toolbar-note-save">
+        Save Note
+      </button>
+    </div>
+  </div>
+</div>

@@ -45,9 +45,9 @@ export function hexToColorString(hex: number): string {
  */
 export function colorStringToHex(str: string): number {
   if (!str) return CONSTELLATION_PALETTE[0];
-  const clean = str.replace('#', '').trim();
-  const parsed = parseInt(clean, 16);
-  return Number.isNaN(parsed) ? CONSTELLATION_PALETTE[0] : parsed;
+  const sanitizedHex = str.replace('#', '').trim();
+  const numericColor = parseInt(sanitizedHex, 16);
+  return Number.isNaN(numericColor) ? CONSTELLATION_PALETTE[0] : numericColor;
 }
 
 /**
@@ -64,12 +64,12 @@ export function getDeterministicColor(
   palette: readonly number[] = CONSTELLATION_PALETTE,
   customMap?: Record<string, number>
 ): number {
-  const normalized = (key || '').trim().toLowerCase();
-  if (customMap && customMap[normalized] !== undefined) {
-    return customMap[normalized];
+  const normalizedKey = (key || '').trim().toLowerCase();
+  if (customMap && customMap[normalizedKey] !== undefined) {
+    return customMap[normalizedKey];
   }
-  if (!normalized) return palette[0];
-  const hash = hashString(normalized);
+  if (!normalizedKey) return palette[0];
+  const hash = hashString(normalizedKey);
   return palette[hash % palette.length];
 }
 
@@ -230,4 +230,68 @@ export const AEROSPACE_404_COLORS = {
   starfieldGoldLight: '234, 179, 8',
   starfieldMoteLight: '100, 116, 139',
 } as const;
+
+// ============================================================================
+// 6. Inline Annotation Highlight Colors
+// ============================================================================
+
+export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+
+export interface AnnotationColorDefinition {
+  name: AnnotationColor;
+  label: string;
+  lightBg: string;
+  lightBorder: string;
+  darkBg: string;
+  darkBorder: string;
+  hex: string;
+}
+
+export const ANNOTATION_COLORS: Record<AnnotationColor, AnnotationColorDefinition> = {
+  yellow: {
+    name: 'yellow',
+    label: 'Yellow',
+    lightBg: 'rgba(255, 214, 10, 0.42)',
+    lightBorder: '#ffd60a',
+    darkBg: 'rgba(255, 214, 10, 0.28)',
+    darkBorder: '#ffd60a',
+    hex: '#ffd60a',
+  },
+  green: {
+    name: 'green',
+    label: 'Green',
+    lightBg: 'rgba(52, 199, 89, 0.32)',
+    lightBorder: '#34c759',
+    darkBg: 'rgba(48, 209, 88, 0.26)',
+    darkBorder: '#30d158',
+    hex: '#34c759',
+  },
+  blue: {
+    name: 'blue',
+    label: 'Blue',
+    lightBg: 'rgba(0, 122, 255, 0.26)',
+    lightBorder: '#007aff',
+    darkBg: 'rgba(10, 132, 255, 0.26)',
+    darkBorder: '#0a84ff',
+    hex: '#007aff',
+  },
+  pink: {
+    name: 'pink',
+    label: 'Pink',
+    lightBg: 'rgba(255, 45, 85, 0.28)',
+    lightBorder: '#ff2d55',
+    darkBg: 'rgba(255, 55, 95, 0.26)',
+    darkBorder: '#ff375f',
+    hex: '#ff2d55',
+  },
+  purple: {
+    name: 'purple',
+    label: 'Purple',
+    lightBg: 'rgba(175, 82, 222, 0.28)',
+    lightBorder: '#af52de',
+    darkBg: 'rgba(191, 90, 242, 0.26)',
+    darkBorder: '#bf5af2',
+    hex: '#af52de',
+  },
+};
 

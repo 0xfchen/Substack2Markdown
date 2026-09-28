@@ -266,7 +266,7 @@
   box-shadow: inset 0 -1px 0 var(--prose-kbd-border);
 }
 
-.prose mark {
+.prose mark:not(.annotation-highlight) {
   color: var(--prose-mark-fg);
   background: linear-gradient(transparent 62%, var(--prose-mark-bg) 0);
   padding-inline: 0.08em;

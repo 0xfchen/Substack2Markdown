@@ -1,6 +1,7 @@
 ---
 import 'toc-rail/style.css';
 import '../styles/layouts/post.css';
+import '../styles/components/annotations.css';
 import type { CollectionEntry } from 'astro:content';
 import Comments from '../components/Comments.astro';
 import FeaturedPostGrid from '../components/FeaturedPostGrid.astro';
@@ -9,6 +10,8 @@ import ImageLightbox from '../components/ImageLightbox.astro';
 import ScrollFocus from '../components/ScrollFocus.astro';
 import ReadingStatusButton from '../components/ReadingStatusButton.astro';
 import ProgressRail from '../components/ProgressRail.astro';
+import AnnotationToolbar from '../components/AnnotationToolbar.astro';
+import AnnotationsPanel from '../components/AnnotationsPanel.astro';
 import BaseLayout from './BaseLayout.astro';
 import { SITE_AUTHOR, SITE_LANG, SITE_TITLE } from '../consts';
 import { getUiText } from '../ui';
@@ -35,7 +38,7 @@ const {
   relatedPosts = [],
 } = Astro.props;
 
-const tr = getUiText();
+const uiText = getUiText();
 const libraryBase = withBase('/');
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -84,7 +87,7 @@ const jsonLd = serializeScriptJson({
           data-slug={slug}
           id="post-top-back-link"
         >
-          {tr.backLink}
+          {uiText.backLink}
         </a>
         {slug && <ReadingStatusButton slug={slug} />}
       </div>
@@ -97,7 +100,7 @@ const jsonLd = serializeScriptJson({
             readingTime && (
               <>
                 <span class="dot">·</span>
-                <span class="meta-item">{tr.readingTime(readingTime)}</span>
+                <span class="meta-item">{uiText.readingTime(readingTime)}</span>
               </>
             )
           }
@@ -106,8 +109,26 @@ const jsonLd = serializeScriptJson({
               <>
                 <span class="dot">·</span>
                 <span class="meta-updated">
-                  {tr.updated} <FormattedDate date={updatedDate} />
+                  {uiText.updated} <FormattedDate date={updatedDate} />
                 </span>
+              </>
+            )
+          }
+          {
+            slug && (
+              <>
+                <span class="dot">·</span>
+                <button
+                  type="button"
+                  class="post-notes-badge"
+                  id="post-notes-toggle"
+                  data-count="0"
+                  aria-label="Open annotations and notes"
+                  title="Open article highlights and notes"
+                >
+                  <span class="notes-icon">✏️</span>
+                  <span id="post-notes-count">0 notes</span>
+                </button>
               </>
             )
           }
@@ -142,9 +163,9 @@ const jsonLd = serializeScriptJson({
         relatedPosts.length > 0 && (
           <section class="related-section" data-pagefind-ignore="all">
             <div class="related-header">
-              <p class="related-label">{tr.relatedPosts}</p>
+              <p class="related-label">{uiText.relatedPosts}</p>
               <a href={libraryBase} class="related-view-all">
-                {tr.allPosts}
+                {uiText.allPosts}
               </a>
             </div>
             <FeaturedPostGrid posts={relatedPosts} variant="related" />
@@ -153,24 +174,22 @@ const jsonLd = serializeScriptJson({
       }
     </article>
     <Comments />
+    {
+      slug && (
+        <>
+          <AnnotationToolbar />
+          <AnnotationsPanel slug={slug} />
+        </>
+      )
+    }
   </main>
   <ImageLightbox />
 
   <script>
     import { mountReadingRailLoader } from '../scripts/reading-rail-loader';
-    import { handleBackToLibrary } from '../scripts/navigation-utils';
+    import { initBackToLibraryLink } from '../scripts/navigation-utils';
 
     mountReadingRailLoader();
-
-    const topBackLink = document.getElementById('post-top-back-link');
-    if (topBackLink) {
-      topBackLink.addEventListener('click', (e) => {
-        const slug = topBackLink.getAttribute('data-slug');
-        const targetHref = topBackLink.getAttribute('href') || '/';
-        if (handleBackToLibrary(slug, targetHref)) {
-          e.preventDefault();
-        }
-      });
-    }
+    initBackToLibraryLink();
   </script>
 </BaseLayout>

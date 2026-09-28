@@ -51,3 +51,22 @@ export function handleBackToLibrary(slug?: string | null, targetHref = '/'): boo
   return false;
 }
 
+
+/**
+ * Attaches the back-to-library navigation handler to a back link element.
+ *
+ * @param selector CSS selector for the back link (defaults to '#post-top-back-link')
+ */
+export function initBackToLibraryLink(selector = '#post-top-back-link'): void {
+  if (typeof document === 'undefined') return;
+  const link = document.querySelector<HTMLAnchorElement>(selector);
+  if (!link) return;
+
+  link.addEventListener('click', (event) => {
+    const slug = link.getAttribute('data-slug');
+    const targetHref = link.getAttribute('href') || '/';
+    if (handleBackToLibrary(slug, targetHref)) {
+      event.preventDefault();
+    }
+  });
+}
