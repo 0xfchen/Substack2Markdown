@@ -40,6 +40,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-032`** | **Issue** | `fix` | CLI Flag Validation and Conflicting Option Guards | [`issues/stm-032-cli-flag-validation-and-guards.md`](issues/stm-032-cli-flag-validation-and-guards.md) |
 | **`stm-033`** | **Plan** | `feat` | Inline Highlighting and Annotations | [`plans/stm-033-inline-highlighting-and-annotations.md`](plans/stm-033-inline-highlighting-and-annotations.md) |
 | **`stm-034`** | **Issue** | `fix` | Three.js Animation Loop Off-Screen Pausing and Lifecycle Hardening | [`issues/stm-034-threejs-lifecycle-and-offscreen-pausing.md`](issues/stm-034-threejs-lifecycle-and-offscreen-pausing.md) |
+| **`stm-035`** | **Issue** | `fix` | Build Portability via Deterministic Content Path Resolution | [`issues/stm-035-build-portability-path-resolution.md`](issues/stm-035-build-portability-path-resolution.md) |
 
 ---
 

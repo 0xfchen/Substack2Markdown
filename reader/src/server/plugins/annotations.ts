@@ -1,8 +1,7 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
-import process from 'node:process';
 import type { Plugin } from 'vite';
 import type { Annotation, AnnotationsRecord } from '../../scripts/annotations';
+import { getContentPath } from '../paths';
 
 /**
  * Vite dev server plugin providing annotations persistence to content/annotations.json.
@@ -18,7 +17,7 @@ export function annotationsApiPlugin(): Plugin {
           return next();
         }
 
-        const filePath = path.resolve(process.cwd(), '../content/annotations.json');
+        const filePath = getContentPath('annotations.json');
 
         const readAnnotationsFile = async (): Promise<AnnotationsRecord> => {
           try {

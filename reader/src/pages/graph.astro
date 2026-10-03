@@ -6,12 +6,12 @@
  * Visualizes the entire Substack newsletter archive as an interactive 3D universe.
  */
 import fs from 'node:fs';
-import path from 'node:path';
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ThreeGraphScene from '../components/ThreeGraphScene.astro';
 import { buildGraphData } from '../utils/graph-data';
 import { withBase } from '../utils/paths';
+import { getContentPath } from '../server/paths';
 import '../styles/pages/graph.css';
 
 const posts = (await getCollection('posts'))
@@ -23,7 +23,7 @@ const authors = [...new Set(posts.map((p) => p.data.author || 'Unknown'))].sort(
 // Load reading state from content/reading_state.json if available
 let readingState: Record<string, { status?: string }> = {};
 try {
-  const statePath = path.resolve(process.cwd(), '..', 'content', 'reading_state.json');
+  const statePath = getContentPath('reading_state.json');
   if (fs.existsSync(statePath)) {
     readingState = JSON.parse(fs.readFileSync(statePath, 'utf-8') || '{}');
   }

@@ -9,7 +9,7 @@ import { countMarkdownWords } from '../utils/graph-data';
 import { getTagColors } from '../utils/graph-colors';
 
 import fs from 'node:fs';
-import path from 'node:path';
+import { getContentPath } from '../server/paths';
 
 const posts = (await getCollection('posts'))
   .filter((p) => !p.data.draft)
@@ -20,7 +20,7 @@ const authors = [...new Set(posts.map((p) => p.data.author || 'Unknown'))].sort(
 // Load initial reading state from content/reading_state.json if present
 let initialReadingState: Record<string, { status?: string; scrollRatio?: number; readCount?: number }> = {};
 try {
-  const statePath = path.resolve(process.cwd(), '..', 'content', 'reading_state.json');
+  const statePath = getContentPath('reading_state.json');
   if (fs.existsSync(statePath)) {
     initialReadingState = JSON.parse(fs.readFileSync(statePath, 'utf-8') || '{}');
   }

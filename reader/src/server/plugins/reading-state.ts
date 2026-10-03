@@ -1,8 +1,7 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
-import process from 'node:process';
 import type { Plugin } from 'vite';
 import type { ReadingItemState, ReadingState } from '../../scripts/reading-tracker';
+import { getContentPath } from '../paths';
 
 /**
  * Vite dev server plugin providing reading status persistence to content/reading_state.json.
@@ -17,7 +16,7 @@ export function readingStateApiPlugin(): Plugin {
           return next();
         }
 
-        const filePath = path.resolve(process.cwd(), '../content/reading_state.json');
+        const filePath = getContentPath('reading_state.json');
 
         if (request.method === 'GET') {
           try {

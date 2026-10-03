@@ -20,7 +20,7 @@ Once you run the scraper, it saves markdown files into `content/<author>/posts/`
 - **Flexible Scoping**: Scrapes entire publications, single posts by URL (e.g. `/p/slug`), or limits post count with `--number`.
 
 ### Modern Astro Reader (`reader/`)
-- **Reading Progress & Tracker**: Todo-style status tracking (`pending`, `in-progress`, `completed`), read counters, completion progress bar, and persistence via local storage and `data/reading-state.json`.
+- **Reading Progress & Tracker**: Todo-style status tracking (`pending`, `in-progress`, `completed`), read counters, completion progress bar, and persistence via local storage and `content/reading_state.json`.
 - **Instant Back-Navigation & State Preservation**: Returns from articles with zero latency (BFCache), preserving loaded row batches, exact scroll coordinates, active filters, search queries, and pulse-highlighting the active post row.
 - **3D Knowledge Graph**: Interactive Three.js force-directed universe with dual-theme shape taxonomy (cosmic ringed planets, nebula hubs, and asteroids in dark mode; architectural spheres, prismatic diamonds, and document folios in light mode), real-time physics, chronological timeline scrubber, and topic/reading status color modes.
 - **Interactive 404 Origami Scene**: Procedural Three.js aerospace flight experience on missing routes, featuring a duo-tone origami paper plane (or SpaceX Starship in dark mode), matching origami paper "404" typography in light mode, continuous 3D banking flight path, twinkling starfield, and instant vessel switching.
