@@ -6,9 +6,9 @@ import type { ActiveLink, SimNode } from '../graph/types';
 describe('GraphPhysicsEngine', () => {
   it('prewarms without generating NaN or infinite coordinates', () => {
     const nodes: SimNode[] = [
-      { id: '1', name: 'N1', type: 'author', group: 'g', val: 2, x: 10, y: 10, z: 10, vx: 0, vy: 0, vz: 0 },
-      { id: '2', name: 'N2', type: 'post', group: 'g', val: 1, x: 20, y: 20, z: 20, vx: 0, vy: 0, vz: 0 },
-      { id: '3', name: 'N3', type: 'post', group: 'g', val: 1, x: -15, y: -15, z: -15, vx: 0, vy: 0, vz: 0 },
+      { id: '1', name: 'N1', type: 'author', val: 2, x: 10, y: 10, z: 10, vx: 0, vy: 0, vz: 0 },
+      { id: '2', name: 'N2', type: 'post', val: 1, x: 20, y: 20, z: 20, vx: 0, vy: 0, vz: 0 },
+      { id: '3', name: 'N3', type: 'post', val: 1, x: -15, y: -15, z: -15, vx: 0, vy: 0, vz: 0 },
     ];
     const links: ActiveLink[] = [
       { sourceIdx: 1, targetIdx: 0, type: 'author', weight: 0.8 },
@@ -43,7 +43,7 @@ describe('GraphPhysicsEngine', () => {
 
   it('reheats alpha when requested', () => {
     const nodes: SimNode[] = [
-      { id: '1', name: 'N1', type: 'post', group: 'g', val: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 },
+      { id: '1', name: 'N1', type: 'post', val: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 },
     ];
     const geo = new THREE.BufferGeometry();
     const mat = new THREE.MeshBasicMaterial();

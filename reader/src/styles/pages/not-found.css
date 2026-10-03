@@ -47,13 +47,6 @@
   cursor: pointer;
 }
 
-.not-found-code-canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-  outline: none;
-}
-
 @media (max-width: 768px) {
   .not-found-code-container {
     max-width: 300px;

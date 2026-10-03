@@ -68,11 +68,6 @@ describe('buildGraphData()', () => {
     const hiringNode = postNodes.find((n) => n.id === 'post:author-b/posts/engineering-hiring');
     expect(hiringNode?.readingStatus).toBe('unread');
 
-    // Verify deterministic color assignment on nodes
-    expect(introNode?.color).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(authorNodes[0]?.color).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(tagNodes[0]?.color).toMatch(/^#[0-9a-f]{6}$/i);
-
     // Verify postCount populated accurately
     const aliceAuthorNode = authorNodes.find((n) => n.name === 'Alice');
     expect(aliceAuthorNode?.postCount).toBe(2);

@@ -18,8 +18,6 @@ const posts = (await getCollection('posts'))
   .filter((p) => !p.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-const authors = [...new Set(posts.map((p) => p.data.author || 'Unknown'))].sort();
-
 // Load reading state from content/reading_state.json if available
 let readingState: Record<string, { status?: string }> = {};
 try {
@@ -40,7 +38,7 @@ const graphData = buildGraphData(posts, readingState, withBase);
   pageUrl={withBase('/graph/')}
 >
   <main id="main-content" style="padding: 0; margin: 0; max-width: 100%;">
-    <ThreeGraphScene graphData={graphData} authors={authors} />
+    <ThreeGraphScene graphData={graphData} />
   </main>
 </BaseLayout>
 

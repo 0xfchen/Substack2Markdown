@@ -7,7 +7,6 @@ function createMockSimNode(id: string, timestamp: number, type: 'post' | 'tag' |
     id,
     name: id,
     type,
-    group: 'test',
     val: 2.0,
     timestamp,
     x: 0,

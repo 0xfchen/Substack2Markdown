@@ -5,8 +5,6 @@
  * Extracts posts, tags, and author clusters into an interconnected 3D network.
  */
 
-import { getNodeTopicColor, hexToColorString } from './graph-colors';
-
 /**
  * Computes an accurate word count from raw markdown by stripping frontmatter,
  * fenced code blocks, inline code, images, URLs, and HTML tags before tokenizing.
@@ -37,10 +35,8 @@ export interface GraphNode {
   id: string;
   name: string;
   type: 'post' | 'tag' | 'author';
-  group: string;
   val: number;
   postCount?: number;
-  color?: string;
   postId?: string;
   url?: string;
   author?: string;
@@ -50,12 +46,6 @@ export interface GraphNode {
   dateStr?: string;
   timestamp?: number;
   subtitle?: string;
-  x?: number;
-  y?: number;
-  z?: number;
-  vx?: number;
-  vy?: number;
-  vz?: number;
 }
 
 export interface GraphLink {
@@ -96,13 +86,11 @@ export function buildGraphData(
   const links: GraphLink[] = [];
   const nodeSet = new Set<string>();
 
-  // 1. Collect unique authors & tags
   // 1. Collect unique authors & tags, along with earliest post timestamps
   const authorCount: Record<string, number> = {};
   const authorEarliestDate: Record<string, number> = {};
   const tagCount: Record<string, number> = {};
   const tagEarliestDate: Record<string, number> = {};
-  const postsByTag: Record<string, string[]> = {};
 
   let minTimestamp = Infinity;
   let maxTimestamp = -Infinity;
@@ -132,10 +120,6 @@ export function buildGraphData(
           tagEarliestDate[normalizedTag] = postTime;
         }
       }
-      if (!postsByTag[normalizedTag]) {
-        postsByTag[normalizedTag] = [];
-      }
-      postsByTag[normalizedTag].push(post.id);
     }
   }
 
@@ -148,12 +132,10 @@ export function buildGraphData(
       id: authorId,
       name: author,
       type: 'author',
-      group: author,
       val: Math.min(8.0, 4.0 + Math.sqrt(count) * 0.4),
       postCount: count,
       timestamp: firstTime,
       dateStr: firstTime > 0 ? new Date(firstTime).toISOString().slice(0, 10) : '',
-      color: hexToColorString(getNodeTopicColor({ type: 'author', name: author })),
     });
   }
 
@@ -167,12 +149,10 @@ export function buildGraphData(
       id: tagId,
       name: `#${tag}`,
       type: 'tag',
-      group: tag,
       val: Math.min(6.5, 2.8 + Math.sqrt(count) * 0.35),
       postCount: count,
       timestamp: firstTime,
       dateStr: firstTime > 0 ? new Date(firstTime).toISOString().slice(0, 10) : '',
-      color: hexToColorString(getNodeTopicColor({ type: 'tag', name: tag })),
     });
   }
 
@@ -210,7 +190,6 @@ export function buildGraphData(
       id: postId,
       name: post.data.title,
       type: 'post',
-      group: author,
       val: 1.8,
       postCount: 1,
       postId: post.id,
@@ -222,14 +201,6 @@ export function buildGraphData(
       timestamp: post.data.pubDate ? post.data.pubDate.valueOf() : 0,
       dateStr: post.data.pubDate ? post.data.pubDate.toISOString().slice(0, 10) : '',
       subtitle: post.data.subtitle || post.data.description || '',
-      color: hexToColorString(
-        getNodeTopicColor({
-          type: 'post',
-          name: post.data.title,
-          tags,
-          author,
-        })
-      ),
     });
 
     // Link post to its author hub
