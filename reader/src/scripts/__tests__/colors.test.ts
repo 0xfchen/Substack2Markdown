@@ -24,10 +24,21 @@ describe('centralized colors registry (colors.ts)', () => {
       expect(hexToColorString(0x38bdf8)).toBe('#38bdf8');
       expect(colorStringToHex('#38bdf8')).toBe(0x38bdf8);
       expect(colorStringToHex('38bdf8')).toBe(0x38bdf8);
+      expect(colorStringToHex('#fff')).toBe(0xffffff);
+      expect(colorStringToHex('#FFF')).toBe(0xffffff);
+      expect(colorStringToHex('fff')).toBe(0xffffff);
+      expect(colorStringToHex('#f00')).toBe(0xff0000);
+      expect(colorStringToHex('#0f0')).toBe(0x00ff00);
+      expect(colorStringToHex(' #fff ')).toBe(0xffffff);
     });
 
     it('falls back to default palette color on invalid hex', () => {
       expect(colorStringToHex('invalid')).toBe(CONSTELLATION_PALETTE[0]);
+      expect(colorStringToHex('bad-input')).toBe(CONSTELLATION_PALETTE[0]);
+      expect(colorStringToHex('')).toBe(CONSTELLATION_PALETTE[0]);
+      expect(colorStringToHex('   ')).toBe(CONSTELLATION_PALETTE[0]);
+      expect(colorStringToHex('#12345')).toBe(CONSTELLATION_PALETTE[0]);
+      expect(colorStringToHex('#1234567')).toBe(CONSTELLATION_PALETTE[0]);
     });
 
     it('maps keys deterministically to palettes', () => {

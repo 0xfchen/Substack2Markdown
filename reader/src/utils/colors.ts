@@ -38,16 +38,29 @@ export function hexToColorString(hex: number): string {
 }
 
 /**
- * Converts a CSS hex string (e.g. "#38bdf8" or "38bdf8") to a 24-bit integer hex number.
+ * Converts a CSS hex string (e.g. "#38bdf8", "38bdf8", or shorthand "#fff") to a 24-bit integer hex number.
+ * Supports 3-digit shorthand expansion (e.g. "#fff" -> 0xffffff) and validates input strictly.
  *
- * @param str CSS hex string
+ * @param colorString CSS hex string
  * @returns 24-bit numeric hex code
  */
-export function colorStringToHex(str: string): number {
-  if (!str) return CONSTELLATION_PALETTE[0];
-  const sanitizedHex = str.replace('#', '').trim();
-  const numericColor = parseInt(sanitizedHex, 16);
-  return Number.isNaN(numericColor) ? CONSTELLATION_PALETTE[0] : numericColor;
+export function colorStringToHex(colorString: string): number {
+  if (!colorString) return CONSTELLATION_PALETTE[0];
+  const sanitizedHexString = colorString.trim().replace(/^#/, '');
+  const expandedHexString =
+    sanitizedHexString.length === 3
+      ? sanitizedHexString[0] +
+        sanitizedHexString[0] +
+        sanitizedHexString[1] +
+        sanitizedHexString[1] +
+        sanitizedHexString[2] +
+        sanitizedHexString[2]
+      : sanitizedHexString;
+
+  if (!/^[0-9a-fA-F]{6}$/.test(expandedHexString)) {
+    return CONSTELLATION_PALETTE[0];
+  }
+  return parseInt(expandedHexString, 16);
 }
 
 /**
