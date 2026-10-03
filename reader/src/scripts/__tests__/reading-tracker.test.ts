@@ -176,6 +176,20 @@ describe('reading-tracker', () => {
       mod.setReadingStatus('slug-d', 'pending');
       expect(mod.getReadingEntry('slug-d')!.scrollRatio).toBe(0);
     });
+
+    it('handles rapid sequential updates for the same slug deterministically', async () => {
+      const mod = await importFresh();
+      mod.setReadingStatus('rapid-slug', 'pending');
+      mod.setReadingStatus('rapid-slug', 'in-progress', { scrollRatio: 0.45 });
+      mod.setReadingStatus('rapid-slug', 'completed');
+
+      const finalReadingEntry = mod.getReadingEntry('rapid-slug');
+      expect(finalReadingEntry).toBeDefined();
+      expect(finalReadingEntry!.status).toBe('completed');
+      expect(finalReadingEntry!.scrollRatio).toBe(1);
+      expect(finalReadingEntry!.readCount).toBe(1);
+      expect(mod.getReadingStatus('rapid-slug')).toBe('completed');
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -534,6 +548,45 @@ describe('reading-tracker', () => {
         (c: any) => c[1]?.method === 'POST'
       );
       expect(postCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('handles overlapping flush invocations when subsequent updates are enqueued', async () => {
+      let resolveFirstFlushPromise!: (value: any) => void;
+      const delayedFirstFlushPromise = new Promise((resolve) => {
+        resolveFirstFlushPromise = resolve;
+      });
+
+      (global.fetch as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce(delayedFirstFlushPromise.then(() => ({ ok: true })))
+        .mockResolvedValueOnce({ ok: true });
+
+      const mod = await importFresh();
+      mod.setReadingStatus('first-article', 'in-progress');
+
+      // Initiate first flush - fetch remains unresolved
+      const firstFlushExecution = mod.flushPendingUpdates();
+
+      // Enqueue a second update while first flush is unresolved
+      mod.setReadingStatus('second-article', 'completed');
+
+      // Initiate second flush
+      const secondFlushExecution = mod.flushPendingUpdates();
+
+      // Complete first fetch
+      resolveFirstFlushPromise(undefined);
+
+      await Promise.all([firstFlushExecution, secondFlushExecution]);
+
+      const postRequestCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (callArguments: any) => callArguments[1]?.method === 'POST'
+      );
+      expect(postRequestCalls.length).toBe(2);
+
+      const firstRequestBody = JSON.parse(postRequestCalls[0][1].body);
+      const secondRequestBody = JSON.parse(postRequestCalls[1][1].body);
+
+      expect(firstRequestBody['first-article']).toBeDefined();
+      expect(secondRequestBody['second-article']).toBeDefined();
     });
   });
 

@@ -78,8 +78,16 @@ export function getDeterministicColor(
   customMap?: Record<string, number>
 ): number {
   const normalizedKey = (key || '').trim().toLowerCase();
-  if (customMap && customMap[normalizedKey] !== undefined) {
-    return customMap[normalizedKey];
+  if (customMap) {
+    if (customMap[normalizedKey] !== undefined) {
+      return customMap[normalizedKey];
+    }
+    const matchingKeyName = Object.keys(customMap).find(
+      (mapKeyCandidate) => mapKeyCandidate.trim().toLowerCase() === normalizedKey
+    );
+    if (matchingKeyName !== undefined && customMap[matchingKeyName] !== undefined) {
+      return customMap[matchingKeyName];
+    }
   }
   if (!normalizedKey) return palette[0];
   const hash = hashString(normalizedKey);

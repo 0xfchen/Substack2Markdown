@@ -18,6 +18,8 @@ describe('centralized colors registry (colors.ts)', () => {
     it('generates deterministic hashes', () => {
       expect(hashString('astro')).toBe(hashString('astro'));
       expect(hashString('astro')).not.toBe(hashString('spacex'));
+      expect(hashString('')).toBe(2166136261);
+      expect(hashString('')).toBeGreaterThanOrEqual(0);
     });
 
     it('converts numbers to hex strings and vice versa', () => {

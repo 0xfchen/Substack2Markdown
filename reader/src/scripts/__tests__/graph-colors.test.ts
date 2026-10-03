@@ -127,6 +127,17 @@ describe('graph-colors utility', () => {
       const lightColor = getNodeTopicColor(authorNode, false);
       expect(ARCHITECTURAL_AUTHOR_PALETTE).toContain(lightColor);
     });
+
+    it('honors custom tag and author color map overrides', () => {
+      const customTagMap = { ai: 0x123456 };
+      const customAuthorMap = { 'Alice Walker': 0x654321 };
+
+      const tagColor = getNodeTopicColor({ type: 'tag', name: 'ai' }, customTagMap, undefined, true);
+      expect(tagColor).toBe(0x123456);
+
+      const authorColor = getNodeTopicColor({ type: 'author', name: 'Alice Walker' }, undefined, customAuthorMap, true);
+      expect(authorColor).toBe(0x654321);
+    });
   });
 
   describe('getNodeReadingColor()', () => {
@@ -154,6 +165,11 @@ describe('graph-colors utility', () => {
     it('returns neutral non-post slate for tags and authors', () => {
       expect(getNodeReadingColor({ type: 'tag' })).toBe(READING_COLORS.nonPost);
       expect(getNodeReadingColor({ type: 'author' })).toBe(READING_COLORS.nonPost);
+    });
+
+    it('defaults to unread color when readingStatus is undefined', () => {
+      expect(getNodeReadingColor({ type: 'post' }, true)).toBe(READING_COLORS.unreadDark);
+      expect(getNodeReadingColor({ type: 'post' }, false)).toBe(READING_COLORS.unreadLight);
     });
   });
 

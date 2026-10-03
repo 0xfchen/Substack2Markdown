@@ -146,6 +146,21 @@ describe('posts-index state caching and row restoration', () => {
     it('caps targetIndex expansion to total available rows', () => {
       expect(calculateInitialRenderCount(undefined, 60, 30, 55)).toBe(60);
     });
+
+    it('returns 0 when total available rows count is 0', () => {
+      expect(calculateInitialRenderCount(undefined, 0, 30)).toBe(0);
+      expect(calculateInitialRenderCount(50, 0, 30)).toBe(0);
+    });
+
+    it('handles exact boundary conditions for batch size and target index expansion', () => {
+      expect(calculateInitialRenderCount(undefined, 30, 30)).toBe(30);
+      // targetIndex 19 + 10 = 29 <= 30 -> batch size unchanged (30)
+      expect(calculateInitialRenderCount(undefined, 100, 30, 19)).toBe(30);
+      // targetIndex 20 + 10 = 30 <= 30 -> batch size unchanged (30)
+      expect(calculateInitialRenderCount(undefined, 100, 30, 20)).toBe(30);
+      // targetIndex 21 + 10 = 31 > 30 -> expands to 31
+      expect(calculateInitialRenderCount(undefined, 100, 30, 21)).toBe(31);
+    });
   });
 
   describe('compareRows()', () => {
@@ -191,6 +206,21 @@ describe('posts-index state caching and row restoration', () => {
     it('sorts by word length ascending and descending', () => {
       expect(compareRows(rowA, rowB, 'length', true)).toBeLessThan(0);
       expect(compareRows(rowA, rowB, 'length', false)).toBeGreaterThan(0);
+    });
+
+    it('returns 0 for identical rows across all sort column fields ensuring sort stability', () => {
+      const sortColumnCandidates: Array<'status' | 'title' | 'author' | 'date' | 'length'> = [
+        'status',
+        'title',
+        'author',
+        'date',
+        'length',
+      ];
+
+      for (const sortColumnName of sortColumnCandidates) {
+        expect(compareRows(rowA, rowA, sortColumnName, true)).toBe(0);
+        expect(compareRows(rowA, rowA, sortColumnName, false)).toBe(0);
+      }
     });
   });
 

@@ -79,12 +79,12 @@ describe('buildGraphData()', () => {
   it('creates edges between posts and their tags, author, and multi-tag similarities', () => {
     const graph = buildGraphData(mockPosts as any);
 
-    // Check link existence
+    // Check link existence (exact counts for deterministic fixture)
     const authorLinks = graph.links.filter((l) => l.type === 'author');
-    expect(authorLinks.length).toBeGreaterThanOrEqual(3);
+    expect(authorLinks).toHaveLength(3);
 
     const tagLinks = graph.links.filter((l) => l.type === 'tag');
-    expect(tagLinks.length).toBeGreaterThanOrEqual(7);
+    expect(tagLinks).toHaveLength(8);
 
     // Intro and Advanced share all 3 tags ('systems', 'architecture', 'performance')
     const similarityLinks = graph.links.filter((l) => l.type === 'similarity');
@@ -215,6 +215,71 @@ describe('buildGraphData()', () => {
     // Tag 'systems' appears on Alice's first post (Jan 01)
     const systemsTag = graph.nodes.find((n) => n.id === 'tag:systems');
     expect(systemsTag?.timestamp).toBe(new Date('2026-01-01').valueOf());
+  });
+
+  it('handles empty posts array gracefully', () => {
+    const graph = buildGraphData([]);
+    expect(graph.nodes).toEqual([]);
+    expect(graph.links).toEqual([]);
+    expect(graph.totalPosts).toBe(0);
+    expect(graph.minTimestamp).toBe(0);
+    expect(graph.maxTimestamp).toBe(0);
+  });
+
+  it('handles invalid Date objects without throwing RangeError', () => {
+    const invalidDatePosts = [
+      {
+        id: 'post-invalid-date',
+        data: {
+          title: 'Invalid Date Post',
+          pubDate: new Date('not-a-valid-date'),
+          tags: ['test'],
+        },
+      },
+    ];
+
+    expect(() => buildGraphData(invalidDatePosts as any)).not.toThrow();
+    const graph = buildGraphData(invalidDatePosts as any);
+    const postNode = graph.nodes.find((n) => n.id === 'post:post-invalid-date');
+    expect(postNode?.timestamp).toBe(0);
+    expect(postNode?.dateStr).toBe('');
+  });
+
+  it('normalizes whitespace-only author to Unknown', () => {
+    const whitespaceAuthorPosts = [
+      {
+        id: 'post-whitespace-author',
+        data: {
+          title: 'Whitespace Author Post',
+          author: '    ',
+          pubDate: new Date('2026-01-01'),
+        },
+      },
+    ];
+
+    const graph = buildGraphData(whitespaceAuthorPosts as any);
+    const postNode = graph.nodes.find((n) => n.id === 'post:post-whitespace-author');
+    expect(postNode?.author).toBe('Unknown');
+    expect(graph.nodes.some((n) => n.id === 'author:Unknown')).toBe(true);
+  });
+
+  it('deduplicates case-insensitive tags per post', () => {
+    const duplicateTagPosts = [
+      {
+        id: 'post-dup-tags',
+        data: {
+          title: 'Duplicate Tags Post',
+          tags: ['AI', 'ai', 'Ai'],
+          pubDate: new Date('2026-01-01'),
+        },
+      },
+    ];
+
+    const graph = buildGraphData(duplicateTagPosts as any);
+    const tagNode = graph.nodes.find((n) => n.id === 'tag:ai');
+    expect(tagNode?.postCount).toBe(1);
+    const postNode = graph.nodes.find((n) => n.id === 'post:post-dup-tags');
+    expect(postNode?.tags).toEqual(['ai']);
   });
 });
 

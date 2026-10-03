@@ -96,13 +96,14 @@ export function buildGraphData(
   let maxTimestamp = -Infinity;
 
   for (const post of posts) {
-    const postTime = post.data.pubDate ? post.data.pubDate.valueOf() : 0;
+    const postTime =
+      post.data.pubDate && !Number.isNaN(post.data.pubDate.valueOf()) ? post.data.pubDate.valueOf() : 0;
     if (postTime > 0) {
       if (postTime < minTimestamp) minTimestamp = postTime;
       if (postTime > maxTimestamp) maxTimestamp = postTime;
     }
 
-    const author = post.data.author || 'Unknown';
+    const author = (post.data.author && post.data.author.trim()) || 'Unknown';
     authorCount[author] = (authorCount[author] || 0) + 1;
     if (postTime > 0) {
       if (!authorEarliestDate[author] || postTime < authorEarliestDate[author]) {
@@ -110,14 +111,15 @@ export function buildGraphData(
       }
     }
 
-    const tags = post.data.tags || [];
-    for (const tag of tags) {
-      const normalizedTag = tag.trim().toLowerCase();
-      if (!normalizedTag) continue;
-      tagCount[normalizedTag] = (tagCount[normalizedTag] || 0) + 1;
+    const rawTags = post.data.tags || [];
+    const uniqueNormalizedTags = Array.from(
+      new Set(rawTags.map((t) => t.trim().toLowerCase()).filter(Boolean))
+    );
+    for (const tag of uniqueNormalizedTags) {
+      tagCount[tag] = (tagCount[tag] || 0) + 1;
       if (postTime > 0) {
-        if (!tagEarliestDate[normalizedTag] || postTime < tagEarliestDate[normalizedTag]) {
-          tagEarliestDate[normalizedTag] = postTime;
+        if (!tagEarliestDate[tag] || postTime < tagEarliestDate[tag]) {
+          tagEarliestDate[tag] = postTime;
         }
       }
     }
@@ -171,7 +173,7 @@ export function buildGraphData(
     const postId = `post:${post.id}`;
     nodeSet.add(postId);
 
-    const author = post.data.author || 'Unknown';
+    const author = (post.data.author && post.data.author.trim()) || 'Unknown';
     const stateEntry = readingState[post.id];
     let readingStatus: 'unread' | 'pending' | 'in-progress' | 'completed' = 'unread';
     if (stateEntry?.status === 'completed') {
@@ -184,7 +186,11 @@ export function buildGraphData(
 
     const words = post.data.wordcount || countMarkdownWords(post.body || '');
     const readingTime = Math.max(1, Math.round(words / 200));
-    const tags = (post.data.tags || []).map((t) => t.trim().toLowerCase()).filter(Boolean);
+    const tags = Array.from(
+      new Set((post.data.tags || []).map((t) => t.trim().toLowerCase()).filter(Boolean))
+    );
+    const postTime =
+      post.data.pubDate && !Number.isNaN(post.data.pubDate.valueOf()) ? post.data.pubDate.valueOf() : 0;
 
     nodes.push({
       id: postId,
@@ -198,8 +204,8 @@ export function buildGraphData(
       tags,
       readingStatus,
       readingTime,
-      timestamp: post.data.pubDate ? post.data.pubDate.valueOf() : 0,
-      dateStr: post.data.pubDate ? post.data.pubDate.toISOString().slice(0, 10) : '',
+      timestamp: postTime,
+      dateStr: postTime > 0 ? new Date(postTime).toISOString().slice(0, 10) : '',
       subtitle: post.data.subtitle || post.data.description || '',
     });
 
