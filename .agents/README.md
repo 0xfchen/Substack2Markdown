@@ -46,6 +46,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-038`** | **Issue** | `refactor` | Remove Dead Code, Unused Props, and Obsolete Selectors Across Reader | [`issues/stm-038-remove-dead-code.md`](issues/stm-038-remove-dead-code.md) |
 | **`stm-039`** | **Issue** | `refactor` | Extract Inline Scripts from Astro Components into Dedicated Client Modules | [`issues/stm-039-extract-inline-scripts.md`](issues/stm-039-extract-inline-scripts.md) |
 | **`stm-040`** | **Issue** | `fix` | Test Coverage Improvements, Edge Cases, and Weak Assertion Hardening | [`issues/stm-040-test-coverage-improvements.md`](issues/stm-040-test-coverage-improvements.md) |
+| **`stm-041`** | **Issue** | `refactor` | Modularize `graph.css` Stylesheet and Clean Up Redundant CSS Declarations | [`issues/stm-041-split-graph-css.md`](issues/stm-041-split-graph-css.md) |
 
 ---
 

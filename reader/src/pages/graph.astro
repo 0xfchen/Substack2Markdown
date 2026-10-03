@@ -12,7 +12,9 @@ import ThreeGraphScene from '../components/ThreeGraphScene.astro';
 import { buildGraphData } from '../utils/graph-data';
 import { withBase } from '../utils/paths';
 import { getContentPath } from '../server/paths';
-import '../styles/pages/graph.css';
+import '../styles/pages/graph-layout.css';
+import '../styles/pages/graph-controls.css';
+import '../styles/pages/graph-inspector.css';
 
 const posts = (await getCollection('posts'))
   .filter((p) => !p.data.draft)

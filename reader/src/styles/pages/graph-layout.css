@@ -1,0 +1,466 @@
+/**
+ * graph-layout.css
+ *
+ * Viewport shell, canvas cursor interactions, cursor tooltip, node legend,
+ * universe expansion timeline scrubber, and responsive layout breakpoints
+ * for the 3D Interactive Knowledge Graph View.
+ */
+
+/* ==========================================================================
+   1. Viewport Container & WebGL Canvas Shell
+   ========================================================================== */
+
+.graph-page-container {
+  position: relative;
+  width: 100%;
+  height: calc(100dvh - var(--nav-height, 52px));
+  min-height: 500px;
+  overflow: hidden;
+  background-color: #fbfcfd;
+  background-image: radial-gradient(circle at 50% 45%, #ffffff 0%, #f8fafc 65%, #edf2f7 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+[data-theme='dark'] .graph-page-container {
+  background-color: #000000;
+  background-image: radial-gradient(circle at 50% 45%, #0d1629 0%, #060b14 38%, #000000 70%, #000000 100%);
+}
+
+.graph-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  outline: none;
+  cursor: grab;
+}
+
+.graph-canvas:active {
+  cursor: grabbing;
+}
+
+/* ==========================================================================
+   2. Hover Tooltip (Tracks Cursor Position)
+   ========================================================================== */
+
+.graph-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: var(--z-graph-tip);
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 10px;
+  box-shadow: var(--shadow-md, 0 4px 16px rgba(0, 0, 0, 0.12));
+  max-width: 240px;
+  opacity: 0;
+  transform: translate(-50%, -120%);
+  transition: opacity 120ms ease;
+}
+
+.graph-tooltip.visible {
+  opacity: 1;
+}
+
+.graph-tooltip-title {
+  font-size: var(--text-caption-1, 0.75rem);
+  font-weight: var(--weight-bold, 600);
+  color: var(--label-primary);
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-tooltip-sub {
+  font-size: 0.6875rem;
+  color: var(--label-secondary);
+  margin: 0;
+}
+
+/* ==========================================================================
+   3. Bottom-Left Node Type & Reading Status Legend
+   ========================================================================== */
+
+.graph-legend {
+  position: absolute;
+  bottom: var(--space-4, 1rem);
+  left: var(--space-4, 1rem);
+  z-index: var(--z-graph-hud);
+  pointer-events: auto;
+  font-size: var(--text-caption-2, 0.6875rem);
+  color: var(--label-tertiary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.graph-legend-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  transition: opacity var(--duration-fast) ease;
+}
+
+.graph-legend-group.hidden {
+  display: none;
+}
+
+.graph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.graph-legend-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) ease;
+}
+
+.graph-legend-dot.author {
+  background: var(--color-graph-author);
+  border-radius: 50%;
+  border: 1.5px solid var(--color-graph-author);
+  box-shadow: inset 0 0 0 1.5px var(--bg-primary);
+}
+
+.graph-legend-dot.author.ringed {
+  border-radius: 50%;
+  border: 1.5px solid var(--color-graph-author);
+  box-shadow: inset 0 0 0 1.5px var(--bg-primary);
+}
+
+.graph-legend-dot.tag,
+.graph-legend-dot.tag.star-sphere {
+  background: var(--color-graph-tag);
+  border-radius: 50%;
+  width: 9px;
+  height: 9px;
+}
+
+[data-theme='dark'] .graph-legend-dot.tag {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-graph-tag) 45%, transparent);
+}
+
+.graph-legend-dot.post,
+.graph-legend-dot.post.asteroid {
+  background: var(--color-graph-post);
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  width: 8px;
+  height: 8px;
+}
+
+.graph-legend-dot.completed {
+  background: var(--color-status-completed);
+  border-radius: 50%;
+}
+
+.graph-legend-dot.in-progress {
+  background: var(--color-status-in-progress);
+  border-radius: 50%;
+}
+
+.graph-legend-dot.to-read {
+  background: var(--color-status-pending);
+  border-radius: 50%;
+}
+
+.graph-legend-dot.unread {
+  background: var(--color-status-unread);
+  border-radius: 50%;
+}
+
+/* Adaptive Editorial Node Shapes in Light Mode */
+:root:not([data-theme='dark']) .graph-legend-dot.author {
+  border-radius: 50%;
+  border: none;
+  box-shadow: none;
+}
+
+:root:not([data-theme='dark']) .graph-legend-dot.tag {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  border-radius: 0;
+}
+
+:root:not([data-theme='dark']) .graph-legend-dot.post {
+  clip-path: none;
+  border-radius: 1.5px;
+  width: 8px;
+  height: 8px;
+}
+
+/* ==========================================================================
+   4. Universe Expansion Timeline Heads-Up Display (Bottom-Center)
+   ========================================================================== */
+
+.graph-timeline-hud {
+  position: absolute;
+  bottom: var(--space-4, 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--separator, rgba(140, 140, 140, 0.25));
+  border-radius: var(--radius-xl, 14px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 10px 16px;
+  z-index: var(--z-graph-timeline);
+  pointer-events: auto;
+  min-width: 380px;
+  max-width: 520px;
+  width: calc(100% - 2rem);
+  transition: all var(--duration-fast, 150ms) ease;
+}
+
+[data-theme='dark'] .graph-timeline-hud {
+  background: color-mix(in srgb, #0a0f1d 85%, transparent);
+  border-color: rgba(56, 189, 248, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 15px rgba(56, 189, 248, 0.08);
+}
+
+.graph-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.graph-timeline-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-timeline-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0284c7;
+  box-shadow: 0 0 8px #0284c7;
+  animation: timeline-pulse 2s infinite ease-in-out;
+}
+
+[data-theme='dark'] .graph-timeline-pulse-dot {
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+@keyframes timeline-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+.graph-timeline-title {
+  font-size: 0.6875rem;
+  font-weight: var(--weight-bold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--label-secondary);
+}
+
+.graph-timeline-date-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.6875rem;
+}
+
+.graph-timeline-date {
+  font-weight: var(--weight-bold, 600);
+  color: var(--label-primary);
+  letter-spacing: 0.02em;
+}
+
+.graph-timeline-count {
+  color: var(--label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.graph-timeline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--fill-quaternary, rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--separator, rgba(140, 140, 140, 0.2));
+  color: var(--label-primary);
+  border-radius: var(--radius-md, 8px);
+  padding: 5px 10px;
+  font-size: var(--text-caption-2, 0.6875rem);
+  font-weight: var(--weight-medium, 500);
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) ease;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.graph-timeline-btn:hover {
+  background: var(--fill-tertiary, rgba(0, 0, 0, 0.08));
+  border-color: var(--label-tertiary);
+}
+
+.graph-timeline-play-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-blue) 15%, transparent);
+  border-color: color-mix(in srgb, var(--color-blue) 30%, transparent);
+  color: var(--color-blue);
+}
+
+.graph-timeline-play-btn:hover {
+  transform: scale(1.08);
+  background: var(--color-blue);
+  color: #ffffff;
+}
+
+[data-theme='dark'] .graph-timeline-play-btn:hover {
+  background: var(--color-blue);
+  color: var(--bg-primary);
+}
+
+.graph-timeline-present-btn.active {
+  background: color-mix(in srgb, var(--color-green) 18%, transparent);
+  border-color: var(--color-green);
+  color: var(--color-green);
+}
+
+.graph-timeline-slider-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+
+.graph-timeline-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--fill-quaternary, rgba(0, 0, 0, 0.1));
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  margin: 0;
+}
+
+[data-theme='dark'] .graph-timeline-slider {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.graph-timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid #0284c7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+[data-theme='dark'] .graph-timeline-slider::-webkit-slider-thumb {
+  background: #030712;
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+.graph-timeline-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.graph-timeline-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid #0284c7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.graph-timeline-progress-fill {
+  position: absolute;
+  left: 0;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981, #f59e0b);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   5. Responsive Breakpoints
+   ========================================================================== */
+
+@media (max-width: 1100px) {
+  .graph-hud-left {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .graph-legend {
+    display: none;
+  }
+
+  .graph-timeline-hud {
+    bottom: var(--space-2, 0.5rem);
+    min-width: 0;
+    width: calc(100% - 1.5rem);
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .graph-timeline-hud {
+    min-width: 0;
+    width: calc(100% - 1rem);
+    bottom: var(--space-2, 0.5rem);
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .graph-timeline-title {
+    display: none;
+  }
+
+  .graph-timeline-date-badge {
+    gap: 4px;
+    font-size: 0.625rem;
+  }
+
+  .graph-timeline-btn {
+    padding: 4px 7px;
+    font-size: 0.625rem;
+  }
+}

@@ -1,0 +1,272 @@
+/**
+ * graph-controls.css
+ *
+ * Heads-Up Display (HUD) floating controls: search input, dynamic filter pills,
+ * control buttons, and glassmorphic panels for the 3D Knowledge Graph.
+ */
+
+/* ==========================================================================
+   1. Floating Heads-Up Display (HUD) Shell & Anchors
+   ========================================================================== */
+
+.graph-hud {
+  position: absolute;
+  top: var(--space-4, 1rem);
+  left: var(--space-4, 1rem);
+  right: var(--space-4, 1rem);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: var(--z-graph-hud);
+}
+
+.graph-hud-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: auto;
+  max-width: 480px;
+  width: 100%;
+}
+
+.graph-hud-left {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.graph-hud-right {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   2. Keyboard / Gesture Controls Hint
+   ========================================================================== */
+
+.graph-controls-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  color: var(--label-secondary);
+  font-size: var(--text-caption-1, 0.75rem);
+  padding: 6px 12px;
+  border-radius: var(--radius-md, 8px);
+  user-select: none;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .graph-controls-hint {
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  border-color: var(--separator);
+  color: var(--label-secondary);
+}
+
+/* ==========================================================================
+   3. Glassmorphic Panel Styles
+   ========================================================================== */
+
+.graph-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--separator, rgba(140, 140, 140, 0.2));
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+  padding: var(--space-3) var(--space-4);
+}
+
+/* ==========================================================================
+   4. Search Bar
+   ========================================================================== */
+
+.graph-search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 16px;
+  border-radius: var(--radius-full, 999px);
+  width: 100%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme='dark'] .graph-search-box {
+  background: var(--glass-bg);
+  border-color: var(--separator);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.graph-search-box svg {
+  color: var(--label-tertiary);
+  flex-shrink: 0;
+}
+
+.graph-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: var(--text-footnote, 0.8125rem);
+  color: var(--label-primary);
+}
+
+.graph-search-input::placeholder {
+  color: var(--label-quaternary);
+}
+
+/* ==========================================================================
+   5. Filter Pills (Dynamic Modes & Cluster Filtering)
+   ========================================================================== */
+
+.graph-filter-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.graph-filter-mode-group {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.graph-filter-mode-group.hidden {
+  display: none;
+}
+
+.graph-filter-btn {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  color: var(--label-secondary);
+  font-size: var(--text-caption-1, 0.75rem);
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) ease;
+}
+
+[data-theme='dark'] .graph-filter-btn {
+  background: transparent;
+  border-color: var(--separator);
+}
+
+.graph-filter-btn:hover {
+  background: var(--fill-quaternary);
+  color: var(--label-primary);
+}
+
+.graph-filter-btn.active {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   6. Control Action Buttons (Reset, Modes, 2D/3D Projection)
+   ========================================================================== */
+
+.graph-actions-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.graph-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  color: var(--label-secondary);
+  font-size: var(--text-caption-1, 0.75rem);
+  padding: 6px 12px;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  user-select: none;
+}
+
+[data-theme='dark'] .graph-action-btn {
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  border-color: var(--separator);
+}
+
+.graph-action-btn:hover {
+  background: var(--fill-quaternary);
+  color: var(--label-primary);
+  border-color: var(--label-tertiary);
+}
+
+.graph-action-btn.active {
+  background: color-mix(in srgb, var(--color-blue) 18%, transparent);
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+  font-weight: var(--weight-medium, 500);
+}
+
+/* ==========================================================================
+   7. Responsive HUD Breakpoints
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .graph-hud {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .graph-hud-center {
+    max-width: 100%;
+  }
+
+  .graph-hud-right {
+    position: static;
+    align-items: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .graph-hud {
+    top: var(--space-2, 0.5rem);
+    left: var(--space-2, 0.5rem);
+    right: var(--space-2, 0.5rem);
+  }
+
+  .graph-search-box {
+    padding: 6px 12px;
+    max-width: 100%;
+  }
+
+  .graph-filter-btn {
+    padding: 2px 8px;
+    font-size: 0.6875rem;
+  }
+
+  .graph-action-btn {
+    padding: 5px 10px;
+    font-size: 0.6875rem;
+  }
+}
