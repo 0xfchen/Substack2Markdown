@@ -39,6 +39,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-031`** | **Plan** | `feat` | Incremental Delta Sync via Substack API | [`plans/stm-031-incremental-delta-sync.md`](plans/stm-031-incremental-delta-sync.md) |
 | **`stm-032`** | **Issue** | `fix` | CLI Flag Validation and Conflicting Option Guards | [`issues/stm-032-cli-flag-validation-and-guards.md`](issues/stm-032-cli-flag-validation-and-guards.md) |
 | **`stm-033`** | **Plan** | `feat` | Inline Highlighting and Annotations | [`plans/stm-033-inline-highlighting-and-annotations.md`](plans/stm-033-inline-highlighting-and-annotations.md) |
+| **`stm-034`** | **Issue** | `fix` | Three.js Animation Loop Off-Screen Pausing and Lifecycle Hardening | [`issues/stm-034-threejs-lifecycle-and-offscreen-pausing.md`](issues/stm-034-threejs-lifecycle-and-offscreen-pausing.md) |
 
 ---
 

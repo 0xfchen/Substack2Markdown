@@ -54,6 +54,8 @@ export function initThreeGraph(): (() => void) | null {
   const container = containerEl;
   const canvas = canvasEl;
 
+  let isDisposed = false;
+
   // 1. Scene & Camera Setup
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
@@ -338,6 +340,20 @@ export function initThreeGraph(): (() => void) | null {
     }
   }
   canvas.addEventListener('pointermove', onPointerMove, { passive: true });
+
+  function onPointerLeave() {
+    mouse.set(-999, -999);
+    if (hoveredMesh) {
+      hoveredMesh = null;
+      canvas.style.cursor = 'grab';
+      tooltip?.classList.remove('visible');
+
+      if (!selectedMesh) {
+        resetMeshHighlights();
+      }
+    }
+  }
+  canvas.addEventListener('pointerleave', onPointerLeave);
 
   function onCanvasClick() {
     raycaster.setFromCamera(mouse, camera);
@@ -680,6 +696,8 @@ export function initThreeGraph(): (() => void) | null {
 
   // 14. Reading State Sync
   function syncReadingState() {
+    if (isDisposed) return;
+
     nodeMeshes.forEach((mesh) => {
       const node = mesh.userData.node as GraphNode;
       if (node.type !== 'post') return;
@@ -736,17 +754,31 @@ export function initThreeGraph(): (() => void) | null {
   resizeObserver.observe(container);
 
   // 16. Animation Loop
-  let animationFrameId: number;
+  let animationFrameId = 0;
   let isVisible = true;
 
   const intersectionObserver = new IntersectionObserver(([entry]) => {
+    const wasContainerVisible = isVisible;
     isVisible = entry.isIntersecting;
+
+    if (isVisible && !wasContainerVisible) {
+      timeline.lastTimelineTime = performance.now();
+      if (!animationFrameId) {
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    } else if (!isVisible && animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = 0;
+    }
   });
   intersectionObserver.observe(container);
 
   function animate() {
+    if (!isVisible) {
+      animationFrameId = 0;
+      return;
+    }
     animationFrameId = requestAnimationFrame(animate);
-    if (!isVisible) return;
 
     const now = performance.now();
     const dt = Math.min(100, now - timeline.lastTimelineTime);
@@ -884,7 +916,6 @@ export function initThreeGraph(): (() => void) | null {
   };
 
   // 18. Teardown & Lifecycle Disposal
-  let isDisposed = false;
   const teardown = () => {
     if (isDisposed) return;
     isDisposed = true;
@@ -900,13 +931,17 @@ export function initThreeGraph(): (() => void) | null {
     document.removeEventListener('astro:before-swap', teardown);
     window.removeEventListener('pagehide', teardown);
 
-    cancelAnimationFrame(animationFrameId);
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = 0;
+    }
     resizeObserver.disconnect();
     intersectionObserver.disconnect();
     themeObserver.disconnect();
 
     canvas.removeEventListener('pointerdown', onPointerDown);
     canvas.removeEventListener('pointermove', onPointerMove);
+    canvas.removeEventListener('pointerleave', onPointerLeave);
     canvas.removeEventListener('click', onCanvasClick);
     inspectorClose?.removeEventListener('click', onInspectorClose);
     searchInput?.removeEventListener('input', onSearchInput);

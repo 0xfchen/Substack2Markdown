@@ -479,6 +479,7 @@ export function initThree404(): (() => void) | null {
       return;
     }
     isFlightActive = true;
+    document.body.style.cursor = '';
     flightStartTime = performance.now();
     updateTargetPositions();
     flightCurve = buildFlightCurve(homePos);
@@ -490,7 +491,7 @@ export function initThree404(): (() => void) | null {
   container.addEventListener('click', triggerFlight);
 
   const raycaster = new THREE.Raycaster();
-  const clickMouse = new THREE.Vector2();
+  const clickMouse = new THREE.Vector2(-999, -999);
 
   function onPointerDown(e: MouseEvent) {
     const target = e.target as HTMLElement | null;
@@ -518,20 +519,42 @@ export function initThree404(): (() => void) | null {
   }
   window.addEventListener('pointermove', onPointerMove, { passive: true });
 
+  function onPointerLeave() {
+    clickMouse.set(-999, -999);
+    document.body.style.cursor = '';
+  }
+  container.addEventListener('pointerleave', onPointerLeave);
+  canvas.addEventListener('pointerleave', onPointerLeave);
+  document.addEventListener('pointerleave', onPointerLeave);
+
   // 13. Main Render Loop
-  let animationFrameId: number;
+  let animationFrameId = 0;
   const startTime = performance.now();
   let lastTime = performance.now();
   let isVisible = true;
 
   const intersectionObserver = new IntersectionObserver(([entry]) => {
+    const wasContainerVisible = isVisible;
     isVisible = entry.isIntersecting;
+
+    if (isVisible && !wasContainerVisible) {
+      lastTime = performance.now();
+      if (!animationFrameId) {
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    } else if (!isVisible && animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = 0;
+    }
   });
   intersectionObserver.observe(container);
 
   function animate() {
+    if (!isVisible) {
+      animationFrameId = 0;
+      return;
+    }
     animationFrameId = requestAnimationFrame(animate);
-    if (!isVisible) return;
 
     const now = performance.now();
     const dt = Math.min((now - lastTime) * 0.001, 0.05);
@@ -672,14 +695,24 @@ export function initThree404(): (() => void) | null {
   animate();
 
   // 14. Lifecycle Cleanup
+  let isDisposed = false;
   const teardown = () => {
-    cancelAnimationFrame(animationFrameId);
+    if (isDisposed) return;
+    isDisposed = true;
+
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = 0;
+    }
     document.body.style.cursor = '';
     window.removeEventListener('resize', onResize);
     window.removeEventListener('scroll', updateTargetPositions);
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('pointerdown', onPointerDown);
     window.removeEventListener('pointermove', onPointerMove);
+    container.removeEventListener('pointerleave', onPointerLeave);
+    canvas.removeEventListener('pointerleave', onPointerLeave);
+    document.removeEventListener('pointerleave', onPointerLeave);
     container.removeEventListener('click', triggerFlight);
     intersectionObserver.disconnect();
     themeObserver.disconnect();
