@@ -143,3 +143,13 @@ export function initReadingStatusButtons(): void {
     syncAllControls();
   });
 }
+
+/**
+ * Mounts reading status buttons, integrating with Astro lifecycle events.
+ */
+export function mountReadingStatusButtons(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  initReadingStatusButtons();
+  document.addEventListener('astro:page-load', () => initReadingStatusButtons());
+}

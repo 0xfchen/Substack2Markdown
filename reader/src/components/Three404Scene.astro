@@ -18,15 +18,9 @@
 </div>
 
 <script>
-  import { initThree404 } from '../scripts/three-404';
+  import { mountThree404Scene } from '../scripts/three-404';
 
-  // Initialize when DOM is ready and on Astro page transitions
-  document.addEventListener('astro:page-load', () => initThree404());
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initThree404(), { once: true });
-  } else {
-    initThree404();
-  }
+  mountThree404Scene();
 </script>
 
 <style>

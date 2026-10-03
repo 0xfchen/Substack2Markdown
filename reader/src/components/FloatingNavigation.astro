@@ -95,53 +95,9 @@ const homeUrl = withBase('/');
 </div>
 
 <script>
-  import { handleBackToLibrary } from '../scripts/navigation-utils';
+  import { mountFloatingNavigation } from '../scripts/floating-navigation';
 
-  function initFloatingNavigation() {
-    const scrollTopButton = document.getElementById('floating-scroll-top');
-    if (scrollTopButton && !scrollTopButton.hasAttribute('data-nav-ready')) {
-      scrollTopButton.setAttribute('data-nav-ready', 'true');
-      scrollTopButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-
-      const scrollDistanceThreshold = 180;
-      const updateScrollTopVisibility = () => {
-        const isNearPageTop = window.scrollY <= scrollDistanceThreshold;
-        scrollTopButton.classList.toggle('is-hidden', isNearPageTop);
-      };
-
-      window.addEventListener('scroll', updateScrollTopVisibility, { passive: true });
-      updateScrollTopVisibility();
-    }
-
-    const homeLinkButton = document.getElementById('floating-go-home');
-    if (homeLinkButton && !homeLinkButton.hasAttribute('data-nav-ready')) {
-      homeLinkButton.setAttribute('data-nav-ready', 'true');
-      homeLinkButton.addEventListener('click', (e) => {
-        const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
-        const targetHref = homeLinkButton.getAttribute('href') || '/';
-        const targetPath = targetHref.split('#')[0].replace(/\/$/, '') || '/';
-        if (currentPath === targetPath) {
-          e.preventDefault();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          return;
-        }
-
-        const targetSlug = homeLinkButton.getAttribute('data-slug');
-        if (handleBackToLibrary(targetSlug, targetHref)) {
-          e.preventDefault();
-        }
-      });
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initFloatingNavigation, { once: true });
-  } else {
-    initFloatingNavigation();
-  }
+  mountFloatingNavigation();
 </script>
 
 <style>

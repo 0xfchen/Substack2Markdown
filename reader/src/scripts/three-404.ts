@@ -744,3 +744,27 @@ export function initThree404(): (() => void) | null {
 
   return teardown;
 }
+
+let activeThree404Teardown: (() => void) | null = null;
+
+/**
+ * Mounts the interactive 3D 404 scene, integrating with Astro lifecycle events.
+ */
+export function mountThree404Scene(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  const setupScene = () => {
+    if (typeof activeThree404Teardown === 'function') {
+      activeThree404Teardown();
+      activeThree404Teardown = null;
+    }
+    activeThree404Teardown = initThree404();
+  };
+
+  document.addEventListener('astro:page-load', setupScene);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupScene, { once: true });
+  } else {
+    setupScene();
+  }
+}

@@ -234,25 +234,7 @@ const { graphData } = Astro.props;
 <script is:inline type="application/json" id="graph-data-payload" set:html={serializeScriptJson(graphData)} />
 
 <script>
-  import { initThreeGraph } from '../scripts/three-graph';
+  import { mountThreeGraphScene } from '../scripts/three-graph';
 
-  let currentTeardown: (() => void) | null = null;
-
-  function setup() {
-    if (typeof currentTeardown === 'function') {
-      currentTeardown();
-      currentTeardown = null;
-    }
-    currentTeardown = initThreeGraph();
-  }
-
-  // Handle Astro View Transitions lifecycle
-  document.addEventListener('astro:page-load', setup);
-
-  // Fallback for standard DOM ready when ClientRouter is not active
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setup, { once: true });
-  } else if (!currentTeardown) {
-    setup();
-  }
+  mountThreeGraphScene();
 </script>

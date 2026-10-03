@@ -44,6 +44,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-036`** | **Issue** | `fix` | Strict Hex Color Parsing and 3-Digit Shorthand Expansion | [`issues/stm-036-color-hex-parsing-and-validation.md`](issues/stm-036-color-hex-parsing-and-validation.md) |
 | **`stm-037`** | **Issue** | `refactor` | Centralize Z-Index Scale Tokens, Deduplicate Tag Pill CSS, and Glassmorphic Background Token | [`issues/stm-037-centralize-z-index-tokens.md`](issues/stm-037-centralize-z-index-tokens.md) |
 | **`stm-038`** | **Issue** | `refactor` | Remove Dead Code, Unused Props, and Obsolete Selectors Across Reader | [`issues/stm-038-remove-dead-code.md`](issues/stm-038-remove-dead-code.md) |
+| **`stm-039`** | **Issue** | `refactor` | Extract Inline Scripts from Astro Components into Dedicated Client Modules | [`issues/stm-039-extract-inline-scripts.md`](issues/stm-039-extract-inline-scripts.md) |
 
 ---
 

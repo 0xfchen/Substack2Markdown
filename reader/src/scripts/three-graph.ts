@@ -977,3 +977,27 @@ export function initThreeGraph(): (() => void) | null {
   window.addEventListener('pagehide', teardown, { once: true });
   return teardown;
 }
+
+let activeThreeGraphTeardown: (() => void) | null = null;
+
+/**
+ * Mounts the 3D Force-Directed Knowledge Graph scene, integrating with Astro lifecycle events.
+ */
+export function mountThreeGraphScene(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  const setupScene = () => {
+    if (typeof activeThreeGraphTeardown === 'function') {
+      activeThreeGraphTeardown();
+      activeThreeGraphTeardown = null;
+    }
+    activeThreeGraphTeardown = initThreeGraph();
+  };
+
+  document.addEventListener('astro:page-load', setupScene);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupScene, { once: true });
+  } else if (!activeThreeGraphTeardown) {
+    setupScene();
+  }
+}
