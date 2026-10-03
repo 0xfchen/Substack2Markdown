@@ -48,7 +48,7 @@ const steps = Array.from({ length: 20 }, (_, i) => (i + 1) * 5); // 5, 10, 15, .
     top: 50%;
     transform: translateY(-50%);
     left: clamp(20px, 2.5vw, 36px);
-    z-index: 40;
+    z-index: var(--z-rail);
     user-select: none;
     pointer-events: auto;
   }

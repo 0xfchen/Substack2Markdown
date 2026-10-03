@@ -82,7 +82,7 @@ const navItems = config.nav;
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-header);
   height: var(--nav-height);
   flex-shrink: 0;
   border-bottom: none;
@@ -110,7 +110,7 @@ const navItems = config.nav;
 }
 
 :global([data-theme='dark']) .site-header.glass.is-scrolled {
-  background-color: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  background-color: var(--glass-bg);
 }
 
 .site-header.is-hidden {

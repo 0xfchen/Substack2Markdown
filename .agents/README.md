@@ -42,6 +42,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-034`** | **Issue** | `fix` | Three.js Animation Loop Off-Screen Pausing and Lifecycle Hardening | [`issues/stm-034-threejs-lifecycle-and-offscreen-pausing.md`](issues/stm-034-threejs-lifecycle-and-offscreen-pausing.md) |
 | **`stm-035`** | **Issue** | `fix` | Build Portability via Deterministic Content Path Resolution | [`issues/stm-035-build-portability-path-resolution.md`](issues/stm-035-build-portability-path-resolution.md) |
 | **`stm-036`** | **Issue** | `fix` | Strict Hex Color Parsing and 3-Digit Shorthand Expansion | [`issues/stm-036-color-hex-parsing-and-validation.md`](issues/stm-036-color-hex-parsing-and-validation.md) |
+| **`stm-037`** | **Issue** | `refactor` | Centralize Z-Index Scale Tokens, Deduplicate Tag Pill CSS, and Glassmorphic Background Token | [`issues/stm-037-centralize-z-index-tokens.md`](issues/stm-037-centralize-z-index-tokens.md) |
 
 ---
 

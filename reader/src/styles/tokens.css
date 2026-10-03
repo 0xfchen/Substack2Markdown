@@ -209,6 +209,28 @@
   --max-width-content: 784px;
   --max-width-wide: 880px;
   --nav-height: 52px;
+
+  /* ------------------------------------------------------------
+     8. Z-INDEX SCALE
+     ------------------------------------------------------------ */
+  --z-base: 1;
+  --z-card: 5;
+  --z-graph-hud: 10;
+  --z-graph-timeline: 15;
+  --z-graph-tip: 20;
+  --z-rail: 40;
+  --z-float: 60;
+  --z-toast: 70;
+  --z-header: 100;
+  --z-toolbar: 1000;
+  --z-drawer-backdrop: 9998;
+  --z-drawer: 9999;
+  --z-skip: 10000;
+
+  /* ------------------------------------------------------------
+     9. GLASSMORPHIC SURFACE TOKENS
+     ------------------------------------------------------------ */
+  --glass-bg: color-mix(in srgb, var(--bg-primary) 82%, transparent);
 }
 
 /* Dark Mode — media query OR data-theme attribute (JS toggle) */

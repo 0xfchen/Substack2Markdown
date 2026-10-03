@@ -242,7 +242,7 @@
   color: var(--label-primary);
   font-size: var(--text-caption-1, 0.75rem);
   font-weight: 500;
-  z-index: 100;
+  z-index: var(--z-toast);
   opacity: 0;
   transform: translateY(10px) scale(0.96);
   pointer-events: none;

@@ -79,7 +79,7 @@ mark.annotation-highlight[data-has-note='true']::after {
    ------------------------------------------------------------ */
 .annotation-toolbar {
   position: absolute;
-  z-index: 1000;
+  z-index: var(--z-toolbar);
   display: flex;
   flex-direction: column;
   background: var(--bg-tertiary);
@@ -297,7 +297,7 @@ mark.annotation-highlight[data-has-note='true']::after {
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
-  z-index: 9998;
+  z-index: var(--z-drawer-backdrop);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -318,7 +318,7 @@ mark.annotation-highlight[data-has-note='true']::after {
   background: var(--bg-primary);
   border-left: 1px solid var(--separator);
   box-shadow: var(--shadow-xl);
-  z-index: 9999;
+  z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
