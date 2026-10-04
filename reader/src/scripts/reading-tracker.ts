@@ -116,11 +116,17 @@ export async function fetchReadingState(): Promise<ReadingState> {
   }
 }
 
+function _normalizeArticleSlug(rawArticleSlug: string): string {
+  if (!rawArticleSlug) return '';
+  return rawArticleSlug.startsWith('post:') ? rawArticleSlug.slice(5) : rawArticleSlug;
+}
+
 /**
  * Get the reading state entry for a specific article slug.
  */
 export function getReadingEntry(slug: string): ReadingItemState | undefined {
-  return inMemoryState[slug];
+  const normalizedSlug = _normalizeArticleSlug(slug);
+  return inMemoryState[normalizedSlug] ?? inMemoryState[slug];
 }
 
 /**
@@ -157,8 +163,9 @@ export function setReadingStatus(
   status: ReadingStatus,
   options: { scrollRatio?: number; force?: boolean; readCount?: number } = {}
 ): void {
-  if (!slug) return;
-  const existing = inMemoryState[slug];
+  const normalizedSlug = _normalizeArticleSlug(slug);
+  if (!normalizedSlug) return;
+  const existing = inMemoryState[normalizedSlug];
   const oldRatio = typeof existing?.scrollRatio === 'number' ? existing.scrollRatio : -1;
   const newRatio =
     options.scrollRatio !== undefined
@@ -193,7 +200,7 @@ export function setReadingStatus(
   }
 
   if (status === 'unread') {
-    delete inMemoryState[slug];
+    delete inMemoryState[normalizedSlug];
   } else {
     const entry: ReadingItemState = {
       status,
@@ -202,12 +209,18 @@ export function setReadingStatus(
       completedAt: status === 'completed' ? (existing?.completedAt || now) : undefined,
       readCount: newReadCount,
     };
-    inMemoryState[slug] = entry;
+    inMemoryState[normalizedSlug] = entry;
+  }
+
+  // Clean up any legacy unnormalized key if slug had a prefix
+  if (slug !== normalizedSlug) {
+    delete inMemoryState[slug];
+    delete pendingUpdates[slug];
   }
 
   cacheState(inMemoryState);
 
-  const broadcastEntry: ReadingItemState = inMemoryState[slug] || {
+  const broadcastEntry: ReadingItemState = inMemoryState[normalizedSlug] || {
     status: 'unread',
     scrollRatio: 0,
     updatedAt: now,
@@ -218,13 +231,13 @@ export function setReadingStatus(
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent<ReadingStatusChangeEventDetail>(READING_STATUS_CHANGE_EVENT, {
-        detail: { slug, status, state: broadcastEntry },
+        detail: { slug: normalizedSlug, status, state: broadcastEntry },
       })
     );
   }
 
   // Queue server flush: sending { status: 'unread' } instructs server to remove from reading_state.json
-  pendingUpdates[slug] = status === 'unread' ? { status: 'unread' } : inMemoryState[slug];
+  pendingUpdates[normalizedSlug] = status === 'unread' ? { status: 'unread' } : inMemoryState[normalizedSlug];
   if (pendingSaveTimer) {
     clearTimeout(pendingSaveTimer);
   }

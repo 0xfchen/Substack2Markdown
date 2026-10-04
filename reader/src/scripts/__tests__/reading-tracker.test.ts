@@ -74,6 +74,38 @@ describe('reading-tracker', () => {
       mod.setReadingStatus('my-article', 'in-progress');
       expect(mod.getReadingStatus('my-article')).toBe('in-progress');
     });
+
+    it('normalizes post: prefixed slugs seamlessly on read and write', async () => {
+      const mod = await importFresh();
+
+      // Writing with a post: prefix should store cleanly under unprefixed slug
+      mod.setReadingStatus('post:my-namespaced-slug', 'completed');
+      expect(mod.getReadingStatus('post:my-namespaced-slug')).toBe('completed');
+      expect(mod.getReadingStatus('my-namespaced-slug')).toBe('completed');
+      expect(mod.getReadingEntry('post:my-namespaced-slug')?.status).toBe('completed');
+      expect(mod.getReadingEntry('my-namespaced-slug')?.status).toBe('completed');
+
+      // Stored state must never contain the 'post:' prefix
+      const allStates = mod.getAllReadingStates();
+      expect(allStates['my-namespaced-slug']).toBeDefined();
+      expect(allStates['post:my-namespaced-slug']).toBeUndefined();
+
+      // Dispatched event detail must use the normalized slug
+      expect(window.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'reading-status-changed',
+          detail: expect.objectContaining({
+            slug: 'my-namespaced-slug',
+            status: 'completed',
+          }),
+        })
+      );
+
+      // Resetting to unread with a post: prefix removes it cleanly
+      mod.setReadingStatus('post:my-namespaced-slug', 'unread');
+      expect(mod.getReadingStatus('my-namespaced-slug')).toBe('unread');
+      expect(mod.getAllReadingStates()['my-namespaced-slug']).toBeUndefined();
+    });
   });
 
   // -----------------------------------------------------------------------

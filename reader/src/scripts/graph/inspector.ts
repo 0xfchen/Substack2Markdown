@@ -6,28 +6,29 @@
 
 import { getTagColors } from '../../utils/graph-colors';
 import type { GraphNode, SimNode } from './types';
+import { GRAPH_SELECTORS } from './selectors';
 
 export function showGraphInspector(containerEl: HTMLElement, node: GraphNode, allNodes: SimNode[]): void {
-  const inspector = containerEl.querySelector<HTMLElement>('[data-graph-inspector]');
+  const inspector = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspector);
   if (!inspector) return;
   inspector.classList.remove('hidden');
 
-  const inspectorBadge = containerEl.querySelector<HTMLElement>('[data-inspector-badge]');
-  const inspectorTitle = containerEl.querySelector<HTMLElement>('[data-inspector-title]');
-  const inspectorAuthor = containerEl.querySelector<HTMLElement>('[data-inspector-author]');
-  const inspectorDate = containerEl.querySelector<HTMLElement>('[data-inspector-date]');
-  const inspectorTime = containerEl.querySelector<HTMLElement>('[data-inspector-time]');
-  const inspectorDesc = containerEl.querySelector<HTMLElement>('[data-inspector-desc]');
-  const inspectorTags = containerEl.querySelector<HTMLElement>('[data-inspector-tags]');
-  const inspectorLink = containerEl.querySelector<HTMLAnchorElement>('[data-inspector-link]');
-  const inspectorStatus = containerEl.querySelector<HTMLElement>('[data-inspector-status]');
-  const inspectorCountBadge = containerEl.querySelector<HTMLElement>('[data-inspector-count]');
-  const inspectorHubDetails = containerEl.querySelector<HTMLElement>('[data-inspector-hub-details]');
-  const inspectorHubProgress = containerEl.querySelector<HTMLElement>('[data-inspector-hub-progress]');
-  const inspectorHubProgressText = containerEl.querySelector<HTMLElement>('[data-inspector-hub-progress-text]');
-  const inspectorArticlesLabel = containerEl.querySelector<HTMLElement>('[data-inspector-articles-label]');
-  const inspectorArticlesList = containerEl.querySelector<HTMLElement>('[data-inspector-articles-list]');
-  const inspectorBtnText = containerEl.querySelector<HTMLElement>('[data-inspector-btn-text]');
+  const inspectorBadge = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorBadge);
+  const inspectorTitle = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorTitle);
+  const inspectorAuthor = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorAuthor);
+  const inspectorDate = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorDate);
+  const inspectorTime = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorTime);
+  const inspectorDesc = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorDesc);
+  const inspectorTags = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorTags);
+  const inspectorLink = containerEl.querySelector<HTMLAnchorElement>(GRAPH_SELECTORS.inspectorLink);
+  const inspectorStatus = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorStatus);
+  const inspectorCountBadge = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorCount);
+  const inspectorHubDetails = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorHubDetails);
+  const inspectorHubProgress = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorHubProgress);
+  const inspectorHubProgressText = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorHubProgressText);
+  const inspectorArticlesLabel = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorArticlesLabel);
+  const inspectorArticlesList = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorArticlesList);
+  const inspectorBtnText = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspectorBtnText);
 
   if (inspectorBadge) {
     inspectorBadge.textContent =
@@ -243,6 +244,6 @@ export function showGraphInspector(containerEl: HTMLElement, node: GraphNode, al
 }
 
 export function hideGraphInspector(containerEl: HTMLElement): void {
-  const inspector = containerEl.querySelector<HTMLElement>('[data-graph-inspector]');
+  const inspector = containerEl.querySelector<HTMLElement>(GRAPH_SELECTORS.inspector);
   inspector?.classList.add('hidden');
 }

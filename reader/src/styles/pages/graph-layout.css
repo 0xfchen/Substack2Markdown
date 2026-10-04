@@ -331,6 +331,14 @@
   color: var(--color-blue);
 }
 
+.graph-timeline-play-btn svg.hidden {
+  display: none !important;
+}
+
+.graph-timeline-play-btn .icon-play {
+  margin-left: 1.5px;
+}
+
 .graph-timeline-play-btn:hover {
   transform: scale(1.08);
   background: var(--color-blue);

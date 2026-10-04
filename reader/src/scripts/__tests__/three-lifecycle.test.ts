@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
+import { createSceneLifecycle } from '../shared/scene-lifecycle';
 
 describe('Three.js Lifecycle & Off-Screen Pausing (stm-034)', () => {
   describe('Animation Loop Conditional Scheduling & Timing Reset', () => {
@@ -182,6 +183,54 @@ describe('Three.js Lifecycle & Off-Screen Pausing (stm-034)', () => {
 
       expect(disposalExecutionCount).toBe(1);
       expect(isDisposed).toBe(true);
+    });
+  });
+
+  describe('Universal Scene Lifecycle Controller (createSceneLifecycle)', () => {
+    it('initializes in undisposed, visible state and executes teardown', () => {
+      const containerElement = {
+        clientWidth: 800,
+        clientHeight: 600,
+      } as unknown as HTMLElement;
+      const onAnimateSpy = vi.fn();
+      const onTeardownSpy = vi.fn();
+
+      const controller = createSceneLifecycle({
+        container: containerElement,
+        onAnimate: onAnimateSpy,
+        onTeardown: onTeardownSpy,
+      });
+
+      expect(controller.isDisposed()).toBe(false);
+      expect(controller.isVisible()).toBe(true);
+
+      controller.start();
+      controller.teardown();
+
+      expect(controller.isDisposed()).toBe(true);
+      expect(onTeardownSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('ensures teardown is idempotent when called repeatedly', () => {
+      const containerElement = {
+        clientWidth: 800,
+        clientHeight: 600,
+      } as unknown as HTMLElement;
+      const onAnimateSpy = vi.fn();
+      const onTeardownSpy = vi.fn();
+
+      const controller = createSceneLifecycle({
+        container: containerElement,
+        onAnimate: onAnimateSpy,
+        onTeardown: onTeardownSpy,
+      });
+
+      controller.teardown();
+      controller.teardown();
+      controller.teardown();
+
+      expect(onTeardownSpy).toHaveBeenCalledTimes(1);
+      expect(controller.isDisposed()).toBe(true);
     });
   });
 });

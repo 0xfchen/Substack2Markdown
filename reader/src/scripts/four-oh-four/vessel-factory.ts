@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'three';
-import type { RocketVessel, PaperPlaneVessel, Typography3D } from './types';
+import type { RocketVessel, PaperPlaneVessel } from './types';
 import { AEROSPACE_404_COLORS } from '../../utils/colors';
 
 // ==========================================
@@ -603,177 +603,11 @@ export function createOrigamiPaperPlane(): PaperPlaneVessel {
 }
 
 // ==========================================
-// 3. 3D Chrome "404" Extruded Typography
+// 3. 3D Chrome "404" Extruded Typography (Re-exported from typography.ts)
 // ==========================================
 
-export function create3D404Typography(
-  chromeMaterial: THREE.Material,
-  paperMaterial?: THREE.Material | THREE.Material[],
-  creaseMaterial?: THREE.LineBasicMaterial
-): Typography3D {
-  const code404Group = new THREE.Group();
-  const geometries: THREE.BufferGeometry[] = [];
-  const lineGeometries: THREE.BufferGeometry[] = [];
-
-  function createDigitShape4(): THREE.Shape {
-    const s = new THREE.Shape();
-    s.moveTo(0.82, -0.68);
-    s.lineTo(0.82, -0.28);
-    s.lineTo(1.0, -0.28);
-    s.lineTo(1.0, 0.02);
-    s.lineTo(0.82, 0.02);
-    s.lineTo(0.82, 0.68);
-    s.lineTo(0.5, 0.68);
-    s.lineTo(-0.12, 0.02);
-    s.lineTo(-0.12, -0.28);
-    s.lineTo(0.5, -0.28);
-    s.lineTo(0.5, -0.68);
-    s.closePath();
-
-    const hole = new THREE.Path();
-    hole.moveTo(0.5, 0.02);
-    hole.lineTo(0.18, 0.02);
-    hole.lineTo(0.5, 0.44);
-    hole.closePath();
-    s.holes.push(hole);
-    return s;
-  }
-
-  function createDigitShape0(): THREE.Shape {
-    const s = new THREE.Shape();
-    const w = 0.48, h = 0.68, r = 0.24;
-    s.moveTo(-w + r, -h);
-    s.lineTo(w - r, -h);
-    s.absarc(w - r, -h + r, r, -Math.PI / 2, 0, false);
-    s.lineTo(w, h - r);
-    s.absarc(w - r, h - r, r, 0, Math.PI / 2, false);
-    s.lineTo(-w + r, h);
-    s.absarc(-w + r, h - r, r, Math.PI / 2, Math.PI, false);
-    s.lineTo(-w, -h + r);
-    s.absarc(-w + r, -h + r, r, Math.PI, Math.PI * 1.5, false);
-
-    const hole = new THREE.Path();
-    const hw = 0.2, hh = 0.4, hr = 0.1;
-    hole.moveTo(-hw + hr, -hh);
-    hole.lineTo(hw - hr, -hh);
-    hole.absarc(hw - hr, -hh + hr, hr, -Math.PI / 2, 0, false);
-    hole.lineTo(hw, hh - hr);
-    hole.absarc(hw - hr, hh - hr, hr, 0, Math.PI / 2, false);
-    hole.lineTo(-hw + hr, hh);
-    hole.absarc(-hw + hr, hh - hr, hr, Math.PI / 2, Math.PI, false);
-    hole.lineTo(-hw, -hh + hr);
-    hole.absarc(-hw + hr, -hh + hr, hr, Math.PI, Math.PI * 1.5, false);
-    s.holes.push(hole);
-    return s;
-  }
-
-  function createExtrusion(shape: THREE.Shape, bevelSegments: number): THREE.ExtrudeGeometry {
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.1,
-      bevelEnabled: true,
-      bevelThickness: bevelSegments > 1 ? 0.12 : 0.08,
-      bevelSize: bevelSegments > 1 ? 0.1 : 0.08,
-      bevelSegments,
-      steps: 1,
-    });
-    geo.center();
-    geometries.push(geo);
-    return geo;
-  }
-
-  function applyPaperPlanarUVs(geo: THREE.BufferGeometry) {
-    geo.computeBoundingBox();
-    const bbox = geo.boundingBox!;
-    const rangeX = bbox.max.x - bbox.min.x || 1;
-    const rangeY = bbox.max.y - bbox.min.y || 1;
-    const pos = geo.attributes.position;
-    const uv = geo.attributes.uv;
-    if (!uv) return;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      uv.setXY(i, (x - bbox.min.x) / rangeX, (y - bbox.min.y) / rangeY);
-    }
-    uv.needsUpdate = true;
-  }
-
-  // 1. Chrome Starship Typography (Dark Mode - smooth 10-segment bevels)
-  const chromeGroup = new THREE.Group();
-  const cGeo4_1 = createExtrusion(createDigitShape4(), 10);
-  const cGeo0 = createExtrusion(createDigitShape0(), 10);
-  const cGeo4_2 = createExtrusion(createDigitShape4(), 10);
-
-  const cMesh4_1 = new THREE.Mesh(cGeo4_1, chromeMaterial);
-  cMesh4_1.position.x = -1.05;
-  chromeGroup.add(cMesh4_1);
-
-  const cMesh0 = new THREE.Mesh(cGeo0, chromeMaterial);
-  cMesh0.position.x = 0;
-  chromeGroup.add(cMesh0);
-
-  const cMesh4_2 = new THREE.Mesh(cGeo4_2, chromeMaterial);
-  cMesh4_2.position.x = 1.05;
-  chromeGroup.add(cMesh4_2);
-
-  let paperGroup: THREE.Group | undefined;
-
-  // 2. Origami Papercraft Typography (Light Mode)
-  if (paperMaterial) {
-    paperGroup = new THREE.Group();
-    const pGeo4_1 = createExtrusion(createDigitShape4(), 1);
-    const pGeo0 = createExtrusion(createDigitShape0(), 1);
-    const pGeo4_2 = createExtrusion(createDigitShape4(), 1);
-
-    applyPaperPlanarUVs(pGeo4_1);
-    applyPaperPlanarUVs(pGeo0);
-    applyPaperPlanarUVs(pGeo4_2);
-
-    const pMesh4_1 = new THREE.Mesh(pGeo4_1, paperMaterial);
-    pMesh4_1.position.x = -1.05;
-    paperGroup.add(pMesh4_1);
-
-    const pMesh0 = new THREE.Mesh(pGeo0, paperMaterial);
-    pMesh0.position.x = 0;
-    paperGroup.add(pMesh0);
-
-    const pMesh4_2 = new THREE.Mesh(pGeo4_2, paperMaterial);
-    pMesh4_2.position.x = 1.05;
-    paperGroup.add(pMesh4_2);
-
-    if (creaseMaterial) {
-      const lineGroup = new THREE.Group();
-      [
-        { geo: pGeo4_1, x: -1.05 },
-        { geo: pGeo0, x: 0 },
-        { geo: pGeo4_2, x: 1.05 },
-      ].forEach(({ geo, x }) => {
-        const edgeGeo = new THREE.EdgesGeometry(geo, 15);
-        lineGeometries.push(edgeGeo);
-        const lines = new THREE.LineSegments(edgeGeo, creaseMaterial);
-        lines.position.x = x;
-        lineGroup.add(lines);
-      });
-      paperGroup.add(lineGroup);
-    }
-
-    code404Group.add(chromeGroup);
-    code404Group.add(paperGroup);
-  } else {
-    code404Group.add(cMesh4_1);
-    code404Group.add(cMesh0);
-    code404Group.add(cMesh4_2);
-  }
-
-  const dispose = () => {
-    geometries.forEach((g) => g.dispose());
-    lineGeometries.forEach((g) => g.dispose());
-  };
-
-  return {
-    code404Group,
-    chromeGroup,
-    paperGroup,
-    geometries,
-    dispose,
-  };
-}
+export {
+  createDigitShape4,
+  createDigitShape0,
+  create3D404Typography,
+} from './typography';

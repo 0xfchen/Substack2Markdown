@@ -202,11 +202,11 @@ const ATTITUDE_KEYFRAMES: AttitudeKeyframe[] = [
 ];
 
 export function computeFlightOrientation(
-  flightCurve: THREE.CatmullRomCurve3,
+  _flightCurve: THREE.CatmullRomCurve3,
   u: number,
-  uRaw: number,
+  _uRaw: number,
   targetQuat: THREE.Quaternion,
-  upVector: THREE.Vector3
+  _upVector: THREE.Vector3
 ): THREE.Quaternion {
   const clampedU = Math.min(1.0, Math.max(0.0, u));
   let idx = 0;

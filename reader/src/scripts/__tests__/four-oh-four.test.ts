@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { StarfieldEngine } from '../four-oh-four/starfield';
 import {
@@ -16,6 +16,10 @@ import {
   create3D404Typography,
   generatePaperTextures,
 } from '../four-oh-four/vessel-factory';
+import {
+  getElementWorldPosition,
+  setupFlightController,
+} from '../four-oh-four/flight';
 
 describe('four-oh-four modules', () => {
   describe('StarfieldEngine', () => {
@@ -290,6 +294,172 @@ describe('four-oh-four modules', () => {
       chromeMat.dispose();
       paperMat.dispose();
       creaseMat.dispose();
+    });
+  });
+
+  describe('flight controller and coordinate projection', () => {
+    let mockCamera: THREE.PerspectiveCamera;
+    const originalWindow = (global as any).window;
+    const originalDocument = (global as any).document;
+
+    beforeEach(() => {
+      mockCamera = new THREE.PerspectiveCamera(45, 1024 / 768, 0.1, 1000);
+      mockCamera.position.set(0, 0, 8);
+      mockCamera.updateProjectionMatrix();
+
+      const listenersMap: Record<string, Function[]> = {};
+
+      (global as any).window = {
+        innerWidth: 1024,
+        innerHeight: 768,
+        addEventListener: vi.fn((eventName: string, handler: Function) => {
+          listenersMap[eventName] = listenersMap[eventName] || [];
+          listenersMap[eventName].push(handler);
+        }),
+        removeEventListener: vi.fn((eventName: string, handler: Function) => {
+          if (listenersMap[eventName]) {
+            listenersMap[eventName] = listenersMap[eventName].filter((h) => h !== handler);
+          }
+        }),
+      };
+
+      (global as any).document = {
+        body: { style: { cursor: '' } },
+        querySelector: vi.fn(() => null),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      };
+    });
+
+    afterEach(() => {
+      (global as any).window = originalWindow;
+      (global as any).document = originalDocument;
+    });
+
+    it('projects screen coordinates accurately into 3D world space', () => {
+      const mockElement = {
+        getBoundingClientRect: () => ({
+          left: 512 - 50,
+          top: 384 - 50,
+          width: 100,
+          height: 100,
+          right: 512 + 50,
+          bottom: 384 + 50,
+          x: 462,
+          y: 334,
+          toJSON: () => {},
+        }),
+      } as unknown as HTMLElement;
+
+      const worldPosition = getElementWorldPosition(mockElement, mockCamera, 0);
+      expect(worldPosition.x).toBeCloseTo(0, 2);
+      expect(worldPosition.y).toBeCloseTo(0, 2);
+      expect(worldPosition.z).toBe(0);
+
+      // Position element on the right side of the screen
+      const mockRightElement = {
+        getBoundingClientRect: () => ({
+          left: 768,
+          top: 384 - 50,
+          width: 100,
+          height: 100,
+          right: 868,
+          bottom: 384 + 50,
+          x: 768,
+          y: 334,
+          toJSON: () => {},
+        }),
+      } as unknown as HTMLElement;
+
+      const rightWorldPosition = getElementWorldPosition(mockRightElement, mockCamera, 0);
+      expect(rightWorldPosition.x).toBeGreaterThan(1.0);
+    });
+
+    it('initializes flight controller and positions starship at container world position', () => {
+      const containerListenersMap: Record<string, Function[]> = {};
+      const mockContainer = {
+        getBoundingClientRect: () => ({
+          left: 600,
+          top: 200,
+          width: 300,
+          height: 400,
+          right: 900,
+          bottom: 600,
+          x: 600,
+          y: 200,
+          toJSON: () => {},
+        }),
+        addEventListener: vi.fn((eventName: string, handler: Function) => {
+          containerListenersMap[eventName] = containerListenersMap[eventName] || [];
+          containerListenersMap[eventName].push(handler);
+        }),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLElement;
+
+      const mockCodeContainer = {
+        getBoundingClientRect: () => ({
+          left: 100,
+          top: 200,
+          width: 300,
+          height: 100,
+          right: 400,
+          bottom: 300,
+          x: 100,
+          y: 200,
+          toJSON: () => {},
+        }),
+      } as unknown as HTMLElement;
+
+      const mockCanvas = {
+        getBoundingClientRect: () => ({
+          left: 0,
+          top: 0,
+          width: 1024,
+          height: 768,
+          right: 1024,
+          bottom: 768,
+          x: 0,
+          y: 0,
+          toJSON: () => {},
+        }),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLCanvasElement;
+
+      const starshipGroup = new THREE.Group();
+      const plumeMaterial = new THREE.MeshBasicMaterial();
+
+      const flightController = setupFlightController({
+        containerElement: mockContainer,
+        canvasElement: mockCanvas,
+        codeContainerElement: mockCodeContainer,
+        camera: mockCamera,
+        starshipGroup,
+        plumeMaterial,
+        isDarkTheme: () => true,
+        prefersReducedMotion: false,
+      });
+
+      // Verify home and code positions are calculated from elements
+      const homePosition = flightController.getHomePosition();
+      const codePosition = flightController.getCodePosition();
+
+      expect(homePosition.x).toBeGreaterThan(0); // Container is on the right
+      expect(codePosition.x).toBeLessThan(0); // Code container is on the left
+      expect(starshipGroup.position.x).toBeCloseTo(homePosition.x, 3);
+      expect(starshipGroup.position.y).toBeCloseTo(homePosition.y, 3);
+
+      // Verify flight triggering
+      expect(flightController.isFlightActive()).toBe(false);
+      flightController.triggerFlight();
+      expect(flightController.isFlightActive()).toBe(true);
+      expect(flightController.getFlightCurve()).not.toBeNull();
+
+      flightController.completeFlight();
+      expect(flightController.isFlightActive()).toBe(false);
+
+      expect(() => flightController.dispose()).not.toThrow();
+      plumeMaterial.dispose();
     });
   });
 });

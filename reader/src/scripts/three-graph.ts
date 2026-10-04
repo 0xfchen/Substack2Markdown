@@ -8,7 +8,6 @@
  */
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   fetchReadingState,
   getReadingStatus,
@@ -19,11 +18,29 @@ import {
   getNodeTopicColor,
 } from '../utils/graph-colors';
 import { GRAPH_SCENE_COLORS } from '../utils/colors';
-import type { GraphData, GraphLink, GraphNode, SimNode, ActiveLink } from './graph/types';
-import { createGraphGeometries, createGraphMaterials } from './graph/mesh-factory';
-import { showGraphInspector, hideGraphInspector } from './graph/inspector';
+import type {
+  GraphData,
+  GraphLink,
+  GraphNode,
+  SimNode,
+  ActiveLink,
+} from './graph/types';
+import {
+  createGraphGeometries,
+  createGraphMaterials,
+} from './graph/mesh-factory';
 import { GraphPhysicsEngine } from './graph/physics';
 import { TimelineManager } from './graph/timeline';
+import { setupGraphScene } from './graph/scene-setup';
+import { setupGraphInteraction } from './graph/interaction';
+import {
+  setupGraphFilterControls,
+  matchesNodeCategory,
+  matchesNodeSearch,
+} from './graph/filters';
+import { hideGraphInspector } from './graph/inspector';
+import { GRAPH_SELECTORS, queryRequiredElement } from './graph/selectors';
+import { createSceneLifecycle } from './shared/scene-lifecycle';
 
 export type { GraphData, GraphLink, GraphNode, SimNode };
 
@@ -32,950 +49,746 @@ function isDarkTheme(): boolean {
 }
 
 export function initThreeGraph(): (() => void) | null {
-  const containerEl = document.querySelector<HTMLElement>('[data-graph-container]');
-  if (!containerEl) return null;
+  const containerElement = document.querySelector<HTMLElement>(
+    GRAPH_SELECTORS.container
+  );
+  if (!containerElement) return null;
 
-  const dataEl =
+  const dataPayloadElement =
     document.getElementById('graph-data-payload') ||
     document.getElementById('graph-data');
-  if (!dataEl || !dataEl.textContent) return null;
+  if (!dataPayloadElement || !dataPayloadElement.textContent) return null;
 
   let graphData: GraphData;
   try {
-    graphData = JSON.parse(dataEl.textContent);
-  } catch (err) {
-    console.error('Failed to parse graph JSON data:', err);
+    graphData = JSON.parse(dataPayloadElement.textContent);
+  } catch (error) {
+    console.error('Failed to parse graph JSON data:', error);
     return null;
   }
 
-  const canvasEl = containerEl.querySelector<HTMLCanvasElement>('[data-graph-canvas]');
-  if (!canvasEl) return null;
-
-  const container = containerEl;
-  const canvas = canvasEl;
-
-  let isDisposed = false;
-
-  // 1. Scene & Camera Setup
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(
-    60,
-    container.clientWidth / container.clientHeight,
-    0.1,
-    2000
+  const canvasElement = containerElement.querySelector<HTMLCanvasElement>(
+    GRAPH_SELECTORS.canvas
   );
-  const defaultCameraPos = new THREE.Vector3(0, 45, 230);
-  camera.position.copy(defaultCameraPos);
-  camera.lookAt(0, 0, 0);
+  if (!canvasElement) return null;
 
-  // 2. WebGL Renderer
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    alpha: true,
-    antialias: true,
-    powerPreference: 'high-performance',
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(container.clientWidth, container.clientHeight);
+  const container = containerElement;
+  const canvas = canvasElement;
 
-  // 3. Orbit Controls
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.rotateSpeed = 0.7;
-  controls.zoomSpeed = 1.0;
-  controls.panSpeed = 0.8;
-  controls.maxDistance = 600;
-  controls.minDistance = 20;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.35;
+  // 1. Scene, Camera, WebGL Renderer, OrbitControls, and Studio Lighting
+  const sceneSetup = setupGraphScene(container, canvas, isDarkTheme());
+  const { scene, camera, renderer, controls } = sceneSetup;
 
-  const onPointerDown = () => {
-    controls.autoRotate = false;
-  };
-  canvas.addEventListener('pointerdown', onPointerDown);
+  let targetCameraPosition: THREE.Vector3 | null = null;
+  let targetControlsTarget: THREE.Vector3 | null = null;
 
-  // 4. Lighting: Architectural studio illumination for light paper, neon nebula for dark space
-  const ambientLight = new THREE.AmbientLight(0xffffff, isDarkTheme() ? 1.4 : 1.5);
-  scene.add(ambientLight);
-
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, isDarkTheme() ? 1.5 : 1.4);
-  dirLight1.position.set(100, 150, 100);
-  scene.add(dirLight1);
-
-  const dirLight2 = new THREE.DirectionalLight(
-    isDarkTheme() ? GRAPH_SCENE_COLORS.dirLightDark : GRAPH_SCENE_COLORS.dirLightLight,
-    isDarkTheme() ? 1.0 : 0.7
-  );
-  dirLight2.position.set(-100, -100, -80);
-  scene.add(dirLight2);
-
-  // 5. Geometries & Materials
+  // 2. Geometries & Materials
+  const rawNodes = graphData.nodes || [];
   const geometries = createGraphGeometries();
   const materials = createGraphMaterials(isDarkTheme());
 
-  const stars = new THREE.Points(geometries.starGeo, materials.starMat);
-  stars.visible = isDarkTheme();
-  scene.add(stars);
-
-  // 6. Nodes & Initial Spherical Fibonacci Distribution
-  const nodeMap = new Map<string, SimNode>();
-  const nodeIndices = new Map<string, number>();
-  let colorMode: 'topic' | 'reading' = 'topic';
-  const showAuthorHubs = true;
-
-  const nodesGroup = new THREE.Group();
-  scene.add(nodesGroup);
+  // 3. Node Distribution & Mesh Instantiation
+  const nodeMap = new Map<string, number>();
+  const nodes: SimNode[] = rawNodes.map((rawNode, nodeIndex) => {
+    nodeMap.set(rawNode.id, nodeIndex);
+    return {
+      ...rawNode,
+      id: rawNode.id,
+      name: rawNode.name,
+      type: rawNode.type,
+      readingStatus:
+        rawNode.type === 'post'
+          ? getReadingStatus(rawNode.postId || rawNode.id.replace(/^post:/, '')) ||
+            rawNode.readingStatus ||
+            'unread'
+          : undefined,
+      x: 0,
+      y: 0,
+      z: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+    };
+  });
 
   const nodeMeshes: THREE.Mesh[] = [];
-  const nodes = graphData.nodes as SimNode[];
+  const nodeCount = nodes.length;
+  const initialSphereRadius = Math.min(
+    140,
+    Math.max(60, Math.cbrt(nodeCount) * 16)
+  );
+  const goldenRatioAngle = Math.PI * (3 - Math.sqrt(5));
 
-  nodes.forEach((node, i) => {
-    nodeIndices.set(node.id, i);
-    nodeMap.set(node.id, node);
-
-    // Initial placement in 3D spherical volume with breathing room
-    const clamped = Math.max(
-      -1,
-      Math.min(1, -1 + (2 * (i + 0.5)) / Math.max(1, nodes.length))
+  for (let i = 0; i < nodeCount; i++) {
+    const node = nodes[i];
+    const normalizedY = 1 - (i / (nodeCount - 1 || 1)) * 2;
+    const horizontalRadius = Math.sqrt(
+      Math.max(0, 1 - normalizedY * normalizedY)
     );
-    const phi = Math.acos(clamped);
-    const theta = Math.sqrt(nodes.length * Math.PI) * phi;
-    let radius = 130 + (i % 30) * 3.5;
-    if (node.type === 'author') radius = 45;
-    else if (node.type === 'tag') radius = 85 + (i % 15) * 2.5;
+    const thetaAngle = goldenRatioAngle * i;
 
-    node.x = Number.isFinite(radius * Math.cos(theta) * Math.sin(phi))
-      ? radius * Math.cos(theta) * Math.sin(phi)
-      : 0;
-    node.y = Number.isFinite(radius * Math.sin(theta) * Math.sin(phi))
-      ? radius * Math.sin(theta) * Math.sin(phi)
-      : 0;
-    node.z = Number.isFinite(radius * Math.cos(phi)) ? radius * Math.cos(phi) : 0;
-    node.vx = 0;
-    node.vy = 0;
-    node.vz = 0;
+    node.x = Math.cos(thetaAngle) * horizontalRadius * initialSphereRadius;
+    node.y = normalizedY * initialSphereRadius;
+    node.z = Math.sin(thetaAngle) * horizontalRadius * initialSphereRadius;
 
-    const isDark = isDarkTheme();
-    const geo = geometries.getNodeGeo(node, isDark);
-    const initialColor =
-      colorMode === 'topic' ? getNodeTopicColor(node, isDark) : getNodeReadingColor(node, isDark);
-
-    const mat = new THREE.MeshStandardMaterial({
-      color: initialColor,
-      roughness: isDark ? 0.25 : 0.38,
-      metalness: isDark ? 0.1 : 0.02,
-      emissive: isDark ? initialColor : 0x000000,
-      emissiveIntensity: isDark ? 0.35 : 0.0,
+    const baseColor = getNodeTopicColor(node, isDarkTheme());
+    const nodeGeometry = geometries.getNodeGeo(node, isDarkTheme());
+    const nodeMaterial = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      roughness: isDarkTheme() ? 0.25 : 0.35,
+      metalness: isDarkTheme() ? 0.1 : 0.02,
+      emissive: isDarkTheme() ? baseColor : 0x000000,
+      emissiveIntensity: isDarkTheme() ? 0.35 : 0.0,
       transparent: true,
-      opacity: isDark ? 0.94 : 0.96,
+      opacity: isDarkTheme() ? 0.94 : 0.96,
     });
 
-    // Hierarchical Scale: Planet (Largest) > Star (Medium) > Asteroid (Smallest)
-    const baseScale =
-      node.type === 'author'
-        ? 2.2
-        : node.type === 'tag'
-          ? Math.max(1.3, Math.min(1.8, (node.val || 3.0) / 2.5))
-          : 0.85;
-
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.scale.set(baseScale, baseScale, baseScale);
+    const mesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
     mesh.position.set(node.x, node.y, node.z);
-    mesh.userData = { node, originalColor: initialColor, index: i, baseScale };
-    mesh.visible = true;
-    nodesGroup.add(mesh);
+
+    const baseScaleMultiplier =
+      node.type === 'author' ? 1.5 : node.type === 'tag' ? 1.15 : 0.95;
+    mesh.scale.set(
+      baseScaleMultiplier,
+      baseScaleMultiplier,
+      baseScaleMultiplier
+    );
+
+    mesh.userData = {
+      index: i,
+      node,
+      baseScale: baseScaleMultiplier,
+      originalColor: baseColor,
+    };
+
     nodeMeshes.push(mesh);
-  });
+    scene.add(mesh);
+  }
 
-  // 7. Edges & Links Geometry
+  // 4. Edges & Link Geometry
+  const rawLinks = graphData.links || [];
   const validLinks: ActiveLink[] = [];
-  graphData.links.forEach((link) => {
-    const sIdx = nodeIndices.get(link.source);
-    const tIdx = nodeIndices.get(link.target);
-    if (sIdx !== undefined && tIdx !== undefined) {
-      validLinks.push({ sourceIdx: sIdx, targetIdx: tIdx, type: link.type, weight: link.weight });
-    }
-  });
 
-  const linkPositions = new Float32Array(validLinks.length * 6);
+  for (const rawLink of rawLinks) {
+    const sourceNodeIndex = nodeMap.get(rawLink.source);
+    const targetNodeIndex = nodeMap.get(rawLink.target);
+    if (sourceNodeIndex !== undefined && targetNodeIndex !== undefined) {
+      validLinks.push({
+        sourceIdx: sourceNodeIndex,
+        targetIdx: targetNodeIndex,
+        weight: rawLink.weight || 1,
+        type: rawLink.type || 'tag',
+      });
+    }
+  }
+
+  const linkCount = validLinks.length;
+  const linkPositionArray = new Float32Array(linkCount * 6);
   const linkGeometry = new THREE.BufferGeometry();
-  linkGeometry.setAttribute('position', new THREE.BufferAttribute(linkPositions, 3));
+  linkGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(linkPositionArray, 3)
+  );
+
   const linkLines = new THREE.LineSegments(linkGeometry, materials.linkMaterial);
   scene.add(linkLines);
 
-  const maxActiveLinks = 256;
-  const activeLinkPositions = new Float32Array(maxActiveLinks * 6);
+  const maxActiveLinks = 80;
   const activeLinkGeometry = new THREE.BufferGeometry();
-  activeLinkGeometry.setAttribute('position', new THREE.BufferAttribute(activeLinkPositions, 3));
-  const activeLinkLines = new THREE.LineSegments(activeLinkGeometry, materials.activeLinkMaterial);
+  activeLinkGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(new Float32Array(maxActiveLinks * 6), 3)
+  );
+  const activeLinkLines = new THREE.LineSegments(
+    activeLinkGeometry,
+    materials.activeLinkMaterial
+  );
   activeLinkLines.visible = false;
   scene.add(activeLinkLines);
 
-  // 8. Physics Engine & Pre-warm
-  let currentHighlightedIdx: number | null = null;
-  const physics = new GraphPhysicsEngine(
+  // 5. Starfield Dust (Cosmic Depth in Dark Mode)
+  const starParticleCount = 600;
+  const starParticleGeometry = new THREE.BufferGeometry();
+  const starPositionArray = new Float32Array(starParticleCount * 3);
+  for (let i = 0; i < starParticleCount * 3; i++) {
+    starPositionArray[i] = (Math.random() - 0.5) * 800;
+  }
+  starParticleGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(starPositionArray, 3)
+  );
+  const starParticleMaterial = new THREE.PointsMaterial({
+    color: GRAPH_SCENE_COLORS.starMatDark,
+    size: 1.2,
+    transparent: true,
+    opacity: 0.35,
+  });
+  const starsParticles = new THREE.Points(
+    starParticleGeometry,
+    starParticleMaterial
+  );
+  starsParticles.visible = isDarkTheme();
+  scene.add(starsParticles);
+
+  // 6. Physics Simulation Engine
+  let showAuthorHubs = true;
+  const physicsEngine = new GraphPhysicsEngine(
     nodes,
     validLinks,
     nodeMeshes,
     linkGeometry,
     activeLinkGeometry,
-    { showAuthorHubs, maxActiveLinks }
+    { showAuthorHubs }
   );
+  physicsEngine.prewarm(30);
 
-  // Pre-warm 55 ticks synchronously so the initial frame has formed relaxed clusters
-  physics.prewarm(55);
+  // 7. Timeline Manager
+  const timelineManager = new TimelineManager(nodes);
 
-  // 9. Timeline Manager
-  const timeline = new TimelineManager(nodes);
+  // 8. Visibility Filter Evaluator
+  let activeColorMode: 'topic' | 'reading' = 'topic';
 
-  // 10. Raycasting & Interaction
-  const raycaster = new THREE.Raycaster();
-  raycaster.params.Points = { threshold: 2.0 };
-  const mouse = new THREE.Vector2(-999, -999);
-  let hoveredMesh: THREE.Mesh | null = null;
-  let selectedMesh: THREE.Mesh | null = null;
+  const applyVisibility = () => {
+    const searchFilterQuery = filterControls.getSearchQuery();
+    const activeCategoryCriteria = filterControls.getActiveFilter();
+    const isTimelinePresent = timelineManager.isPresent();
+    const chronologicalCutoffTime = timelineManager.getCutoffTime();
+    const isDark = isDarkTheme();
 
-  let targetCameraPos: THREE.Vector3 | null = null;
-  let targetControlsTarget: THREE.Vector3 | null = null;
-
-  const tooltip = container.querySelector<HTMLElement>('[data-graph-tooltip]');
-  const tooltipTitle = container.querySelector<HTMLElement>('[data-tooltip-title]');
-  const tooltipSub = container.querySelector<HTMLElement>('[data-tooltip-sub]');
-  const inspectorClose = container.querySelector<HTMLElement>('[data-inspector-close]');
-
-  const legendTopics = container.querySelector<HTMLElement>('[data-legend-topics]');
-  const legendReading = container.querySelector<HTMLElement>('[data-legend-reading]');
-
-  let activeFilter: string = 'all';
-
-  function resetMeshHighlights() {
-    currentHighlightedIdx = null;
-    activeLinkLines.visible = false;
-    const dark = isDarkTheme();
-    materials.linkMaterial.opacity = dark ? 0.1 : 0.22;
-
-    nodeMeshes.forEach((m) => {
-      const mat = m.material as THREE.MeshStandardMaterial;
-      const baseScale = (m.userData.baseScale as number) || 1.0;
-      mat.opacity = dark ? 0.94 : 0.96;
-      mat.emissiveIntensity = dark ? 0.35 : 0.0;
-      m.scale.set(baseScale, baseScale, baseScale);
-    });
-    applyVisibility();
-  }
-
-  function highlightNeighbors(targetIdx: number) {
-    currentHighlightedIdx = targetIdx;
-    const neighborIndices = new Set<number>([targetIdx]);
-    let activeCount = 0;
-    const activePos = activeLinkGeometry.attributes.position.array as Float32Array;
-
-    validLinks.forEach((link) => {
-      if (!showAuthorHubs && link.type === 'author') return;
-      const aMesh = nodeMeshes[link.sourceIdx];
-      const bMesh = nodeMeshes[link.targetIdx];
-      if (!aMesh?.visible || !bMesh?.visible) return;
-      if (link.sourceIdx === targetIdx || link.targetIdx === targetIdx) {
-        neighborIndices.add(link.sourceIdx);
-        neighborIndices.add(link.targetIdx);
-        if (activeCount < maxActiveLinks) {
-          const a = nodes[link.sourceIdx];
-          const b = nodes[link.targetIdx];
-          const off = activeCount * 6;
-          activePos[off] = Number.isFinite(a.x) ? a.x : 0;
-          activePos[off + 1] = Number.isFinite(a.y) ? a.y : 0;
-          activePos[off + 2] = Number.isFinite(a.z) ? a.z : 0;
-          activePos[off + 3] = Number.isFinite(b.x) ? b.x : 0;
-          activePos[off + 4] = Number.isFinite(b.y) ? b.y : 0;
-          activePos[off + 5] = Number.isFinite(b.z) ? b.z : 0;
-          activeCount++;
-        }
-      }
-    });
-
-    activeLinkGeometry.setDrawRange(0, activeCount * 2);
-    activeLinkGeometry.attributes.position.needsUpdate = true;
-    activeLinkLines.visible = true;
-
-    // Dim background web
-    const dark = isDarkTheme();
-    materials.linkMaterial.opacity = dark ? 0.015 : 0.04;
-
-    // Highlight target and immediate neighbors; dim unrelated stars
-    nodeMeshes.forEach((m, i) => {
-      const mat = m.material as THREE.MeshStandardMaterial;
-      const baseScale = (m.userData.baseScale as number) || 1.0;
-      if (i === targetIdx) {
-        mat.opacity = 1.0;
-        mat.emissiveIntensity = dark ? 0.9 : 0.25;
-        m.scale.set(baseScale * 2.4, baseScale * 2.4, baseScale * 2.4);
-      } else if (neighborIndices.has(i)) {
-        mat.opacity = 0.95;
-        mat.emissiveIntensity = dark ? 0.6 : 0.12;
-        m.scale.set(baseScale * 1.5, baseScale * 1.5, baseScale * 1.5);
-      } else {
-        mat.opacity = dark ? 0.06 : 0.12;
-        mat.emissiveIntensity = 0.0;
-        m.scale.set(baseScale * 0.55, baseScale * 0.55, baseScale * 0.55);
-      }
-    });
-  }
-
-  const onInspectorClose = () => {
-    hideGraphInspector(container);
-    selectedMesh = null;
-    resetMeshHighlights();
-  };
-  inspectorClose?.addEventListener('click', onInspectorClose);
-
-  function onPointerMove(e: PointerEvent) {
-    const rect = canvas.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    if (tooltip) {
-      tooltip.style.left = `${e.clientX - rect.left}px`;
-      tooltip.style.top = `${e.clientY - rect.top}px`;
-    }
-  }
-  canvas.addEventListener('pointermove', onPointerMove, { passive: true });
-
-  function onPointerLeave() {
-    mouse.set(-999, -999);
-    if (hoveredMesh) {
-      hoveredMesh = null;
-      canvas.style.cursor = 'grab';
-      tooltip?.classList.remove('visible');
-
-      if (!selectedMesh) {
-        resetMeshHighlights();
-      }
-    }
-  }
-  canvas.addEventListener('pointerleave', onPointerLeave);
-
-  function onCanvasClick() {
-    raycaster.setFromCamera(mouse, camera);
-    const visibleMeshes = nodeMeshes.filter((m) => m.visible);
-    const intersects = raycaster.intersectObjects(visibleMeshes);
-
-    if (intersects.length > 0) {
-      const hitMesh = intersects[0].object as THREE.Mesh;
-      const node = hitMesh.userData.node as GraphNode;
-      selectedMesh = hitMesh;
-
-      highlightNeighbors(hitMesh.userData.index);
-      showGraphInspector(container, node, nodes);
-
-      const nodePos = hitMesh.position;
-      targetControlsTarget = nodePos.clone();
-      const offset = camera.position.clone().sub(controls.target).normalize().multiplyScalar(45);
-      targetCameraPos = nodePos.clone().add(offset);
-    } else {
-      selectedMesh = null;
-      resetMeshHighlights();
-      tooltip?.classList.remove('visible');
-      hideGraphInspector(container);
-    }
-  }
-  canvas.addEventListener('click', onCanvasClick);
-
-  // 11. Timeline Controls
-  const timelineSlider = container.querySelector<HTMLInputElement>('[data-timeline-slider]');
-  const timelinePlayBtn = container.querySelector<HTMLButtonElement>('[data-timeline-play-btn]');
-  const timelineSpeedBtn = container.querySelector<HTMLButtonElement>('[data-timeline-speed-btn]');
-  const timelinePresentBtn = container.querySelector<HTMLButtonElement>('[data-timeline-present-btn]');
-
-  function applyVisibility() {
-    const searchEl = container.querySelector<HTMLInputElement>('[data-graph-search]');
-    const q = searchEl?.value.trim().toLowerCase() || '';
-    const isPresent = timeline.isPresent();
-    const cutoffTime = timeline.getCutoffTime();
-    const dark = isDarkTheme();
-
-    let visiblePosts = 0;
-    let totalPosts = 0;
+    let visiblePostCount = 0;
+    let totalPostCount = 0;
 
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
-      const m = nodeMeshes[i];
-      const mat = m.material as THREE.MeshStandardMaterial;
-      const baseScale = (m.userData.baseScale as number) || 1.0;
+      const nodeMesh = nodeMeshes[i];
+      const standardMaterial = nodeMesh.material as THREE.MeshStandardMaterial;
+      const baseScaleMultiplier =
+        (nodeMesh.userData.baseScale as number) || 1.0;
 
-      if (node.type === 'post') totalPosts++;
+      if (node.type === 'post') totalPostCount++;
 
-      // 1. Timeline Chronological Cutoff
-      const birthTime = timeline.nodeBirthTimestamps[i];
-      const isBorn = isPresent || birthTime <= cutoffTime;
+      const nodeBirthTimestamp = timelineManager.nodeBirthTimestamps[i];
+      const isNodeBorn =
+        isTimelinePresent || nodeBirthTimestamp <= chronologicalCutoffTime;
 
-      if (node.type === 'post' && isBorn) {
-        visiblePosts++;
+      if (node.type === 'post' && isNodeBorn) {
+        visiblePostCount++;
       }
 
-      if (!isBorn) {
-        timeline.wasBorn[i] = 0;
-        timeline.activePopAnimations.delete(i);
-        m.visible = false;
-        m.scale.set(0, 0, 0);
+      if (!isNodeBorn) {
+        timelineManager.wasBorn[i] = 0;
+        timelineManager.activePopAnimations.delete(i);
+        nodeMesh.visible = false;
+        nodeMesh.scale.set(0, 0, 0);
         continue;
       }
 
-      // If becoming born just now, trigger elastic pop
-      if (timeline.wasBorn[i] === 0) {
-        timeline.wasBorn[i] = 1;
-        timeline.activePopAnimations.set(i, {
+      if (timelineManager.wasBorn[i] === 0) {
+        timelineManager.wasBorn[i] = 1;
+        timelineManager.activePopAnimations.set(i, {
           startTime: performance.now(),
           duration: 480,
         });
       }
-      m.visible = true;
+      nodeMesh.visible = true;
 
-      // 2. Category & Reading Status Filter
-      let matchesCategory = true;
-      if (activeFilter === 'publications') {
-        matchesCategory = node.type === 'author';
-      } else if (activeFilter === 'tags') {
-        matchesCategory = node.type === 'tag';
-      } else if (activeFilter === 'articles') {
-        matchesCategory = node.type === 'post';
-      } else if (activeFilter.startsWith('status:')) {
-        const targetStatus = activeFilter.replace('status:', '');
-        matchesCategory = node.type === 'post' && (node.readingStatus || 'unread') === targetStatus;
-      }
+      const matchesCategory = matchesNodeCategory(node, activeCategoryCriteria);
+      const matchesSearch = matchesNodeSearch(node, searchFilterQuery);
 
-      // 3. Search Filter
-      let matchesSearch = true;
-      if (q) {
-        const nameMatch = node.name.toLowerCase().includes(q);
-        const tagMatch = (node.tags || []).some((t) => t.toLowerCase().includes(q));
-        const authorMatch = (node.author || '').toLowerCase().includes(q);
-        matchesSearch = nameMatch || tagMatch || authorMatch;
-      }
-
-      if (!timeline.activePopAnimations.has(i)) {
+      if (!timelineManager.activePopAnimations.has(i)) {
         if (matchesCategory && matchesSearch) {
-          mat.opacity = dark ? 0.94 : 0.96;
-          m.scale.set(baseScale, baseScale, baseScale);
+          standardMaterial.opacity = isDark ? 0.94 : 0.96;
+          nodeMesh.scale.set(
+            baseScaleMultiplier,
+            baseScaleMultiplier,
+            baseScaleMultiplier
+          );
         } else {
-          mat.opacity = dark ? 0.05 : 0.08;
-          const dimScale = baseScale * 0.55;
-          m.scale.set(dimScale, dimScale, dimScale);
+          standardMaterial.opacity = isDark ? 0.05 : 0.08;
+          const dimmedScale = baseScaleMultiplier * 0.55;
+          nodeMesh.scale.set(dimmedScale, dimmedScale, dimmedScale);
         }
       }
     }
 
-    physics.updateLinkEndpoints();
-    timeline.updateHUD(container, visiblePosts, totalPosts);
-  }
+    physicsEngine.updateLinkEndpoints();
+    timelineManager.updateHUD(container, visiblePostCount, totalPostCount);
+  };
 
-  const onTimelineInput = () => {
-    timeline.setPlaying(container, false);
-    if (timelineSlider) {
-      const val = parseInt(timelineSlider.value, 10);
-      timeline.timelineFraction = Math.max(0, Math.min(1, val / 1000));
+  // 9. Interaction Manager (Raycasting, Hover, Highlighting, Tooltip)
+  const interactionManager = setupGraphInteraction({
+    containerElement: container,
+    canvasElement: canvas,
+    camera,
+    controls,
+    nodes,
+    nodeMeshes,
+    validLinks,
+    activeLinkLines,
+    activeLinkGeometry,
+    linkMaterial: materials.linkMaterial,
+    maxActiveLinks,
+    isDarkTheme,
+    getShowAuthorHubs: () => showAuthorHubs,
+    onResetHighlights: () => {
+      applyVisibility();
+    },
+    onCameraFocusRequested: (
+      targetCameraPosVector,
+      targetControlsTargetVector
+    ) => {
+      targetCameraPosition = targetCameraPosVector;
+      targetControlsTarget = targetControlsTargetVector;
+    },
+  });
+
+  // 10. Filter & Search Controls
+  const filterControls = setupGraphFilterControls(container, () => {
+    applyVisibility();
+    physicsEngine.reheat(0.15);
+  });
+
+  // 11. Timeline Controls Wiring
+  const timelineSliderElement = queryRequiredElement<HTMLInputElement>(
+    container,
+    GRAPH_SELECTORS.timelineSlider,
+    'Timeline Slider'
+  );
+  const timelinePlayButtonElement = queryRequiredElement<HTMLButtonElement>(
+    container,
+    GRAPH_SELECTORS.timelinePlayButton,
+    'Timeline Play Button'
+  );
+  const timelineSpeedButtonElement = queryRequiredElement<HTMLButtonElement>(
+    container,
+    GRAPH_SELECTORS.timelineSpeedButton,
+    'Timeline Speed Button'
+  );
+  const timelinePresentButtonElement = queryRequiredElement<HTMLButtonElement>(
+    container,
+    GRAPH_SELECTORS.timelinePresentButton,
+    'Timeline Present Button'
+  );
+
+  const handleTimelineSliderInput = () => {
+    timelineManager.setPlaying(container, false);
+    if (timelineSliderElement) {
+      const sliderIntegerVal = parseInt(timelineSliderElement.value, 10);
+      timelineManager.timelineFraction = Math.max(
+        0,
+        Math.min(1, sliderIntegerVal / 1000)
+      );
       applyVisibility();
     }
   };
-  timelineSlider?.addEventListener('input', onTimelineInput);
+  timelineSliderElement?.addEventListener('input', handleTimelineSliderInput);
 
-  const onPlayToggle = () => {
-    if (timeline.isPlaying) {
-      timeline.setPlaying(container, false);
+  const handleTimelinePlayToggle = () => {
+    if (timelineManager.isPlaying) {
+      timelineManager.setPlaying(container, false);
     } else {
-      if (timeline.timelineFraction >= 0.999) {
-        timeline.timelineFraction = 0.0;
-        if (timelineSlider) timelineSlider.value = '0';
+      if (timelineManager.timelineFraction >= 0.999) {
+        timelineManager.timelineFraction = 0.0;
+        if (timelineSliderElement) timelineSliderElement.value = '0';
       }
-      timeline.setPlaying(container, true);
-      timeline.lastTimelineTime = performance.now();
+      timelineManager.setPlaying(container, true);
+      timelineManager.lastTimelineTime = performance.now();
     }
   };
-  timelinePlayBtn?.addEventListener('click', onPlayToggle);
+  timelinePlayButtonElement?.addEventListener(
+    'click',
+    handleTimelinePlayToggle
+  );
 
-  const onSpeedClick = () => {
-    timeline.cycleSpeed(container);
+  const handleTimelineSpeedClick = () => {
+    timelineManager.cycleSpeed(container);
   };
-  timelineSpeedBtn?.addEventListener('click', onSpeedClick);
+  timelineSpeedButtonElement?.addEventListener(
+    'click',
+    handleTimelineSpeedClick
+  );
 
-  const onPresentClick = () => {
-    timeline.setPlaying(container, false);
-    timeline.timelineFraction = 1.0;
-    if (timelineSlider) timelineSlider.value = '1000';
+  const handleTimelinePresentClick = () => {
+    timelineManager.setPlaying(container, false);
+    timelineManager.timelineFraction = 1.0;
+    if (timelineSliderElement) timelineSliderElement.value = '1000';
     applyVisibility();
   };
-  timelinePresentBtn?.addEventListener('click', onPresentClick);
+  timelinePresentButtonElement?.addEventListener(
+    'click',
+    handleTimelinePresentClick
+  );
 
-  // 12. Search & Filter Controls
-  const searchInput = container.querySelector<HTMLInputElement>('[data-graph-search]');
-  const onSearchInput = () => {
-    applyVisibility();
-  };
-  searchInput?.addEventListener('input', onSearchInput);
+  // 12. Mode & Camera Action Buttons
+  const colorModeButtonElement = queryRequiredElement<HTMLButtonElement>(
+    container,
+    GRAPH_SELECTORS.colorModeButton,
+    'Color Mode Button'
+  );
+  const colorModeLabelElement = container.querySelector<HTMLElement>(
+    GRAPH_SELECTORS.colorModeLabel
+  );
+  const legendTopicsGroupElement = container.querySelector<HTMLElement>(
+    GRAPH_SELECTORS.legendTopics
+  );
+  const legendReadingGroupElement = container.querySelector<HTMLElement>(
+    GRAPH_SELECTORS.legendReading
+  );
+  const filterGroupTopicsElement = container.querySelector<HTMLElement>(
+    GRAPH_SELECTORS.filterGroupTopics
+  );
+  const filterGroupReadingElement = container.querySelector<HTMLElement>(
+    GRAPH_SELECTORS.filterGroupReading
+  );
 
-  const filterButtons = container.querySelectorAll<HTMLButtonElement>('[data-filter]');
-  const onFilterClick = (btn: HTMLButtonElement) => {
-    const parentGroup = btn.closest('.graph-filter-mode-group');
-    if (parentGroup) {
-      parentGroup.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach((b) => b.classList.remove('active'));
-    } else {
-      filterButtons.forEach((b) => b.classList.remove('active'));
+  const handleColorModeToggle = () => {
+    activeColorMode = activeColorMode === 'topic' ? 'reading' : 'topic';
+    const isReading = activeColorMode === 'reading';
+    const isDark = isDarkTheme();
+
+    if (colorModeButtonElement) {
+      colorModeButtonElement.classList.toggle('active', isReading);
     }
-    btn.classList.add('active');
-    const filterVal = btn.dataset.filter || 'all';
-    activeFilter = filterVal;
-
-    nodeMeshes.forEach((m) => {
-      const node = m.userData.node as GraphNode;
-      const mat = m.material as THREE.MeshStandardMaterial;
-      const baseScale = (m.userData.baseScale as number) || 1.0;
-
-      let visible = true;
-      if (filterVal === 'publications') {
-        visible = node.type === 'author';
-      } else if (filterVal === 'tags') {
-        visible = node.type === 'tag';
-      } else if (filterVal === 'articles') {
-        visible = node.type === 'post';
-      } else if (filterVal.startsWith('status:')) {
-        const targetStatus = filterVal.replace('status:', '');
-        visible = node.type === 'post' && (node.readingStatus || 'unread') === targetStatus;
-      }
-
-      mat.opacity = visible ? 0.92 : 0.06;
-      const scaleMult = visible ? 1.0 : 0.5;
-      m.scale.set(baseScale * scaleMult, baseScale * scaleMult, baseScale * scaleMult);
-    });
-
-    applyVisibility();
-    physics.reheat(0.15);
-  };
-
-  const filterListeners: { btn: HTMLButtonElement; fn: () => void }[] = [];
-  filterButtons.forEach((btn) => {
-    const fn = () => onFilterClick(btn);
-    btn.addEventListener('click', fn);
-    filterListeners.push({ btn, fn });
-  });
-
-  // Color Mode Switcher
-  const colorModeBtn = container.querySelector<HTMLButtonElement>('[data-color-mode-btn]');
-  const colorModeLabel = container.querySelector<HTMLElement>('[data-color-mode-label]');
-
-  const onColorModeClick = () => {
-    colorMode = colorMode === 'topic' ? 'reading' : 'topic';
-    const isReading = colorMode === 'reading';
-
-    if (colorModeLabel) {
-      colorModeLabel.textContent = isReading ? 'Color: Reading Status' : 'Color: Topics';
+    if (colorModeLabelElement) {
+      colorModeLabelElement.textContent = isReading
+        ? 'Color: Reading Status'
+        : 'Color: Topics';
     }
 
-    legendTopics?.classList.toggle('hidden', isReading);
-    legendReading?.classList.toggle('hidden', !isReading);
-
-    const filtersTopics = container.querySelector('[data-filters-topic]');
-    const filtersReading = container.querySelector('[data-filters-reading]');
-    filtersTopics?.classList.toggle('hidden', isReading);
-    filtersReading?.classList.toggle('hidden', !isReading);
-
-    const activeGroup = isReading ? filtersReading : filtersTopics;
-    const allBtn = activeGroup?.querySelector<HTMLButtonElement>('[data-filter="all"]');
-    if (allBtn) {
-      onFilterClick(allBtn);
+    if (legendTopicsGroupElement && legendReadingGroupElement) {
+      legendTopicsGroupElement.classList.toggle('hidden', isReading);
+      legendReadingGroupElement.classList.toggle('hidden', !isReading);
     }
 
-    nodeMeshes.forEach((m) => {
-      const node = m.userData.node as GraphNode;
-      const dark = isDarkTheme();
-      const newColor =
-        colorMode === 'topic' ? getNodeTopicColor(node, dark) : getNodeReadingColor(node, dark);
-      m.userData.originalColor = newColor;
-      const mat = m.material as THREE.MeshStandardMaterial;
-      mat.color.setHex(newColor);
-      mat.emissive.setHex(dark ? newColor : 0x000000);
-      mat.emissiveIntensity = dark ? 0.35 : 0.0;
+    filterGroupTopicsElement?.classList.toggle('hidden', isReading);
+    filterGroupReadingElement?.classList.toggle('hidden', !isReading);
+
+    const activeFilterGroup = isReading
+      ? filterGroupReadingElement
+      : filterGroupTopicsElement;
+    const allFilterButton = activeFilterGroup?.querySelector<HTMLButtonElement>(
+      '[data-filter="all"], [data-graph-filter="all"]'
+    );
+    if (allFilterButton) {
+      allFilterButton.click();
+    }
+
+    nodeMeshes.forEach((meshItem) => {
+      const node = meshItem.userData.node as GraphNode;
+      const targetColor =
+        activeColorMode === 'topic'
+          ? getNodeTopicColor(node, isDark)
+          : getNodeReadingColor(node, isDark);
+      meshItem.userData.originalColor = targetColor;
+      const standardMaterial = meshItem.material as THREE.MeshStandardMaterial;
+      standardMaterial.color.setHex(targetColor);
+      standardMaterial.emissive.setHex(isDark ? targetColor : 0x000000);
+      standardMaterial.emissiveIntensity = isDark ? 0.35 : 0.0;
     });
   };
-  colorModeBtn?.addEventListener('click', onColorModeClick);
+  colorModeButtonElement?.addEventListener('click', handleColorModeToggle);
 
-  // Reset Camera Button
-  const resetCameraBtn = container.querySelector<HTMLButtonElement>('[data-reset-camera-btn]');
-  const onResetCameraClick = () => {
-    targetCameraPos = defaultCameraPos.clone();
+  const resetCameraButtonElement = queryRequiredElement<HTMLButtonElement>(
+    container,
+    GRAPH_SELECTORS.resetCameraButton,
+    'Reset Camera Button'
+  );
+  const handleResetCameraClick = () => {
+    targetCameraPosition = sceneSetup.defaultCameraPosition.clone();
     targetControlsTarget = new THREE.Vector3(0, 0, 0);
     controls.autoRotate = true;
-    resetMeshHighlights();
+    interactionManager.resetMeshHighlights();
     hideGraphInspector(container);
   };
-  resetCameraBtn?.addEventListener('click', onResetCameraClick);
+  resetCameraButtonElement?.addEventListener('click', handleResetCameraClick);
 
-  // 13. Theme Changes Observer
-  function updateTheme() {
-    const dark = isDarkTheme();
-    materials.linkMaterial.color.setHex(
-      dark ? GRAPH_SCENE_COLORS.linksDark : GRAPH_SCENE_COLORS.linksLightFaint
-    );
-
-    ambientLight.intensity = dark ? 1.4 : 1.5;
-    dirLight1.intensity = dark ? 1.5 : 1.4;
-    dirLight2.color.setHex(
-      dark ? GRAPH_SCENE_COLORS.dirLightDark : GRAPH_SCENE_COLORS.dirLightLight
-    );
-    dirLight2.intensity = dark ? 1.0 : 0.7;
-
-    stars.visible = dark;
+  // 13. Theme Synchronization
+  const updateTheme = (isDark: boolean) => {
+    sceneSetup.updateLightingForTheme(isDark);
+    starsParticles.visible = isDark;
 
     materials.linkMaterial.color.setHex(
-      dark ? GRAPH_SCENE_COLORS.linksDark : GRAPH_SCENE_COLORS.linksLight
+      isDark ? GRAPH_SCENE_COLORS.linksDark : GRAPH_SCENE_COLORS.linksLight
     );
     materials.linkMaterial.opacity =
-      currentHighlightedIdx !== null
-        ? (dark ? 0.015 : 0.04)
-        : (dark ? 0.1 : 0.22);
+      interactionManager.getCurrentHighlightedIndex() !== null
+        ? isDark
+          ? 0.015
+          : 0.04
+        : isDark
+          ? 0.1
+          : 0.22;
+
     materials.activeLinkMaterial.color.setHex(
-      dark ? GRAPH_SCENE_COLORS.activeLinkDark : GRAPH_SCENE_COLORS.activeLinkLight
+      isDark
+        ? GRAPH_SCENE_COLORS.activeLinkDark
+        : GRAPH_SCENE_COLORS.activeLinkLight
     );
 
-    if (colorMode === 'reading') {
-      nodeMeshes.forEach((m) => {
-        const node = m.userData.node as GraphNode;
-        const color = getNodeReadingColor(node, dark);
-        const mat = m.material as THREE.MeshStandardMaterial;
-        mat.color.setHex(color);
-        mat.emissive.setHex(color);
-      });
-    }
-
-    nodeMeshes.forEach((m) => {
-      const node = m.userData.node as GraphNode;
-      const color =
-        colorMode === 'topic' ? getNodeTopicColor(node, dark) : getNodeReadingColor(node, dark);
-      m.userData.originalColor = color;
-      m.geometry = geometries.getNodeGeo(node, dark);
-      const mat = m.material as THREE.MeshStandardMaterial;
-      mat.color.setHex(color);
-      mat.roughness = dark ? 0.25 : 0.35;
-      mat.metalness = dark ? 0.1 : 0.02;
-      mat.emissive.setHex(dark ? color : 0x000000);
-      mat.emissiveIntensity = dark ? 0.35 : 0.0;
-      mat.opacity = dark ? 0.94 : 0.96;
+    nodeMeshes.forEach((meshItem) => {
+      const node = meshItem.userData.node as GraphNode;
+      const targetColor =
+        activeColorMode === 'topic'
+          ? getNodeTopicColor(node, isDark)
+          : getNodeReadingColor(node, isDark);
+      meshItem.userData.originalColor = targetColor;
+      meshItem.geometry = geometries.getNodeGeo(node, isDark);
+      const standardMaterial = meshItem.material as THREE.MeshStandardMaterial;
+      standardMaterial.color.setHex(targetColor);
+      standardMaterial.roughness = isDark ? 0.25 : 0.35;
+      standardMaterial.metalness = isDark ? 0.1 : 0.02;
+      standardMaterial.emissive.setHex(isDark ? targetColor : 0x000000);
+      standardMaterial.emissiveIntensity = isDark ? 0.35 : 0.0;
+      standardMaterial.opacity = isDark ? 0.94 : 0.96;
     });
 
-    // Option 3: The Knowledge Dendrogram / Intellectual Evolution Adaptive Nomenclature & Shapes
-    const timelineTitle = container.querySelector<HTMLElement>('[data-timeline-title]');
-    if (timelineTitle) {
-      timelineTitle.textContent = dark ? 'Universe Expansion' : 'Knowledge Evolution';
+    const timelineTitleElement = container.querySelector<HTMLElement>(
+      GRAPH_SELECTORS.timelineTitle
+    );
+    if (timelineTitleElement) {
+      timelineTitleElement.textContent = isDark
+        ? 'Universe Expansion'
+        : 'Knowledge Evolution';
     }
 
-    const legendAuthor = container.querySelector<HTMLElement>('[data-legend-label="author"]');
-    if (legendAuthor) {
-      legendAuthor.textContent = dark ? 'Publication (Planet)' : 'Publication (Core Hub)';
+    const legendAuthorElement = container.querySelector<HTMLElement>(
+      GRAPH_SELECTORS.legendLabelAuthor
+    );
+    if (legendAuthorElement) {
+      legendAuthorElement.textContent = isDark
+        ? 'Publication (Planet)'
+        : 'Publication (Core Hub)';
     }
 
-    const legendTag = container.querySelector<HTMLElement>('[data-legend-label="tag"]');
-    if (legendTag) {
-      legendTag.textContent = dark ? 'Topic (Star)' : 'Topic (Subject Diamond)';
+    const legendTagElement = container.querySelector<HTMLElement>(
+      GRAPH_SELECTORS.legendLabelTag
+    );
+    if (legendTagElement) {
+      legendTagElement.textContent = isDark
+        ? 'Topic (Star)'
+        : 'Topic (Subject Diamond)';
     }
 
-    const legendPost = container.querySelector<HTMLElement>('[data-legend-label="post"]');
-    if (legendPost) {
-      legendPost.textContent = dark ? 'Article (Asteroid)' : 'Article (Document Folio)';
+    const legendPostElement = container.querySelector<HTMLElement>(
+      GRAPH_SELECTORS.legendLabelPost
+    );
+    if (legendPostElement) {
+      legendPostElement.textContent = isDark
+        ? 'Article (Asteroid)'
+        : 'Article (Document Folio)';
     }
 
-    if (timelinePresentBtn) {
-      timelinePresentBtn.title = dark ? 'Reset to Present (Full Cosmos)' : 'Reset to Full Network';
+    if (timelinePresentButtonElement) {
+      timelinePresentButtonElement.title = isDark
+        ? 'Reset to Present (Full Cosmos)'
+        : 'Reset to Full Network';
     }
-  }
+  };
 
-  const themeObserver = new MutationObserver(() => updateTheme());
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme'],
-  });
-  updateTheme();
-
-  // 14. Reading State Sync
-  function syncReadingState() {
-    if (isDisposed) return;
-
-    nodeMeshes.forEach((mesh) => {
-      const node = mesh.userData.node as GraphNode;
-      if (node.type !== 'post') return;
-
-      const slug = node.postId || node.id.replace(/^post:/, '');
-      const clientStatus = getReadingStatus(slug);
-      if (clientStatus === 'completed') {
-        node.readingStatus = 'completed';
-      } else if (clientStatus === 'in-progress') {
-        node.readingStatus = 'in-progress';
-      } else if (clientStatus === 'pending') {
-        node.readingStatus = 'pending';
-      } else {
-        node.readingStatus = 'unread';
-      }
-
-      if (colorMode === 'reading') {
-        const newColor = getNodeReadingColor(node, isDarkTheme());
-        const mat = mesh.material as THREE.MeshStandardMaterial;
-        mat.color.setHex(newColor);
-        mat.emissive.setHex(newColor);
+  // 14. Reading State Synchronization
+  const syncReadingState = () => {
+    nodeMeshes.forEach((meshItem) => {
+      const node = meshItem.userData.node as GraphNode;
+      if (node.type === 'post') {
+        const postSlug = node.postId || node.id.replace(/^post:/, '');
+        node.readingStatus = getReadingStatus(postSlug) || 'unread';
+        if (activeColorMode === 'reading') {
+          const statusColor = getNodeReadingColor(node, isDarkTheme());
+          meshItem.userData.originalColor = statusColor;
+          const standardMaterial =
+            meshItem.material as THREE.MeshStandardMaterial;
+          standardMaterial.color.setHex(statusColor);
+          standardMaterial.emissive.setHex(
+            isDarkTheme() ? statusColor : 0x000000
+          );
+        }
       }
     });
+    applyVisibility();
+  };
 
-    if (selectedMesh) {
-      const activeNode = selectedMesh.userData.node as GraphNode;
-      showGraphInspector(container, activeNode, nodes);
-    }
-  }
-
-  syncReadingState();
-  fetchReadingState().then(() => {
-    syncReadingState();
-  });
-
-  const onReadingStatusChanged = () => {
+  const handleReadingStatusChangedEvent = () => {
     syncReadingState();
   };
-  window.addEventListener(READING_STATUS_CHANGE_EVENT, onReadingStatusChanged);
+  window.addEventListener(
+    READING_STATUS_CHANGE_EVENT,
+    handleReadingStatusChangedEvent
+  );
 
-  // 15. Responsive Resize
-  function onResize() {
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    if (width === 0 || height === 0) return;
+  fetchReadingState().then(() => syncReadingState()).catch(() => {});
 
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  }
+  // 15. Shared Scene Lifecycle
+  const lifecycleController = createSceneLifecycle({
+    container,
+    canvas,
+    onAnimate: (timestamp) => {
+      const timeDelta = Math.min(
+        100,
+        timestamp - timelineManager.lastTimelineTime
+      );
+      timelineManager.lastTimelineTime = timestamp;
 
-  const resizeObserver = new ResizeObserver(onResize);
-  resizeObserver.observe(container);
-
-  // 16. Animation Loop
-  let animationFrameId = 0;
-  let isVisible = true;
-
-  const intersectionObserver = new IntersectionObserver(([entry]) => {
-    const wasContainerVisible = isVisible;
-    isVisible = entry.isIntersecting;
-
-    if (isVisible && !wasContainerVisible) {
-      timeline.lastTimelineTime = performance.now();
-      if (!animationFrameId) {
-        animationFrameId = requestAnimationFrame(animate);
+      if (timelineManager.isPlaying) {
+        const fullExpansionDuration = 18000 / timelineManager.playbackSpeed;
+        timelineManager.timelineFraction += timeDelta / fullExpansionDuration;
+        if (timelineManager.timelineFraction >= 1.0) {
+          timelineManager.timelineFraction = 1.0;
+          timelineManager.setPlaying(container, false);
+        }
+        if (timelineSliderElement) {
+          timelineSliderElement.value = String(
+            Math.round(timelineManager.timelineFraction * 1000)
+          );
+        }
+        applyVisibility();
       }
-    } else if (!isVisible && animationFrameId) {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = 0;
-    }
+
+      timelineManager.updatePopAnimations(
+        timestamp,
+        nodeMeshes,
+        isDarkTheme()
+      );
+
+      physicsEngine.step(interactionManager.getCurrentHighlightedIndex());
+
+      for (let i = 0; i < nodes.length; i++) {
+        if (!nodeMeshes[i].visible) continue;
+        const nodeType = nodes[i].type;
+        if (nodeType === 'author') {
+          nodeMeshes[i].rotation.y += 0.008;
+          nodeMeshes[i].rotation.z += 0.002;
+        } else if (nodeType === 'post') {
+          nodeMeshes[i].rotation.x += 0.006;
+          nodeMeshes[i].rotation.y += 0.009;
+        } else if (nodeType === 'tag') {
+          nodeMeshes[i].rotation.y += 0.004;
+        }
+      }
+
+      if (targetCameraPosition && targetControlsTarget) {
+        camera.position.lerp(targetCameraPosition, 0.08);
+        controls.target.lerp(targetControlsTarget, 0.08);
+        if (camera.position.distanceTo(targetCameraPosition) < 1.0) {
+          targetCameraPosition = null;
+          targetControlsTarget = null;
+        }
+      }
+
+      controls.update();
+      interactionManager.checkHover();
+      renderer.render(scene, camera);
+    },
+    onResize: (viewportWidth, viewportHeight) => {
+      sceneSetup.resizeViewport(viewportWidth, viewportHeight);
+    },
+    onThemeChange: (isDark) => {
+      updateTheme(isDark);
+    },
+    onVisibilityChange: (isViewportVisible) => {
+      if (isViewportVisible) {
+        timelineManager.lastTimelineTime = performance.now();
+      }
+    },
+    onTeardown: () => {
+      timelineManager.setPlaying(container, false);
+
+      try {
+        delete (window as any).__threeGraph;
+      } catch {
+        (window as any).__threeGraph = undefined;
+      }
+
+      sceneSetup.dispose();
+      interactionManager.dispose();
+      filterControls.dispose();
+
+      timelineSliderElement?.removeEventListener(
+        'input',
+        handleTimelineSliderInput
+      );
+      timelinePlayButtonElement?.removeEventListener(
+        'click',
+        handleTimelinePlayToggle
+      );
+      timelineSpeedButtonElement?.removeEventListener(
+        'click',
+        handleTimelineSpeedClick
+      );
+      timelinePresentButtonElement?.removeEventListener(
+        'click',
+        handleTimelinePresentClick
+      );
+      colorModeButtonElement?.removeEventListener(
+        'click',
+        handleColorModeToggle
+      );
+      resetCameraButtonElement?.removeEventListener(
+        'click',
+        handleResetCameraClick
+      );
+      window.removeEventListener(
+        READING_STATUS_CHANGE_EVENT,
+        handleReadingStatusChangedEvent
+      );
+
+      geometries.dispose();
+      materials.dispose();
+      linkGeometry.dispose();
+      activeLinkGeometry.dispose();
+      starParticleGeometry.dispose();
+      starParticleMaterial.dispose();
+    },
   });
-  intersectionObserver.observe(container);
-
-  function animate() {
-    if (!isVisible) {
-      animationFrameId = 0;
-      return;
-    }
-    animationFrameId = requestAnimationFrame(animate);
-
-    const now = performance.now();
-    const dt = Math.min(100, now - timeline.lastTimelineTime);
-    timeline.lastTimelineTime = now;
-
-    if (timeline.isPlaying) {
-      const fullDuration = 18000 / timeline.playbackSpeed;
-      timeline.timelineFraction += dt / fullDuration;
-      if (timeline.timelineFraction >= 1.0) {
-        timeline.timelineFraction = 1.0;
-        timeline.setPlaying(container, false);
-      }
-      if (timelineSlider) {
-        timelineSlider.value = String(Math.round(timeline.timelineFraction * 1000));
-      }
-      applyVisibility();
-    }
-
-    timeline.updatePopAnimations(now, nodeMeshes, isDarkTheme());
-
-    physics.step(currentHighlightedIdx);
-
-    // Planetary rotation
-    for (let i = 0; i < nodes.length; i++) {
-      if (!nodeMeshes[i].visible) continue;
-      const type = nodes[i].type;
-      if (type === 'author') {
-        nodeMeshes[i].rotation.y += 0.008;
-        nodeMeshes[i].rotation.z += 0.002;
-      } else if (type === 'post') {
-        nodeMeshes[i].rotation.x += 0.006;
-        nodeMeshes[i].rotation.y += 0.009;
-      } else if (type === 'tag') {
-        nodeMeshes[i].rotation.y += 0.004;
-      }
-    }
-
-    if (targetCameraPos && targetControlsTarget) {
-      camera.position.lerp(targetCameraPos, 0.08);
-      controls.target.lerp(targetControlsTarget, 0.08);
-      if (camera.position.distanceTo(targetCameraPos) < 1.0) {
-        targetCameraPos = null;
-        targetControlsTarget = null;
-      }
-    }
-
-    controls.update();
-
-    // Hover Raycasting
-    raycaster.setFromCamera(mouse, camera);
-    const visibleMeshes = nodeMeshes.filter((m) => m.visible);
-    const intersects = raycaster.intersectObjects(visibleMeshes);
-
-    if (intersects.length > 0) {
-      const hitMesh = intersects[0].object as THREE.Mesh;
-      if (hitMesh !== hoveredMesh) {
-        hoveredMesh = hitMesh;
-        canvas.style.cursor = 'pointer';
-
-        if (!selectedMesh) {
-          highlightNeighbors(hitMesh.userData.index);
-        }
-
-        const node = hitMesh.userData.node as GraphNode;
-        if (tooltip && tooltipTitle && tooltipSub) {
-          tooltipTitle.textContent = node.name;
-          tooltipSub.textContent =
-            node.type === 'post'
-              ? `${node.author || 'Essay'} • ${node.readingTime || 5} min read`
-              : node.type === 'tag'
-                ? 'Topic Hub'
-                : 'Publication';
-          tooltip.classList.add('visible');
-        }
-      }
-    } else {
-      if (hoveredMesh) {
-        hoveredMesh = null;
-        canvas.style.cursor = 'grab';
-        tooltip?.classList.remove('visible');
-
-        if (!selectedMesh) {
-          resetMeshHighlights();
-        }
-      }
-    }
-
-    renderer.render(scene, camera);
-  }
 
   applyVisibility();
-  animate();
+  lifecycleController.start();
 
-  // 17. Programmatic API attached to window for automated testing and scripting
+  // 16. Window Scripting API for Automated Testing
   (window as any).__threeGraph = {
     camera,
     controls,
     scene,
     nodes,
     nodeMeshes,
-    timeline,
-    physics,
-    setTimelineFraction: (fraction: number) => {
-      timeline.setPlaying(container, false);
-      timeline.timelineFraction = Math.max(0, Math.min(1, fraction));
-      if (timelineSlider) timelineSlider.value = String(Math.round(timeline.timelineFraction * 1000));
+    timeline: timelineManager,
+    physics: physicsEngine,
+    setTimelineFraction: (fractionRatio: number) => {
+      timelineManager.setPlaying(container, false);
+      timelineManager.timelineFraction = Math.max(0, Math.min(1, fractionRatio));
+      if (timelineSliderElement) {
+        timelineSliderElement.value = String(
+          Math.round(timelineManager.timelineFraction * 1000)
+        );
+      }
       applyVisibility();
     },
     playTimeline: () => {
-      if (timeline.timelineFraction >= 0.999) timeline.timelineFraction = 0.0;
-      timeline.setPlaying(container, true);
-      timeline.lastTimelineTime = performance.now();
+      if (timelineManager.timelineFraction >= 0.999) {
+        timelineManager.timelineFraction = 0.0;
+      }
+      timelineManager.setPlaying(container, true);
+      timelineManager.lastTimelineTime = performance.now();
     },
     pauseTimeline: () => {
-      timeline.setPlaying(container, false);
+      timelineManager.setPlaying(container, false);
     },
-    focusNode: (target: string) => {
-      const idx = nodes.findIndex(
-        (n) =>
-          n.id.toLowerCase() === target.toLowerCase() ||
-          n.name.toLowerCase() === target.toLowerCase() ||
-          (n.author && n.author.toLowerCase() === target.toLowerCase())
+    focusNode: (targetIdentifier: string) => {
+      const matchedNodeIndex = nodes.findIndex(
+        (nodeItem) =>
+          nodeItem.id.toLowerCase() === targetIdentifier.toLowerCase() ||
+          nodeItem.name.toLowerCase() === targetIdentifier.toLowerCase() ||
+          (nodeItem.author &&
+            nodeItem.author.toLowerCase() === targetIdentifier.toLowerCase())
       );
-      if (idx !== -1) {
-        const hitMesh = nodeMeshes[idx];
-        selectedMesh = hitMesh;
-        highlightNeighbors(idx);
-        showGraphInspector(container, nodes[idx], nodes);
-        const nodePos = hitMesh.position;
-        targetControlsTarget = nodePos.clone();
-        const offset = camera.position.clone().sub(controls.target).normalize().multiplyScalar(40);
-        targetCameraPos = nodePos.clone().add(offset);
+      if (matchedNodeIndex !== -1) {
+        interactionManager.selectNodeByIndex(matchedNodeIndex);
       }
     },
   };
 
-  // 18. Teardown & Lifecycle Disposal
-  const teardown = () => {
-    if (isDisposed) return;
-    isDisposed = true;
-
-    timeline.setPlaying(container, false);
-
-    try {
-      delete (window as any).__threeGraph;
-    } catch {
-      (window as any).__threeGraph = undefined;
-    }
-
-    document.removeEventListener('astro:before-swap', teardown);
-    window.removeEventListener('pagehide', teardown);
-
-    if (animationFrameId) {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = 0;
-    }
-    resizeObserver.disconnect();
-    intersectionObserver.disconnect();
-    themeObserver.disconnect();
-
-    canvas.removeEventListener('pointerdown', onPointerDown);
-    canvas.removeEventListener('pointermove', onPointerMove);
-    canvas.removeEventListener('pointerleave', onPointerLeave);
-    canvas.removeEventListener('click', onCanvasClick);
-    inspectorClose?.removeEventListener('click', onInspectorClose);
-    searchInput?.removeEventListener('input', onSearchInput);
-    filterListeners.forEach(({ btn, fn }) => btn.removeEventListener('click', fn));
-    colorModeBtn?.removeEventListener('click', onColorModeClick);
-    resetCameraBtn?.removeEventListener('click', onResetCameraClick);
-    window.removeEventListener(READING_STATUS_CHANGE_EVENT, onReadingStatusChanged);
-
-    timelineSlider?.removeEventListener('input', onTimelineInput);
-    timelinePlayBtn?.removeEventListener('click', onPlayToggle);
-    timelineSpeedBtn?.removeEventListener('click', onSpeedClick);
-    timelinePresentBtn?.removeEventListener('click', onPresentClick);
-
-    // Dispose Geometries & Materials
-    geometries.dispose();
-    materials.dispose();
-    linkGeometry.dispose();
-    activeLinkGeometry.dispose();
-
-    nodeMeshes.forEach((m) => {
-      if (m.material instanceof THREE.Material) {
-        m.material.dispose();
-      }
-    });
-
-    controls.dispose();
-    renderer.dispose();
-    renderer.forceContextLoss();
-    scene.clear();
+  return () => {
+    lifecycleController.teardown();
   };
-
-  document.addEventListener('astro:before-swap', teardown, { once: true });
-  window.addEventListener('pagehide', teardown, { once: true });
-  return teardown;
 }
 
 let activeThreeGraphTeardown: (() => void) | null = null;
