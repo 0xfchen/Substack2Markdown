@@ -167,6 +167,14 @@ const articleRows = posts.map((post) => {
             ))}
           </select>
         )}
+
+        <select class="filter-select" data-time-filter aria-label="Filter by Read Time">
+          <option value="all">Any Length</option>
+          <option value="quick">☕ Quick (&lt; 5 min)</option>
+          <option value="medium">📖 Medium (5–15 min)</option>
+          <option value="long">📚 Long (16–30 min)</option>
+          <option value="deep">🧠 Deep Dive (30+ min)</option>
+        </select>
       </div>
     </div>
 
@@ -194,6 +202,7 @@ const articleRows = posts.map((post) => {
                 data-author={row.author}
                 data-date={row.pubDateStr}
                 data-words={row.words}
+                data-minutes={row.estMinutes}
                 data-title={row.title.toLowerCase()}
                 data-search={`${row.title} ${row.subtitle} ${row.author} ${row.tags.join(' ')}`.toLowerCase()}
                 data-read-count={row.readCount}

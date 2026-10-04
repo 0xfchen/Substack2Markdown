@@ -6,6 +6,7 @@ import {
   calculateInitialRenderCount,
   compareRows,
   matchesRow,
+  matchesTimeCategory,
   calculateScrollTarget,
   initReadingTable,
   POSTS_TABLE_STATE_KEY,
@@ -59,6 +60,7 @@ describe('posts-index state caching and row restoration', () => {
         statusFilter: 'in-progress',
         search: 'machine learning',
         author: 'Gergely Orosz',
+        timeFilter: 'quick',
         sortColumn: 'title',
         sortAsc: true,
         timestamp: Date.now() - 5000,
@@ -224,6 +226,46 @@ describe('posts-index state caching and row restoration', () => {
     });
   });
 
+  describe('matchesTimeCategory()', () => {
+    it('returns true for any duration when filter is "all" or undefined', () => {
+      expect(matchesTimeCategory(1, 'all')).toBe(true);
+      expect(matchesTimeCategory(15, 'all')).toBe(true);
+      expect(matchesTimeCategory(45, 'all')).toBe(true);
+      expect(matchesTimeCategory(10, undefined)).toBe(true);
+      expect(matchesTimeCategory(10, '')).toBe(true);
+    });
+
+    it('filters "quick" category for reading times under 5 minutes', () => {
+      expect(matchesTimeCategory(1, 'quick')).toBe(true);
+      expect(matchesTimeCategory(4, 'quick')).toBe(true);
+      expect(matchesTimeCategory(5, 'quick')).toBe(false);
+      expect(matchesTimeCategory(10, 'quick')).toBe(false);
+    });
+
+    it('filters "medium" category for reading times between 5 and 15 minutes inclusive', () => {
+      expect(matchesTimeCategory(4, 'medium')).toBe(false);
+      expect(matchesTimeCategory(5, 'medium')).toBe(true);
+      expect(matchesTimeCategory(10, 'medium')).toBe(true);
+      expect(matchesTimeCategory(15, 'medium')).toBe(true);
+      expect(matchesTimeCategory(16, 'medium')).toBe(false);
+    });
+
+    it('filters "long" category for reading times between 16 and 30 minutes inclusive', () => {
+      expect(matchesTimeCategory(15, 'long')).toBe(false);
+      expect(matchesTimeCategory(16, 'long')).toBe(true);
+      expect(matchesTimeCategory(25, 'long')).toBe(true);
+      expect(matchesTimeCategory(30, 'long')).toBe(true);
+      expect(matchesTimeCategory(31, 'long')).toBe(false);
+    });
+
+    it('filters "deep" category for reading times strictly greater than 30 minutes', () => {
+      expect(matchesTimeCategory(15, 'deep')).toBe(false);
+      expect(matchesTimeCategory(30, 'deep')).toBe(false);
+      expect(matchesTimeCategory(31, 'deep')).toBe(true);
+      expect(matchesTimeCategory(60, 'deep')).toBe(true);
+    });
+  });
+
   describe('matchesRow()', () => {
     const baseOptions = {
       statusFilter: 'all',
@@ -261,17 +303,31 @@ describe('posts-index state caching and row restoration', () => {
       expect(matchesRow('pending', 'kafka fundamentals', 'Author', opts)).toBe(false);
     });
 
+    it('filters by reading time category', () => {
+      const quickOptions = { ...baseOptions, timeFilter: 'quick' };
+      expect(matchesRow('pending', 'title', 'Author', quickOptions, 3)).toBe(true);
+      expect(matchesRow('pending', 'title', 'Author', quickOptions, 12)).toBe(false);
+
+      const deepOptions = { ...baseOptions, timeFilter: 'deep' };
+      expect(matchesRow('pending', 'title', 'Author', deepOptions, 45)).toBe(true);
+      expect(matchesRow('pending', 'title', 'Author', deepOptions, 20)).toBe(false);
+    });
+
     it('matches when all combined criteria are satisfied', () => {
       const opts = {
         statusFilter: 'completed',
         searchQuery: 'architecture',
         authorFilter: 'Martin Fowler',
+        timeFilter: 'medium',
       };
       expect(
-        matchesRow('completed', 'software architecture guide', 'Martin Fowler', opts)
+        matchesRow('completed', 'software architecture guide', 'Martin Fowler', opts, 10)
       ).toBe(true);
       expect(
-        matchesRow('pending', 'software architecture guide', 'Martin Fowler', opts)
+        matchesRow('completed', 'software architecture guide', 'Martin Fowler', opts, 35)
+      ).toBe(false);
+      expect(
+        matchesRow('pending', 'software architecture guide', 'Martin Fowler', opts, 10)
       ).toBe(false);
     });
   });

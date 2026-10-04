@@ -14,6 +14,7 @@ export interface TableViewState {
   statusFilter: string;
   search: string;
   author: string;
+  timeFilter?: string;
   sortColumn: string;
   sortAsc: boolean;
   timestamp: number;
@@ -145,16 +146,37 @@ export interface RowFilterOptions {
   statusFilter: string;
   searchQuery: string;
   authorFilter: string;
+  timeFilter?: string;
 }
 
 /**
- * Check if a row matches the given status, author, and search query filters.
+ * Check if an estimated reading time in minutes matches the selected time category.
+ */
+export function matchesTimeCategory(
+  readingDurationMinutes: number,
+  selectedTimeFilter?: string
+): boolean {
+  if (!selectedTimeFilter || selectedTimeFilter === 'all') return true;
+  if (selectedTimeFilter === 'quick') return readingDurationMinutes < 5;
+  if (selectedTimeFilter === 'medium') {
+    return readingDurationMinutes >= 5 && readingDurationMinutes <= 15;
+  }
+  if (selectedTimeFilter === 'long') {
+    return readingDurationMinutes > 15 && readingDurationMinutes <= 30;
+  }
+  if (selectedTimeFilter === 'deep') return readingDurationMinutes > 30;
+  return true;
+}
+
+/**
+ * Check if a row matches the given status, author, reading time, and search query filters.
  */
 export function matchesRow(
   status: string,
   searchTarget: string,
   author: string,
-  options: RowFilterOptions
+  options: RowFilterOptions,
+  readingDurationMinutes = 0
 ): boolean {
   const matchesStatus =
     options.statusFilter === 'all' ||
@@ -166,10 +188,15 @@ export function matchesRow(
   const matchesAuthor =
     options.authorFilter === 'all' || author === options.authorFilter;
 
+  const matchesTime = matchesTimeCategory(
+    readingDurationMinutes,
+    options.timeFilter
+  );
+
   const query = options.searchQuery.toLowerCase().trim();
   const matchesQuery = !query || searchTarget.toLowerCase().includes(query);
 
-  return matchesStatus && matchesAuthor && matchesQuery;
+  return matchesStatus && matchesAuthor && matchesTime && matchesQuery;
 }
 
 /**
@@ -221,11 +248,13 @@ export function initReadingTable(): void {
   const statusTabs = [...document.querySelectorAll<HTMLButtonElement>('[data-status-filter]')];
   const searchInput = document.querySelector<HTMLInputElement>('[data-reading-search]');
   const authorSelect = document.querySelector<HTMLSelectElement>('[data-author-filter]');
+  const timeSelectElement = document.querySelector<HTMLSelectElement>('[data-time-filter]');
   const emptyState = document.querySelector<HTMLElement>('[data-table-empty]');
 
   let currentStatusFilter: string = 'all';
   let currentSearch: string = '';
   let currentAuthor: string = 'all';
+  let currentTimeFilter: string = 'all';
   let sortColumn: string = 'date';
   let sortAsc: boolean = false; // default newest first
 
@@ -240,6 +269,7 @@ export function initReadingTable(): void {
       statusFilter: currentStatusFilter,
       search: currentSearch,
       author: currentAuthor,
+      timeFilter: currentTimeFilter,
       sortColumn,
       sortAsc,
       timestamp: Date.now(),
@@ -330,12 +360,20 @@ export function initReadingTable(): void {
       const status = id ? getReadingStatus(id) : 'unread';
       const searchTarget = row.dataset.search || '';
       const author = row.dataset.author || '';
+      const readingDurationMinutes = Number(row.dataset.minutes || 0);
 
-      return matchesRow(status, searchTarget, author, {
-        statusFilter: currentStatusFilter,
-        searchQuery: currentSearch,
-        authorFilter: currentAuthor,
-      });
+      return matchesRow(
+        status,
+        searchTarget,
+        author,
+        {
+          statusFilter: currentStatusFilter,
+          searchQuery: currentSearch,
+          authorFilter: currentAuthor,
+          timeFilter: currentTimeFilter,
+        },
+        readingDurationMinutes
+      );
     });
 
     // Cleanly detach child rows without parsing HTML.
@@ -474,6 +512,11 @@ export function initReadingTable(): void {
 
   authorSelect?.addEventListener('change', () => {
     currentAuthor = authorSelect.value;
+    renderTable();
+  });
+
+  timeSelectElement?.addEventListener('change', () => {
+    currentTimeFilter = timeSelectElement.value;
     renderTable();
   });
 
@@ -622,6 +665,7 @@ export function initReadingTable(): void {
     currentStatusFilter = savedState.statusFilter || 'all';
     currentSearch = savedState.search || '';
     currentAuthor = savedState.author || 'all';
+    currentTimeFilter = savedState.timeFilter || 'all';
 
     // Restore UI controls
     if (searchInput && currentSearch) {
@@ -629,6 +673,9 @@ export function initReadingTable(): void {
     }
     if (authorSelect && currentAuthor !== 'all') {
       authorSelect.value = currentAuthor;
+    }
+    if (timeSelectElement && currentTimeFilter !== 'all') {
+      timeSelectElement.value = currentTimeFilter;
     }
     if (currentStatusFilter !== 'all') {
       statusTabs.forEach((tab) => {
@@ -664,7 +711,7 @@ export function initReadingTable(): void {
   // Verify after server state is fetched without wiping existing DOM rows
   fetchReadingState().then(() => {
     updateStats();
-    if (currentStatusFilter !== 'all') {
+    if (currentStatusFilter !== 'all' || currentTimeFilter !== 'all') {
       renderTable(renderedCount);
       restoreScrollAndTarget();
     }
