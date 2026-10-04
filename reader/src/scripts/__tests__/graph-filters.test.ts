@@ -140,10 +140,12 @@ describe('Graph Filters Logic', () => {
       public tagName: string;
       public attributes = new Map<string, string>();
       public classSet = new Set<string>();
+      public hidden: boolean = false;
+      public isFocused: boolean = false;
       public value: string = '';
       public parentElement: MockFilterElement | null = null;
       public children: MockFilterElement[] = [];
-      public listeners: Record<string, Array<() => void>> = {};
+      public listeners: Record<string, Array<(event?: any) => void>> = {};
 
       constructor(tagName: string = 'div') {
         this.tagName = tagName;
@@ -177,12 +179,12 @@ describe('Graph Filters Logic', () => {
         return child;
       }
 
-      public addEventListener(event: string, fn: () => void): void {
+      public addEventListener(event: string, fn: (event?: any) => void): void {
         if (!this.listeners[event]) this.listeners[event] = [];
         this.listeners[event].push(fn);
       }
 
-      public removeEventListener(event: string, fn: () => void): void {
+      public removeEventListener(event: string, fn: (event?: any) => void): void {
         if (!this.listeners[event]) return;
         this.listeners[event] = this.listeners[event].filter((l) => l !== fn);
       }
@@ -195,6 +197,14 @@ describe('Graph Filters Logic', () => {
         }
       }
 
+      public focus(): void {
+        this.isFocused = true;
+      }
+
+      public blur(): void {
+        this.isFocused = false;
+      }
+
       public dispatchInput(newValue: string): void {
         this.value = newValue;
         if (this.listeners['input']) {
@@ -202,6 +212,22 @@ describe('Graph Filters Logic', () => {
             listener();
           }
         }
+      }
+
+      public dispatchKeyDown(key: string): { propagationStopped: boolean } {
+        let propagationStopped = false;
+        const keyboardEvent = {
+          key,
+          stopPropagation: () => {
+            propagationStopped = true;
+          },
+        };
+        if (this.listeners['keydown']) {
+          for (const listener of [...this.listeners['keydown']]) {
+            listener(keyboardEvent);
+          }
+        }
+        return { propagationStopped };
       }
 
       public closest(selector: string): MockFilterElement | null {
@@ -229,10 +255,14 @@ describe('Graph Filters Logic', () => {
             selector.includes('[data-filter]') &&
             (el.attributes.has('data-filter') ||
               el.attributes.has('data-graph-filter'));
+          const matchSearchClear =
+            selector.includes('[data-graph-search-clear]') &&
+            el.attributes.has('data-graph-search-clear');
           const matchSearchInput =
             selector.includes('[data-graph-search]') &&
+            !selector.includes('[data-graph-search-clear]') &&
             el.attributes.has('data-graph-search');
-          if (matchFilterButtons || matchSearchInput) {
+          if (matchFilterButtons || matchSearchClear || matchSearchInput) {
             results.push(el);
           }
           for (const child of el.children) {
@@ -252,6 +282,7 @@ describe('Graph Filters Logic', () => {
       onFiltersChangedCallCount++;
     };
     let searchInput: MockFilterElement;
+    let searchClearButton: MockFilterElement;
     let pubButton: MockFilterElement;
     let allButton: MockFilterElement;
     let readButton: MockFilterElement;
@@ -263,6 +294,11 @@ describe('Graph Filters Logic', () => {
       searchInput = new MockFilterElement('input');
       searchInput.setAttribute('data-graph-search', '');
       rootContainer.appendChild(searchInput);
+
+      searchClearButton = new MockFilterElement('button');
+      searchClearButton.setAttribute('data-graph-search-clear', '');
+      searchClearButton.hidden = true;
+      rootContainer.appendChild(searchClearButton);
 
       const topicGroup = new MockFilterElement('div');
       topicGroup.classList.add('graph-filter-mode-group');
@@ -341,6 +377,106 @@ describe('Graph Filters Logic', () => {
       controller.dispose();
     });
 
+    it('toggles clear button hidden attribute based on search input length', () => {
+      const controller = setupGraphFilterControls(
+        rootContainer as unknown as HTMLElement,
+        handleFiltersChanged
+      );
+
+      expect(searchClearButton.hidden).toBe(true);
+
+      searchInput.dispatchInput('architecture');
+      expect(searchClearButton.hidden).toBe(false);
+
+      searchInput.dispatchInput('');
+      expect(searchClearButton.hidden).toBe(true);
+
+      controller.dispose();
+    });
+
+    it('clears search input, resets query, triggers change, and refocuses input when clear button is clicked', () => {
+      const controller = setupGraphFilterControls(
+        rootContainer as unknown as HTMLElement,
+        handleFiltersChanged
+      );
+
+      searchInput.dispatchInput('architecture');
+      expect(searchClearButton.hidden).toBe(false);
+      expect(controller.getSearchQuery()).toBe('architecture');
+      expect(onFiltersChangedCallCount).toBe(1);
+
+      searchClearButton.click();
+
+      expect(searchInput.value).toBe('');
+      expect(searchClearButton.hidden).toBe(true);
+      expect(controller.getSearchQuery()).toBe('');
+      expect(searchInput.isFocused).toBe(true);
+      expect(onFiltersChangedCallCount).toBe(2);
+
+      controller.dispose();
+    });
+
+    it('clears query and stops propagation on Escape key when search input is non-empty', () => {
+      const controller = setupGraphFilterControls(
+        rootContainer as unknown as HTMLElement,
+        handleFiltersChanged
+      );
+
+      searchInput.dispatchInput('kubernetes');
+      expect(searchClearButton.hidden).toBe(false);
+      expect(onFiltersChangedCallCount).toBe(1);
+
+      const propagationResult = searchInput.dispatchKeyDown('Escape');
+
+      expect(propagationResult.propagationStopped).toBe(true);
+      expect(searchInput.value).toBe('');
+      expect(searchClearButton.hidden).toBe(true);
+      expect(controller.getSearchQuery()).toBe('');
+      expect(searchInput.isFocused).toBe(true);
+      expect(onFiltersChangedCallCount).toBe(2);
+
+      controller.dispose();
+    });
+
+    it('does not clear or stop propagation on Escape key when search input is already empty', () => {
+      const controller = setupGraphFilterControls(
+        rootContainer as unknown as HTMLElement,
+        handleFiltersChanged
+      );
+
+      const propagationResult = searchInput.dispatchKeyDown('Escape');
+
+      expect(propagationResult.propagationStopped).toBe(false);
+      expect(onFiltersChangedCallCount).toBe(0);
+
+      controller.dispose();
+    });
+
+    it('syncs clear button visibility on initialization when input is pre-populated', () => {
+      const prefilledContainer = new MockFilterElement('div');
+      prefilledContainer.setAttribute('data-graph-container', '');
+
+      const prefilledSearchInput = new MockFilterElement('input');
+      prefilledSearchInput.setAttribute('data-graph-search', '');
+      prefilledSearchInput.value = 'pre-existing query';
+      prefilledContainer.appendChild(prefilledSearchInput);
+
+      const prefilledClearButton = new MockFilterElement('button');
+      prefilledClearButton.setAttribute('data-graph-search-clear', '');
+      prefilledClearButton.hidden = true;
+      prefilledContainer.appendChild(prefilledClearButton);
+
+      const prefilledController = setupGraphFilterControls(
+        prefilledContainer as unknown as HTMLElement,
+        handleFiltersChanged
+      );
+
+      expect(prefilledController.getSearchQuery()).toBe('pre-existing query');
+      expect(prefilledClearButton.hidden).toBe(false);
+
+      prefilledController.dispose();
+    });
+
     it('unregisters event listeners cleanly upon dispose', () => {
       const controller = setupGraphFilterControls(
         rootContainer as unknown as HTMLElement,
@@ -350,6 +486,8 @@ describe('Graph Filters Logic', () => {
 
       pubButton.click();
       searchInput.dispatchInput('test');
+      searchClearButton.click();
+      searchInput.dispatchKeyDown('Escape');
 
       expect(onFiltersChangedCallCount).toBe(0);
     });

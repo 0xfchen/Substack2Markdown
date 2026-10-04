@@ -49,6 +49,7 @@ Unified, chronological index of all retroactively created issues and plans mappe
 | **`stm-041`** | **Issue** | `refactor` | Modularize `graph.css` Stylesheet and Clean Up Redundant CSS Declarations | [`issues/stm-041-split-graph-css.md`](issues/stm-041-split-graph-css.md) |
 | **`stm-042`** | **Issue** | `refactor` | Decompose Three.js Monolithic Scenes and Extract Shared Scene Lifecycle | [`issues/stm-042-decompose-threejs.md`](issues/stm-042-decompose-threejs.md) |
 | **`stm-043`** | **Plan** | `feat` | Reading Time Quick Filter and Coffee Break Mode | [`plans/stm-043-time-to-read-filter.md`](plans/stm-043-time-to-read-filter.md) |
+| **`stm-044`** | **Plan** | `feat` | Graph View Search Clear Button | [`plans/stm-044-graph-search-clear-button.md`](plans/stm-044-graph-search-clear-button.md) |
 
 ---
 

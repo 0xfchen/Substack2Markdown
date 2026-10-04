@@ -94,16 +94,60 @@ export function setupGraphFilterControls(
     GRAPH_SELECTORS.searchInput,
     'Search Input'
   );
+  const searchClearButtonElement = containerElement.querySelector<HTMLButtonElement>(
+    GRAPH_SELECTORS.searchClearButton
+  );
   const filterButtonElements = containerElement.querySelectorAll<HTMLButtonElement>(
     GRAPH_SELECTORS.filterButtons
   );
 
-  const handleSearchInput = () => {
-    activeSearchQuery = searchInputElement ? searchInputElement.value : '';
+  const updateClearButtonVisibility = (searchQueryString: string) => {
+    if (searchClearButtonElement) {
+      searchClearButtonElement.hidden = searchQueryString.length === 0;
+    }
+  };
+
+  const applySearchQueryValue = (
+    nextSearchQueryString: string,
+    shouldRefocusInput: boolean = false
+  ) => {
+    activeSearchQuery = nextSearchQueryString;
+    if (searchInputElement) {
+      searchInputElement.value = nextSearchQueryString;
+      if (shouldRefocusInput) {
+        searchInputElement.focus();
+      }
+    }
+    updateClearButtonVisibility(nextSearchQueryString);
     onFiltersChanged();
   };
 
+  if (searchInputElement && searchInputElement.value) {
+    activeSearchQuery = searchInputElement.value;
+    updateClearButtonVisibility(activeSearchQuery);
+  }
+
+  const handleSearchInput = () => {
+    const currentInputValue = searchInputElement ? searchInputElement.value : '';
+    activeSearchQuery = currentInputValue;
+    updateClearButtonVisibility(currentInputValue);
+    onFiltersChanged();
+  };
+
+  const handleClearButtonClick = () => {
+    applySearchQueryValue('', true);
+  };
+
+  const handleSearchInputKeyDown = (keyboardEvent: KeyboardEvent) => {
+    if (keyboardEvent.key === 'Escape' && activeSearchQuery.length > 0) {
+      keyboardEvent.stopPropagation();
+      applySearchQueryValue('', true);
+    }
+  };
+
   searchInputElement?.addEventListener('input', handleSearchInput);
+  searchInputElement?.addEventListener('keydown', handleSearchInputKeyDown);
+  searchClearButtonElement?.addEventListener('click', handleClearButtonClick);
 
   const filterButtonListeners: Array<{
     buttonElement: HTMLButtonElement;
@@ -140,6 +184,8 @@ export function setupGraphFilterControls(
 
   const dispose = () => {
     searchInputElement?.removeEventListener('input', handleSearchInput);
+    searchInputElement?.removeEventListener('keydown', handleSearchInputKeyDown);
+    searchClearButtonElement?.removeEventListener('click', handleClearButtonClick);
     filterButtonListeners.forEach(({ buttonElement, listenerFunction }) => {
       buttonElement.removeEventListener('click', listenerFunction);
     });

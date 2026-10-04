@@ -133,6 +133,44 @@
   color: var(--label-quaternary);
 }
 
+.graph-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.graph-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  transition: color var(--duration-fast, 150ms) ease, background var(--duration-fast, 150ms) ease;
+}
+
+.graph-search-clear svg {
+  color: inherit;
+}
+
+.graph-search-clear:hover {
+  color: var(--label-primary);
+  background: var(--fill-secondary, rgba(120, 120, 128, 0.16));
+}
+
+.graph-search-clear:focus-visible {
+  outline: 2px solid var(--accent, currentColor);
+  outline-offset: 1px;
+}
+
+.graph-search-clear[hidden] {
+  display: none !important;
+}
+
 /* ==========================================================================
    5. Filter Pills (Dynamic Modes & Cluster Filtering)
    ========================================================================== */
@@ -268,5 +306,19 @@
   .graph-action-btn {
     padding: 5px 10px;
     font-size: 0.6875rem;
+  }
+
+  .graph-search-clear {
+    position: relative;
+  }
+
+  .graph-search-clear::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 32px;
+    min-height: 32px;
   }
 }

@@ -13,6 +13,7 @@ export const GRAPH_SELECTORS = {
 
   // Search & Filter Bar
   searchInput: '[data-graph-search]',
+  searchClearButton: '[data-graph-search-clear]',
   filterRow: '[data-graph-filters]',
   filterGroupTopics: '[data-filters-topic]',
   filterGroupReading: '[data-filters-reading]',
