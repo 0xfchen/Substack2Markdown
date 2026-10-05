@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
-import html2text
 import mdformat
 import requests
 from bs4 import BeautifulSoup
@@ -21,6 +20,7 @@ from ..config import (
     DEFAULT_REQUEST_TIMEOUT,
     MAX_API_SYNC_PAGES,
 )
+from ..converter import convert_html_to_markdown
 from ..images import count_images_in_markdown, process_markdown_images
 from ..url_utils import (
     extract_main_part,
@@ -32,41 +32,6 @@ from ..url_utils import (
 logger = logging.getLogger(__name__)
 
 FrontmatterFormat = Literal["mdx", "legacy"]
-
-
-class SubstackHTML2Text(html2text.HTML2Text):
-    """Custom HTML2Text converter that preserves code block language syntax identifiers."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.dash_unordered_list = True
-        self.default_image_alt = "image"
-        self.backquote_code_style = True
-        self.body_width = 0
-        self._current_code_lang: str = ""
-
-    def handle_tag(self, tag: str, attrs: dict[str, str | None], start: bool) -> None:
-        if tag == "pre":
-            if start:
-                classes = attrs.get("class") or ""
-                match = re.search(r"language-(\w+)", classes)
-                self._current_code_lang = match.group(1) if match else ""
-            else:
-                self._current_code_lang = ""
-        elif tag == "code" and start and not self._current_code_lang:
-            classes = attrs.get("class") or ""
-            match = re.search(r"language-(\w+)", classes)
-            if match:
-                self._current_code_lang = match.group(1)
-        super().handle_tag(tag, attrs, start)
-
-    def o(self, data: str, puredata: bool = False, force: bool | str = False) -> None:
-        if self.startpre and self.backquote_code_style and self._current_code_lang:
-            self.startpre = False
-            self.out("\n" + self.pre_indent + "```" + self._current_code_lang + "\n")
-            self.p_p = 0
-            self._current_code_lang = ""
-        super().o(data, puredata=puredata, force=force)
 
 
 class BaseSubstackScraper(ABC):
@@ -294,11 +259,10 @@ class BaseSubstackScraper(ABC):
         if clean_content:
             BaseSubstackScraper._clean_post_html(soup)
 
-        converter = SubstackHTML2Text()
-        raw_md = converter.handle(str(soup)).strip()
-        if not raw_md:
+        raw_markdown = convert_html_to_markdown(str(soup))
+        if not raw_markdown or not raw_markdown.strip():
             return ""
-        return mdformat.text(raw_md, extensions={"gfm"}).strip()
+        return mdformat.text(raw_markdown.strip(), extensions={"gfm"}).strip()
 
     def save_to_file(self, filepath: str, content: str, overwrite: bool = False) -> None:
         """Write content string to specified file with overwrite guard.

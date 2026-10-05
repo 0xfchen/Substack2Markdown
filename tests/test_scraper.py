@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-import scraper as ss
+import scraper
 
 
-class FakeScraper(ss.BaseSubstackScraper):
+class FakeScraper(scraper.BaseSubstackScraper):
     def get_url_soup(self, url: str):
         return None
 
@@ -23,7 +23,7 @@ def test_resolve_image_url_extracts_original_url():
         "fl_progressive:steep/https%3A%2F%2Fbucket.s3.us-west-2.amazonaws.com%2Fimage.jpg"
     )
 
-    assert ss.resolve_image_url(cdn_url) == "https://bucket.s3.us-west-2.amazonaws.com/image.jpg"
+    assert scraper.resolve_image_url(cdn_url) == "https://bucket.s3.us-west-2.amazonaws.com/image.jpg"
 
 
 def test_sanitize_image_filename_uses_resolved_url_name():
@@ -32,13 +32,13 @@ def test_sanitize_image_filename_uses_resolved_url_name():
         "fl_progressive:steep/https%3A%2F%2Fbucket.s3.us-west-2.amazonaws.com%2Fimage.jpg%3Fv%3D1"
     )
 
-    assert ss.sanitize_image_filename(cdn_url) == "image.jpg"
+    assert scraper.sanitize_image_filename(cdn_url) == "image.jpg"
 
 
 def test_count_images_in_markdown_counts_cleaned_linked_images():
     markdown = "[![alt](https://cdn/a.png)](https://example.com)\n\n![plain](https://cdn/b.png)"
 
-    assert ss.count_images_in_markdown(markdown) == 2
+    assert scraper.count_images_in_markdown(markdown) == 2
 
 
 def test_single_post_url_initializes_without_fetching_all_posts(tmp_path):
@@ -63,7 +63,7 @@ def test_parse_args_supports_images_flag(monkeypatch):
         ["scraper.py", "--url", "https://example.substack.com/p/post", "--images"],
     )
 
-    args = ss.parse_args()
+    args = scraper.parse_args()
 
     assert args.url == "https://example.substack.com/p/post"
     assert args.images is True
@@ -116,7 +116,7 @@ def test_parse_args_supports_images_flag(monkeypatch):
     ],
 )
 def test_clean_linked_images(input_md, expected):
-    assert ss.clean_linked_images(input_md) == expected
+    assert scraper.clean_linked_images(input_md) == expected
 
 
 # 2. test_resolve_image_url_passthrough
@@ -129,7 +129,7 @@ def test_resolve_image_url_passthrough():
         "/relative/path/image.png",
     ]
     for url in urls:
-        assert ss.resolve_image_url(url) == url
+        assert scraper.resolve_image_url(url) == url
 
 
 # 3. test_is_post_url
@@ -144,7 +144,7 @@ def test_resolve_image_url_passthrough():
     ],
 )
 def test_is_post_url(url, expected):
-    assert ss.is_post_url(url) == expected
+    assert scraper.is_post_url(url) == expected
 
 
 # 4. test_get_publication_url
@@ -157,7 +157,7 @@ def test_is_post_url(url, expected):
     ],
 )
 def test_get_publication_url(url, expected):
-    assert ss.get_publication_url(url) == expected
+    assert scraper.get_publication_url(url) == expected
 
 
 # 5. test_get_post_slug
@@ -171,7 +171,7 @@ def test_get_publication_url(url, expected):
     ],
 )
 def test_get_post_slug(url, expected):
-    assert ss.get_post_slug(url) == expected
+    assert scraper.get_post_slug(url) == expected
 
 
 # 6. test_process_markdown_images
@@ -186,7 +186,7 @@ def test_process_markdown_images(mock_download):
         "More text"
     )
 
-    result = ss.process_markdown_images(md_content, "testauthor", "test-post")
+    result = scraper.process_markdown_images(md_content, "testauthor", "test-post")
 
     # download_image should have been called once
     assert mock_download.call_count == 1
@@ -203,7 +203,7 @@ def test_download_image_error_handling(mock_get, tmp_path):
     """Mock network error, verify graceful handling (returns None)."""
     mock_get.side_effect = ConnectionError("Network unreachable")
 
-    result = ss.download_image(
+    result = scraper.download_image(
         "https://example.com/image.jpg",
         tmp_path / "image.jpg",
     )
@@ -228,7 +228,7 @@ def test_scraper_initialization(tmp_path):
 # 9. test_mdx_frontmatter_includes_source_url
 def test_mdx_frontmatter_includes_source_url():
     """Verify the post URL is emitted as canonical_url in YAML frontmatter."""
-    result = ss.BaseSubstackScraper.combine_metadata_and_content(
+    result = scraper.BaseSubstackScraper.combine_metadata_and_content(
         title="Title",
         subtitle="Subtitle",
         date="2024-01-01",
@@ -247,14 +247,14 @@ def test_get_credentials_env_vars(monkeypatch):
     monkeypatch.setenv("SUBSTACK_EMAIL", "env@example.com")
     monkeypatch.setenv("SUBSTACK_PASSWORD", "env-secret")
 
-    assert ss.get_credentials() == ("env@example.com", "env-secret")
+    assert scraper.get_credentials() == ("env@example.com", "env-secret")
 
 
 def test_get_credentials_empty_when_unconfigured(monkeypatch):
     monkeypatch.delenv("SUBSTACK_EMAIL", raising=False)
     monkeypatch.delenv("SUBSTACK_PASSWORD", raising=False)
     with patch("dotenv.find_dotenv", return_value=""):
-        assert ss.get_credentials() == ("", "")
+        assert scraper.get_credentials() == ("", "")
 
 
 # 11. YouTube embeds (issue #25)
@@ -269,7 +269,7 @@ YOUTUBE_EMBED_HTML = (
 
 
 def test_youtube_embed_exported_as_linked_thumbnail():
-    md = ss.BaseSubstackScraper.html_to_md(YOUTUBE_EMBED_HTML)
+    md = scraper.BaseSubstackScraper.html_to_md(YOUTUBE_EMBED_HTML)
 
     assert (
         "[![YouTube video](https://img.youtube.com/vi/9FDgRXPSv3U/hqdefault.jpg)]"
@@ -281,7 +281,7 @@ def test_youtube_embed_exported_as_linked_thumbnail():
 def test_youtube_embed_with_malformed_attrs_is_skipped():
     html = '<div class="youtube-wrap" data-attrs="not-json"><iframe src="x"></iframe></div><p>Body</p>'
 
-    md = ss.BaseSubstackScraper.html_to_md(html)
+    md = scraper.BaseSubstackScraper.html_to_md(html)
 
     assert "Body" in md
 
@@ -289,13 +289,13 @@ def test_youtube_embed_with_malformed_attrs_is_skipped():
 def test_clean_linked_images_preserves_youtube_thumbnail_links():
     md = "[![YouTube video](https://img.youtube.com/vi/abc/hqdefault.jpg)](https://www.youtube.com/watch?v=abc)"
 
-    assert ss.clean_linked_images(md) == md
+    assert scraper.clean_linked_images(md) == md
 
 
 # 12. Security & XSS Prevention
 def test_safe_json_embed_escapes_html_tags():
     payload = {"title": "</script><script>alert(1)</script>", "data": "a & b < c > d"}
-    embedded = ss.safe_json_embed(payload)
+    embedded = scraper.safe_json_embed(payload)
 
     assert "</script>" not in embedded
     assert "<" not in embedded
@@ -306,13 +306,13 @@ def test_safe_json_embed_escapes_html_tags():
 
 # 13. CLI & Defaults
 def test_default_use_premium_is_false():
-    assert ss.USE_PREMIUM is False
+    assert scraper.USE_PREMIUM is False
 
 
 def test_main_bare_command_shows_help_and_exits(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["scraper.py"])
     with pytest.raises(SystemExit) as exc_info:
-        ss.main()
+        scraper.main()
     assert exc_info.value.code != 0
     captured = capsys.readouterr()
     assert "--url" in captured.err or "--url" in captured.out
@@ -322,10 +322,10 @@ def test_main_bare_command_shows_help_and_exits(monkeypatch, capsys):
 # 14. Network Timeouts & Reliability
 def test_process_markdown_images_preserves_remote_url_on_download_failure(monkeypatch):
     # Mock download_image to fail (return None)
-    monkeypatch.setattr(ss, "download_image", lambda *args, **kwargs: None)
+    monkeypatch.setattr(scraper, "download_image", lambda *args, **kwargs: None)
 
     md = "![alt](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2Ffailed.jpg)"
-    result = ss.process_markdown_images(md, "test_author", "test_slug")
+    result = scraper.process_markdown_images(md, "test_author", "test_slug")
 
     # URL should be retained rather than replaced with broken local path
     assert "https://substackcdn.com/image/fetch/" in result
@@ -333,10 +333,10 @@ def test_process_markdown_images_preserves_remote_url_on_download_failure(monkey
 
 
 def test_download_image_uses_timeout(monkeypatch, tmp_path):
-    mock_get = Mock(side_effect=ss.requests.Timeout("Connection timed out"))
-    monkeypatch.setattr(ss.requests, "get", mock_get)
+    mock_get = Mock(side_effect=scraper.requests.Timeout("Connection timed out"))
+    monkeypatch.setattr(scraper.requests, "get", mock_get)
 
-    result = ss.download_image("https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12, max_retries=1)
+    result = scraper.download_image("https://example.com/img.jpg", tmp_path / "img.jpg", timeout=12, max_retries=1)
     assert result is None
     mock_get.assert_called_once()
     assert mock_get.call_args[1]["timeout"] == 12
@@ -367,7 +367,7 @@ def test_download_image_uses_timeout(monkeypatch, tmp_path):
     ],
 )
 def test_extract_main_part_supports_custom_domains(url, expected):
-    assert ss.extract_main_part(url) == expected
+    assert scraper.extract_main_part(url) == expected
 
 
 # 16. Concurrency & Performance
@@ -378,7 +378,7 @@ def test_process_markdown_images_concurrent_downloads(monkeypatch):
         downloaded_urls.append(url)
         return str(save_path)
 
-    monkeypatch.setattr(ss, "download_image", mock_download)
+    monkeypatch.setattr(scraper, "download_image", mock_download)
 
     md = (
         "![img1](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2F1.jpg)\n"
@@ -386,7 +386,7 @@ def test_process_markdown_images_concurrent_downloads(monkeypatch):
         "![img3](https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fexample.com%2F3.jpg)\n"
     )
 
-    result = ss.process_markdown_images(md, "author", "post", max_workers=3)
+    result = scraper.process_markdown_images(md, "author", "post", max_workers=3)
 
     assert len(downloaded_urls) == 3
     assert "https://example.com/1.jpg" in downloaded_urls
@@ -403,14 +403,14 @@ def test_get_credentials_loads_from_env_file(tmp_path, monkeypatch):
     env_file.write_text("SUBSTACK_EMAIL=env_user@example.com\nSUBSTACK_PASSWORD=env_pass\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
 
-    email, password = ss.get_credentials()
+    email, password = scraper.get_credentials()
     assert email == "env_user@example.com"
     assert password == "env_pass"
 
 
 # 18. Playwright BrowserManager & PremiumScraper Tests
 def test_browser_manager_get_user_data_dir():
-    profile_dir = ss.BrowserManager.get_user_data_dir("chrome")
+    profile_dir = scraper.BrowserManager.get_user_data_dir("chrome")
     assert "chrome_profile" in profile_dir
     assert ".substack_scraper" in profile_dir
 
@@ -420,7 +420,7 @@ def test_browser_manager_resolve_channel():
     mock_browser = MagicMock()
     mock_pw.chromium.launch.return_value = mock_browser
 
-    resolved = ss.BrowserManager.resolve_channel("chrome", mock_pw)
+    resolved = scraper.BrowserManager.resolve_channel("chrome", mock_pw)
     assert resolved in ("chrome", "msedge")
     assert mock_browser.close.called
 
@@ -434,7 +434,7 @@ def test_browser_manager_launch_cdp():
 
     with patch("scraper.browser.sync_playwright") as mock_sync_pw:
         mock_sync_pw.return_value.start.return_value = mock_pw_instance
-        session = ss.BrowserManager.launch(cdp_url="http://localhost:9222")
+        session = scraper.BrowserManager.launch(cdp_url="http://localhost:9222")
         assert session.context == mock_context
         mock_pw_instance.chromium.connect_over_cdp.assert_called_once_with("http://localhost:9222")
 
@@ -448,7 +448,7 @@ def test_premium_scraper_requires_credentials_when_not_skipping():
         ),
     ):
         with pytest.raises(ValueError, match="Premium scraping requires credentials"):
-            ss.PremiumSubstackScraper(
+            scraper.PremiumSubstackScraper(
                 base_substack_url="https://example.substack.com",
                 content_save_dir="content",
                 skip_login=False,
@@ -463,12 +463,12 @@ def test_premium_scraper_init_with_skip_login():
     mock_session.context = mock_context
 
     with patch("scraper.scrapers.premium.BrowserManager.launch", return_value=mock_session):
-        scraper = ss.PremiumSubstackScraper(
+        premium_scraper = scraper.PremiumSubstackScraper(
             base_substack_url="https://example.substack.com",
             content_save_dir="content",
             skip_login=True,
         )
-        assert scraper.skip_login is True
+        assert premium_scraper.skip_login is True
         mock_page.goto.assert_called_once_with("https://example.substack.com", wait_until="domcontentloaded")
 
 
@@ -486,7 +486,7 @@ def test_download_image_retries_on_failure_and_succeeds(tmp_path):
         patch("scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_ok]) as mock_get,
         patch("scraper.images.sleep") as mock_sleep,
     ):
-        result = ss.download_image("https://example.com/retry.jpg", dest, max_retries=3)
+        result = scraper.download_image("https://example.com/retry.jpg", dest, max_retries=3)
 
         assert result == str(dest)
         assert mock_get.call_count == 2
@@ -503,7 +503,7 @@ def test_download_image_fails_after_max_retries(tmp_path):
         patch("scraper.images.requests.get", side_effect=[mock_resp_fail, mock_resp_fail, mock_resp_fail]) as mock_get,
         patch("scraper.images.sleep") as mock_sleep,
     ):
-        result = ss.download_image("https://example.com/fail.jpg", dest, max_retries=3)
+        result = scraper.download_image("https://example.com/fail.jpg", dest, max_retries=3)
 
         assert result is None
         assert mock_get.call_count == 3
@@ -582,7 +582,7 @@ def test_cli_force_flag_sets_overwrite(monkeypatch):
         "argv",
         ["scraper.py", "--url", "https://example.substack.com", "--force"],
     )
-    args = ss.parse_args()
+    args = scraper.parse_args()
     assert args.overwrite is True
 
     monkeypatch.setattr(
@@ -590,7 +590,7 @@ def test_cli_force_flag_sets_overwrite(monkeypatch):
         "argv",
         ["scraper.py", "--url", "https://example.substack.com", "--overwrite"],
     )
-    args_alias = ss.parse_args()
+    args_alias = scraper.parse_args()
     assert args_alias.overwrite is True
 
 
@@ -603,18 +603,18 @@ def test_extract_post_id_from_preloads():
         'window._preloads = JSON.parse("{\\"post\\":{\\"id\\":214748970,\\"slug\\":\\"codex\\"}}");'
         "</script></head></html>"
     )
-    post_id = ss.BaseSubstackScraper._extract_post_id(html)
+    post_id = scraper.BaseSubstackScraper._extract_post_id(html)
     assert post_id == 214748970
 
 
 def test_extract_post_id_returns_none_when_missing():
     html = "<html><head><title>No post ID</title></head></html>"
-    post_id = ss.BaseSubstackScraper._extract_post_id(html)
+    post_id = scraper.BaseSubstackScraper._extract_post_id(html)
     assert post_id is None
 
 
 def test_combine_metadata_and_content_includes_post_id():
-    markdown_output = ss.BaseSubstackScraper.combine_metadata_and_content(
+    markdown_output = scraper.BaseSubstackScraper.combine_metadata_and_content(
         title="Codex Post",
         subtitle="Inside OpenAI",
         date="2026-09-09",
@@ -636,7 +636,7 @@ def test_extract_metadata_from_md_mdx_format(tmp_path):
         '---\ntitle: "Codex Post"\npost_id: 214748970\ndate: "2026-09-09"\nauthor: "Gergely"\n---\n\nBody',
         encoding="utf-8",
     )
-    metadata = ss.BaseSubstackScraper._extract_metadata_from_md(str(md_file))
+    metadata = scraper.BaseSubstackScraper._extract_metadata_from_md(str(md_file))
     assert metadata is not None
     assert metadata["title"] == "Codex Post"
     assert metadata["post_id"] == 214748970
@@ -655,19 +655,80 @@ def test_clean_post_html_strips_widgets_and_footers():
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "html.parser")
-    ss.BaseSubstackScraper._clean_post_html(soup)
+    scraper.BaseSubstackScraper._clean_post_html(soup)
     cleaned_str = str(soup)
     assert "Real content" in cleaned_str
     assert "subscription-widget-wrap" not in cleaned_str
     assert "post-footer" not in cleaned_str
 
 
-def test_substack_html2text_code_block_language_fences():
-    html = '<pre><code class="language-python">def hello():\n    return "world"</code></pre>'
-    md = ss.BaseSubstackScraper.html_to_md(html)
-    assert "```python" in md
-    assert 'def hello():\n    return "world"' in md
-    assert md.strip().endswith("```")
+def test_convert_html_to_markdown_code_block_language_fences():
+    """Verify code block language syntax is preserved from code class."""
+    html_content = '<pre><code class="language-python">def hello():\n    return "world"</code></pre>'
+    markdown_output = scraper.convert_html_to_markdown(html_content)
+    assert "```python" in markdown_output
+    assert 'def hello():\n    return "world"' in markdown_output
+    assert markdown_output.strip().endswith("```")
+
+
+def test_convert_html_to_markdown_pre_tag_language_fences():
+    """Verify code block language syntax is preserved when declared on pre element."""
+    html_content = '<pre class="language-typescript"><code>const value: number = 42;</code></pre>'
+    markdown_output = scraper.convert_html_to_markdown(html_content)
+    assert "```typescript" in markdown_output
+    assert "const value: number = 42;" in markdown_output
+    assert markdown_output.strip().endswith("```")
+
+
+def test_convert_html_to_markdown_gfm_tables():
+    """Verify tables are converted to GFM markdown tables with proper column delimiters."""
+    table_html = """
+    <table>
+        <thead>
+            <tr><th>Header A</th><th>Header B</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Cell 1</td><td>Cell 2</td></tr>
+        </tbody>
+    </table>
+    """
+    table_markdown = scraper.convert_html_to_markdown(table_html)
+    assert "| Header A | Header B |" in table_markdown
+    assert "| -------- | -------- |" in table_markdown
+    assert "Cell 1" in table_markdown
+    assert "Cell 2" in table_markdown
+
+
+def test_convert_html_to_markdown_preserves_link_emphasis_boundary_whitespace():
+    """Verify boundary whitespace inside emphasis around links is cleanly preserved."""
+    emphasis_html = '<p>You can <em>RSVP <a href="https://example.com">via this link</a></em> today.</p>'
+    emphasis_markdown = scraper.convert_html_to_markdown(emphasis_html)
+    assert "*RSVP [via this link](https://example.com)*" in emphasis_markdown
+    assert "RSVP[" not in emphasis_markdown
+
+
+def test_convert_html_to_markdown_image_alt_normalization():
+    """Verify images without alt attributes receive 'image' alt for MD045 compliance."""
+    image_html = '<p><img src="https://example.com/photo.png"></p>'
+    image_markdown = scraper.convert_html_to_markdown(image_html)
+    assert "![image](https://example.com/photo.png)" in image_markdown
+
+    custom_alt_html = '<p><img src="https://example.com/photo.png" alt="Custom Alt"></p>'
+    custom_alt_markdown = scraper.convert_html_to_markdown(custom_alt_html)
+    assert "![Custom Alt](https://example.com/photo.png)" in custom_alt_markdown
+
+
+def test_convert_html_to_markdown_empty_input():
+    """Verify empty, whitespace-only, or None inputs safely return None."""
+    assert scraper.convert_html_to_markdown(None) is None
+    assert scraper.convert_html_to_markdown("") is None
+    assert scraper.convert_html_to_markdown("   \n\t  ") is None
+
+
+def test_html_to_md_empty_content():
+    """Verify html_to_md safely returns empty string when content is empty or whitespace."""
+    assert scraper.BaseSubstackScraper.html_to_md("") == ""
+    assert scraper.BaseSubstackScraper.html_to_md("   ") == ""
 
 
 def test_extract_preloaded_post_data():
@@ -676,7 +737,7 @@ def test_extract_preloaded_post_data():
         'window._preloads = JSON.parse("{\\"post\\":{\\"id\\":1234,\\"description\\":\\"A summary\\",\\"wordcount\\":500,\\"audience\\":\\"only_paid\\",\\"canonical_url\\":\\"https://example.com/p/test\\",\\"postTags\\":[{\\"name\\":\\"tech\\"},{\\"name\\":\\"ai\\"}]}}");'
         "</script></head></html>"
     )
-    data = ss.BaseSubstackScraper._extract_preloaded_post_data(html)
+    data = scraper.BaseSubstackScraper._extract_preloaded_post_data(html)
     assert data["post_id"] == 1234
     assert data["description"] == "A summary"
     assert data["wordcount"] == 500
@@ -778,7 +839,7 @@ def test_parse_args_verbose_and_quiet_mutually_exclusive(monkeypatch):
         ["scraper", "--url", "https://example.substack.com", "-v", "-q"],
     )
     with pytest.raises(SystemExit):
-        ss.parse_args()
+        scraper.parse_args()
 
 
 def test_parse_args_verbose_flag(monkeypatch):
@@ -787,7 +848,7 @@ def test_parse_args_verbose_flag(monkeypatch):
         "argv",
         ["scraper", "--url", "https://example.substack.com", "--verbose"],
     )
-    args = ss.parse_args()
+    args = scraper.parse_args()
     assert args.verbose is True
     assert args.quiet is False
 
@@ -798,7 +859,7 @@ def test_parse_args_quiet_flag(monkeypatch):
         "argv",
         ["scraper", "--url", "https://example.substack.com", "-q"],
     )
-    args = ss.parse_args()
+    args = scraper.parse_args()
     assert args.quiet is True
     assert args.verbose is False
 
@@ -808,18 +869,18 @@ def test_premium_auto_skip_login_when_credentials_missing_but_profile_exists(tmp
     profile_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr("scraper.scrapers.premium.get_credentials", lambda: (None, None))
-    monkeypatch.setattr(ss.BrowserManager, "get_user_data_dir", lambda browser: str(profile_dir))
+    monkeypatch.setattr(scraper.BrowserManager, "get_user_data_dir", lambda browser: str(profile_dir))
 
     fake_session = MagicMock()
     fake_session.context.pages = [MagicMock()]
-    monkeypatch.setattr(ss.BrowserManager, "launch", lambda **kwargs: fake_session)
+    monkeypatch.setattr(scraper.BrowserManager, "launch", lambda **kwargs: fake_session)
 
-    scraper = ss.PremiumSubstackScraper(
+    premium_scraper = scraper.PremiumSubstackScraper(
         base_substack_url="https://example.substack.com/p/premium-post",
         content_save_dir=str(tmp_path / "content"),
         use_persistent_profile=True,
     )
-    assert scraper.skip_login is True
+    assert premium_scraper.skip_login is True
 
 
 def test_base_and_free_scrapers_use_logging(tmp_path, caplog):
@@ -880,7 +941,7 @@ def test_html_to_md_formats_cleanly_with_mdformat():
         </blockquote>
     </div>
     """
-    md = ss.BaseSubstackScraper.html_to_md(html)
+    md = scraper.BaseSubstackScraper.html_to_md(html)
     assert "- First item" in md
     assert "- Second item" in md
     assert "* First item" not in md
@@ -890,7 +951,7 @@ def test_html_to_md_formats_cleanly_with_mdformat():
 
 def test_combine_metadata_and_content_trailing_newline():
     """Verify combine_metadata_and_content always terminates with a newline character."""
-    output = ss.BaseSubstackScraper.combine_metadata_and_content(
+    output = scraper.BaseSubstackScraper.combine_metadata_and_content(
         title="Sample Post",
         subtitle="",
         date="2026-09-26",
@@ -957,7 +1018,7 @@ def test_parse_args_supports_sync_flag(monkeypatch):
         "argv",
         ["scraper", "--url", "https://example.substack.com", "--sync"],
     )
-    args = ss.parse_args()
+    args = scraper.parse_args()
     assert args.sync is True
 
 
@@ -969,7 +1030,7 @@ def test_parse_args_sync_and_number_mutually_exclusive(monkeypatch):
         ["scraper", "--url", "https://example.substack.com", "--sync", "-n", "5"],
     )
     with pytest.raises(SystemExit):
-        ss.parse_args()
+        scraper.parse_args()
 
 
 def test_parse_args_sync_and_single_post_mutually_exclusive(monkeypatch):
@@ -980,7 +1041,7 @@ def test_parse_args_sync_and_single_post_mutually_exclusive(monkeypatch):
         ["scraper", "--url", "https://example.substack.com/p/my-post", "--sync"],
     )
     with pytest.raises(SystemExit):
-        ss.parse_args()
+        scraper.parse_args()
 
 
 def test_sync_state_load_and_save(tmp_path):
@@ -1058,12 +1119,12 @@ def test_fetch_posts_from_api_pagination_and_cutoff(monkeypatch):
             return FakeResponse([])
         return FakeResponse([], content=b"<urlset></urlset>")
 
-    monkeypatch.setattr(ss.requests, "get", fake_get)
+    monkeypatch.setattr(scraper.requests, "get", fake_get)
 
-    scraper = FakeScraper("https://example.substack.com")
+    fake_scraper = FakeScraper("https://example.substack.com")
 
     # Cutoff at post-2 (date 2026-09-20)
-    delta = scraper._fetch_posts_from_api(
+    delta = fake_scraper._fetch_posts_from_api(
         since_date="2026-09-20T12:00:00.000Z",
         limit=2,
     )
@@ -1082,10 +1143,10 @@ def test_fetch_posts_from_api_handles_api_failure(monkeypatch):
         def json(self):
             return {}
 
-    monkeypatch.setattr(ss.requests, "get", lambda url, timeout=30: FakeErrorResponse())
+    monkeypatch.setattr(scraper.requests, "get", lambda url, timeout=30: FakeErrorResponse())
 
-    scraper = FakeScraper("https://example.substack.com")
-    result = scraper._fetch_posts_from_api()
+    fake_scraper = FakeScraper("https://example.substack.com")
+    result = fake_scraper._fetch_posts_from_api()
     assert result is None
 
 
@@ -1231,7 +1292,7 @@ def test_is_cutoff_reached_predicate():
 def test_cli_validation_browser_flags_require_premium(flag_args, capsys):
     """Verify browser automation flags without -p / --premium raise an error."""
     with pytest.raises(SystemExit) as exc_info:
-        ss.parse_args(["--url", "https://example.substack.com", *flag_args])
+        scraper.parse_args(["--url", "https://example.substack.com", *flag_args])
     assert exc_info.value.code == 2
     captured = capsys.readouterr()
     assert "require the -p / --premium flag" in captured.err
@@ -1258,7 +1319,7 @@ def test_cli_validation_cdp_url_incompatibilities(incompatible_args, capsys):
         *incompatible_args,
     ]
     with pytest.raises(SystemExit) as exc_info:
-        ss.parse_args(cmd)
+        scraper.parse_args(cmd)
     assert exc_info.value.code == 2
     captured = capsys.readouterr()
     assert "--cdp-url attaches directly to an active external browser window" in captured.err
@@ -1275,7 +1336,7 @@ def test_cli_validation_persistent_profile_and_storage_state_mutually_exclusive(
         "cookies.json",
     ]
     with pytest.raises(SystemExit) as exc_info:
-        ss.parse_args(cmd)
+        scraper.parse_args(cmd)
     assert exc_info.value.code == 2
     captured = capsys.readouterr()
     assert "mutually exclusive session persistence strategies" in captured.err
@@ -1285,7 +1346,7 @@ def test_cli_validation_single_post_number_guard(capsys):
     """Verify scraping an individual post with --number > 1 raises an error."""
     cmd = ["--url", "https://example.substack.com/p/my-post", "--number", "5"]
     with pytest.raises(SystemExit) as exc_info:
-        ss.parse_args(cmd)
+        scraper.parse_args(cmd)
     assert exc_info.value.code == 2
     captured = capsys.readouterr()
     assert "--number cannot be greater than 1 when scraping a single post URL" in captured.err
@@ -1293,8 +1354,8 @@ def test_cli_validation_single_post_number_guard(capsys):
 
 def test_cli_validation_valid_single_post_number_one():
     """Verify scraping an individual post with --number 1 or default 0 is allowed."""
-    args = ss.parse_args(["--url", "https://example.substack.com/p/my-post", "--number", "1"])
+    args = scraper.parse_args(["--url", "https://example.substack.com/p/my-post", "--number", "1"])
     assert args.number == 1
 
-    args_default = ss.parse_args(["--url", "https://example.substack.com/p/my-post"])
+    args_default = scraper.parse_args(["--url", "https://example.substack.com/p/my-post"])
     assert args_default.number == 0

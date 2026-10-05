@@ -5,7 +5,7 @@ Substack2Markdown is a modular Python package designed to scrape and archive Sub
 
 ## Tech Stack & Architecture
 - **Language & Standards**: Python 3.11+, PEP 8, PEP 585 (built-in generics), PEP 604 (union syntax `|`)
-- **HTTP & Parsing**: `requests`, `BeautifulSoup` (bs4), `html2text`, `markdown`, `python-dotenv`
+- **HTTP & Parsing**: `requests`, `BeautifulSoup` (bs4), `html-to-markdown` (Rust core), `mdformat`, `python-dotenv`
 - **Automation / Headless Browser**: `playwright` (native Chrome and Edge channels, persistent sessions, CDP)
 - **Testing**: `pytest`
 - **Progress Tracking & Concurrency**: `tqdm`, `concurrent.futures.ThreadPoolExecutor`
@@ -18,6 +18,7 @@ flowchart TD
     CLI["CLI Entrypoint<br/><code>scraper/__main__.py</code><br/><code>scraper/cli.py</code>"]
     Config["Configuration & Credentials<br/><code>scraper/config.py</code>"]
     URLUtils["URL Parsing & Slug Utilities<br/><code>scraper/url_utils.py</code>"]
+    Converter["HTML to Markdown Engine<br/><code>scraper/converter.py</code>"]
     Images["Image Pipeline & ThreadPoolExecutor<br/><code>scraper/images.py</code>"]
     Catalog["Catalog & Safe JSON Embed<br/><code>scraper/catalog.py</code>"]
     Browser["Playwright Browser Manager<br/><code>scraper/browser.py</code>"]
@@ -36,6 +37,7 @@ flowchart TD
     PremiumScraper -- inherits --> BaseScraper
     
     BaseScraper --> URLUtils
+    BaseScraper --> Converter
     BaseScraper --> Images
     BaseScraper --> Catalog
     BaseScraper --> Config
@@ -63,6 +65,7 @@ flowchart LR
     subgraph Services ["Support Modules"]
         cfg["config.py<br/>Settings & Auth"]
         url["url_utils.py<br/>Domain & Slug Parsing"]
+        cnv["converter.py<br/>HTML to Markdown Engine"]
         img["images.py<br/>Async Download Pipeline"]
         cat["catalog.py<br/>HTML & JSON Archiving"]
         brw["browser.py<br/>Playwright Session Manager"]
@@ -75,16 +78,17 @@ flowchart LR
     free --> base
     prem --> base
     
-    base --> cfg & url & img & cat
+    base --> cfg & url & cnv & img & cat
     prem --> brw
 ```
 
 - [`scraper/config.py`](scraper/config.py): Global scraping constants, root content directory (`BASE_CONTENT_DIR = "content"`), timeouts, and `get_credentials()` which loads from `.env` or environment variables.
 - [`scraper/url_utils.py`](scraper/url_utils.py): URL validation, publication URL extraction, and `extract_main_part()` supporting custom Substack domains (e.g. `blog.bytebytego.com`, `newsletter.pragmaticengineer.com`).
 - [`scraper/catalog.py`](scraper/catalog.py): `safe_json_embed()` (mitigating XSS vulnerabilities).
+- [`scraper/converter.py`](scraper/converter.py): High-performance CommonMark/GFM conversion adapter wrapping `html-to-markdown` with syntax highlighting language preservation, GFM tables, and missing image alt normalization.
 - [`scraper/images.py`](scraper/images.py): Image URL resolution, filename sanitization, linked image cleanup, and parallel downloads into `content/<author>/images/<slug>/` via `ThreadPoolExecutor`.
 - [`scraper/browser.py`](scraper/browser.py): `BrowserManager` launching system Chrome and Edge directly via Playwright channels (`channel="chrome"`, `channel="msedge"`), persistent profiles, and CDP attach.
-- [`scraper/scrapers/base.py`](scraper/scrapers/base.py): Abstract base class implementing URL discovery (sitemap.xml and feed.xml fallback), YouTube embed transformations, code syntax language preservation (`SubstackHTML2Text`), promotional widget & comment button stripping (`_clean_post_html`), rich metadata extraction (`window._preloads`), and author-centric storage (`content/<author>/posts/<slug>.md` and `metadata.json`).
+- [`scraper/scrapers/base.py`](scraper/scrapers/base.py): Abstract base class implementing URL discovery (sitemap.xml and feed.xml fallback), YouTube embed transformations, HTML-to-Markdown conversion (`convert_html_to_markdown`), promotional widget & comment button stripping (`_clean_post_html`), rich metadata extraction (`window._preloads`), and author-centric storage (`content/<author>/posts/<slug>.md` and `metadata.json`).
 - [`scraper/scrapers/free.py`](scraper/scrapers/free.py): Public post scraper using `requests` and `BeautifulSoup` with jittered exponential backoff on HTTP 429 errors.
 - [`scraper/scrapers/premium.py`](scraper/scrapers/premium.py): Authenticated scraper for paid posts using Playwright, supporting session redirect detection, SSR hydration waits, persistent profiles, storage_state.json, and interactive CAPTCHA completion.
 - [`scraper/cli.py`](scraper/cli.py): CLI argument parser and execution coordinator.

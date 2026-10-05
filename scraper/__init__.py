@@ -32,6 +32,9 @@ from .config import (
     get_credentials,
 )
 
+# Import HTML-to-Markdown converter
+from .converter import convert_html_to_markdown
+
 # Import image processing helpers
 from .images import (
     clean_linked_images,
@@ -75,6 +78,8 @@ __all__ = [
     "is_post_url",
     # Catalog
     "safe_json_embed",
+    # Converter
+    "convert_html_to_markdown",
     # Images
     "clean_linked_images",
     "count_images_in_markdown",

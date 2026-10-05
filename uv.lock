@@ -299,12 +299,16 @@ wheels = [
 ]
 
 [[package]]
-name = "html2text"
-version = "2025.4.15"
+name = "html-to-markdown"
+version = "3.17.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/27/e158d86ba1e82967cc2f790b0cb02030d4a8bef58e0c79a8590e9678107f/html2text-2025.4.15.tar.gz", hash = "sha256:948a645f8f0bc3abe7fd587019a2197a12436cd73d0d4908af95bfc8da337588", size = 64316, upload-time = "2025-04-15T04:02:30.045Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/68/7a/19453faec99f811f78bbd0ab9d635733bb243e125c19b791c0b265973d39/html_to_markdown-3.17.0.tar.gz", hash = "sha256:b2900aba1c140d19006247178e38b2cbdea592faf6cc0d48f513c3af5e201339", size = 5705762, upload-time = "2026-10-04T17:52:34.576Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1d/84/1a0f9555fd5f2b1c924ff932d99b40a0f8a6b12f6dd625e2a47f415b00ea/html2text-2025.4.15-py3-none-any.whl", hash = "sha256:00569167ffdab3d7767a4cdf589b7f57e777a5ed28d12907d8c58769ec734acc", size = 34656, upload-time = "2025-04-15T04:02:28.44Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/72/f39406289ec7eb911c286eb2240bddd678da53e3bdc0e2c36b38dbd13c86/html_to_markdown-3.17.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:51b03373ec1d3110f3d4d56032d70459003633662d54f283907b4b4e787086ff", size = 7814906, upload-time = "2026-10-04T17:52:24.944Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/a1/f8115011bc2e9cabeae253a8c146ac2873f54bc94458e4e162c32d7e7b83/html_to_markdown-3.17.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:ae23e1a606f960965ba4813ff0dd889232bcafbe3f14e809626f2752dabbf399", size = 7343812, upload-time = "2026-10-04T17:52:27.15Z" },
+    { url = "https://files.pythonhosted.org/packages/32/ad/c765eb13ae4470976964fcd05d5ecc00a218d5d3d8a90f9dbb96ece649b4/html_to_markdown-3.17.0-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:883dcc337061548d168df9bd098a97612a578350875c8bfa17b228f2b6121ed2", size = 7585985, upload-time = "2026-10-04T17:52:28.976Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/ef/5047e211c2659baf7756b05deb1c2704dc49efbe9aa720a42cee8c5d3909/html_to_markdown-3.17.0-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:94d22391e55e8a25cf080cc47a5ea6bb9eb26f2c70ba17eac01799e7f4305bca", size = 8061889, upload-time = "2026-10-04T17:52:30.824Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/37/d8f062e08973853d0e9f21f3f98f0e21540b13227c7f2f233e84f23726b2/html_to_markdown-3.17.0-cp310-abi3-win_amd64.whl", hash = "sha256:67915640b15de0c2d67de6c17ae565c3cce1108cae02f8eca676a797b7619dc9", size = 8047170, upload-time = "2026-10-04T17:52:32.648Z" },
 ]
 
 [[package]]
@@ -766,7 +770,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
-    { name = "html2text" },
+    { name = "html-to-markdown" },
     { name = "mdformat" },
     { name = "mdformat-frontmatter" },
     { name = "mdformat-gfm" },
@@ -791,7 +795,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
-    { name = "html2text", specifier = ">=2020.1.16" },
+    { name = "html-to-markdown", specifier = ">=3.17.0" },
     { name = "mdformat", specifier = ">=0.7.17" },
     { name = "mdformat-frontmatter", specifier = ">=2.0.0" },
     { name = "mdformat-gfm", specifier = ">=0.3.5" },

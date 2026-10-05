@@ -201,8 +201,8 @@ def download_image(
 
 def _call_download_image(*args, **kwargs):
     """Invoke download_image with support for module-level test patches."""
-    ss = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
-    downloader = getattr(ss, "download_image", download_image) if ss else download_image
+    scraper_module = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
+    downloader = getattr(scraper_module, "download_image", download_image) if scraper_module else download_image
     return downloader(*args, **kwargs)
 
 
