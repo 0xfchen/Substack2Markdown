@@ -1,6 +1,4 @@
 import logging
-import random
-from time import sleep
 
 import requests
 from bs4 import BeautifulSoup
@@ -68,19 +66,7 @@ class SubstackScraper(BaseSubstackScraper):
                     logger.info("Skipping premium article: %s", url)
                     return None
 
-                pre = soup.select_one("body > pre")
-                if pre and "too many requests" in pre.text.lower():
-                    if attempt == max_attempts:
-                        raise RuntimeError(f"Max attempts reached for URL: {url}. Too many requests.")
-                    base = 2**attempt
-                    delay = base + random.uniform(-0.2 * base, 0.2 * base)
-                    logger.warning(
-                        "[%s/%s] Too many requests. Retrying in %.2f seconds...",
-                        attempt,
-                        max_attempts,
-                        delay,
-                    )
-                    sleep(delay)
+                if self._handle_rate_limit(soup, attempt, max_attempts, url):
                     continue
 
                 return soup

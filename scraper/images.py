@@ -8,6 +8,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import sleep
+from typing import Any
 from urllib.parse import unquote
 
 import requests
@@ -21,10 +22,10 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 
-def _get_requests():
+def _get_requests() -> Any:
     """Retrieve requests module or monkeypatched version from sys.modules."""
-    ss = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
-    return getattr(ss, "requests", requests) if ss else requests
+    scraper_module = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
+    return getattr(scraper_module, "requests", requests) if scraper_module else requests
 
 
 def resolve_image_url(url: str) -> str:
@@ -199,7 +200,7 @@ def download_image(
     return None
 
 
-def _call_download_image(*args, **kwargs):
+def _call_download_image(*args: Any, **kwargs: Any) -> str | None:
     """Invoke download_image with support for module-level test patches."""
     scraper_module = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
     downloader = getattr(scraper_module, "download_image", download_image) if scraper_module else download_image
@@ -227,8 +228,10 @@ def process_markdown_images(
     Returns:
         str: Updated markdown content with CDN links replaced by relative paths.
     """
-    ss = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
-    current_content_dir = getattr(ss, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if ss else BASE_CONTENT_DIR
+    scraper_module = sys.modules.get("scraper") or sys.modules.get("substack_scraper")
+    current_content_dir = (
+        getattr(scraper_module, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if scraper_module else BASE_CONTENT_DIR
+    )
     target_content_dir = Path(base_content_dir or current_content_dir)
 
     author_dir = target_content_dir / author
@@ -267,7 +270,7 @@ def process_markdown_images(
                 except (requests.RequestException, OSError) as exc:
                     logger.debug("Failed image task for %s: %s", save_path, exc)
 
-    def replace_image(match):
+    def replace_image(match: re.Match[str]) -> str:
         url = match.group(0).strip("()")
         filename = sanitize_image_filename(url)
         save_path = image_dir / filename

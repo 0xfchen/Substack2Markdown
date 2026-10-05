@@ -1359,3 +1359,111 @@ def test_cli_validation_valid_single_post_number_one():
 
     args_default = scraper.parse_args(["--url", "https://example.substack.com/p/my-post"])
     assert args_default.number == 0
+
+
+# 23. Python Scraper Deduplication & Rate-Limit Backoff
+
+
+def test_is_rate_limited_detection():
+    """Verify _is_rate_limited correctly identifies 429 pre tags."""
+    from bs4 import BeautifulSoup
+
+    from scraper.scrapers.base import BaseSubstackScraper
+
+    rate_limited_html = "<html><body><pre>error: too many requests, please slow down</pre></body></html>"
+    normal_html = "<html><body><pre>code block</pre><div>content</div></body></html>"
+    empty_html = "<html><body><div>content only</div></body></html>"
+
+    assert BaseSubstackScraper._is_rate_limited(BeautifulSoup(rate_limited_html, "html.parser")) is True
+    assert BaseSubstackScraper._is_rate_limited(BeautifulSoup(normal_html, "html.parser")) is False
+    assert BaseSubstackScraper._is_rate_limited(BeautifulSoup(empty_html, "html.parser")) is False
+
+
+def test_compute_backoff_delay_range():
+    """Verify _compute_backoff_delay produces values within jittered bounds."""
+    from scraper.scrapers.base import BaseSubstackScraper
+
+    for attempt in range(1, 5):
+        base_delay = 2.0**attempt
+        delay = BaseSubstackScraper._compute_backoff_delay(attempt, jitter_ratio=0.2)
+        assert 0.8 * base_delay <= delay <= 1.2 * base_delay
+
+
+def test_handle_rate_limit_backs_off_and_raises_at_max(monkeypatch):
+    """Verify _handle_rate_limit sleeps on transient rate-limit and raises on max attempts."""
+    from bs4 import BeautifulSoup
+
+    from scraper.scrapers.base import BaseSubstackScraper
+
+    rate_limited_soup = BeautifulSoup("<pre>Too Many Requests</pre>", "html.parser")
+    normal_soup = BeautifulSoup("<div>Clean content</div>", "html.parser")
+
+    # Not rate limited returns False immediately without sleeping
+    slept_durations: list[float] = []
+    monkeypatch.setattr("scraper.scrapers.base.sleep", lambda duration: slept_durations.append(duration))
+
+    assert (
+        BaseSubstackScraper._handle_rate_limit(normal_soup, attempt=1, max_attempts=3, url="https://example.com")
+        is False
+    )
+    assert len(slept_durations) == 0
+
+    # Rate limited on attempt 1 sleeps and returns True
+    assert (
+        BaseSubstackScraper._handle_rate_limit(rate_limited_soup, attempt=1, max_attempts=3, url="https://example.com")
+        is True
+    )
+    assert len(slept_durations) == 1
+    assert slept_durations[0] > 0
+
+    # Rate limited on attempt == max_attempts raises RuntimeError
+    with pytest.raises(RuntimeError, match="Max attempts reached"):
+        BaseSubstackScraper._handle_rate_limit(rate_limited_soup, attempt=3, max_attempts=3, url="https://example.com")
+
+
+def test_extract_post_body_element_and_html_fallbacks():
+    """Verify _extract_post_body_element finds available-content, body.markup, or single-post."""
+    from bs4 import BeautifulSoup
+
+    from scraper.scrapers.base import BaseSubstackScraper
+
+    # 1. Available content
+    soup_primary = BeautifulSoup('<div class="available-content"><p>Primary</p></div>', "html.parser")
+    element = BaseSubstackScraper._extract_post_body_element(soup_primary)
+    assert element is not None
+    assert "Primary" in element.text
+    assert BaseSubstackScraper._extract_post_body_html(soup_primary).startswith('<div class="available-content">')
+
+    # 2. Body markup fallback
+    soup_fallback_1 = BeautifulSoup('<div class="body markup"><p>Fallback 1</p></div>', "html.parser")
+    element_fallback_1 = BaseSubstackScraper._extract_post_body_element(soup_fallback_1)
+    assert element_fallback_1 is not None
+    assert "Fallback 1" in element_fallback_1.text
+
+    # 3. Single post fallback
+    soup_fallback_2 = BeautifulSoup('<article class="single-post"><p>Fallback 2</p></article>', "html.parser")
+    element_fallback_2 = BaseSubstackScraper._extract_post_body_element(soup_fallback_2)
+    assert element_fallback_2 is not None
+    assert "Fallback 2" in element_fallback_2.text
+
+    # 4. None present
+    soup_empty = BeautifulSoup("<div><p>Empty</p></div>", "html.parser")
+    assert BaseSubstackScraper._extract_post_body_element(soup_empty) is None
+    assert BaseSubstackScraper._extract_post_body_html(soup_empty) == ""
+
+
+def test_playwright_timeout_constants():
+    """Verify centralized Playwright timeouts are exported and have positive values."""
+    from scraper.config import (
+        PLAYWRIGHT_CONTENT_RENDER_TIMEOUT_MS,
+        PLAYWRIGHT_HYDRATION_TIMEOUT_MS,
+        PLAYWRIGHT_LOGIN_TIMEOUT_SECONDS,
+        PLAYWRIGHT_NAVIGATION_TIMEOUT_MS,
+        PLAYWRIGHT_SELECTOR_TIMEOUT_MS,
+    )
+
+    assert PLAYWRIGHT_NAVIGATION_TIMEOUT_MS > 0
+    assert PLAYWRIGHT_CONTENT_RENDER_TIMEOUT_MS > 0
+    assert PLAYWRIGHT_HYDRATION_TIMEOUT_MS > 0
+    assert PLAYWRIGHT_SELECTOR_TIMEOUT_MS > 0
+    assert PLAYWRIGHT_LOGIN_TIMEOUT_SECONDS > 0

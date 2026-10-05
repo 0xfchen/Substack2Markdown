@@ -1,6 +1,5 @@
 import logging
 import os
-import random
 from time import sleep
 
 from bs4 import BeautifulSoup
@@ -8,7 +7,15 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from ..browser import BrowserManager, PlaywrightSession
-from ..config import BASE_CONTENT_DIR, get_credentials
+from ..config import (
+    BASE_CONTENT_DIR,
+    PLAYWRIGHT_CONTENT_RENDER_TIMEOUT_MS,
+    PLAYWRIGHT_HYDRATION_TIMEOUT_MS,
+    PLAYWRIGHT_LOGIN_TIMEOUT_SECONDS,
+    PLAYWRIGHT_NAVIGATION_TIMEOUT_MS,
+    PLAYWRIGHT_SELECTOR_TIMEOUT_MS,
+    get_credentials,
+)
 from .base import BaseSubstackScraper
 
 logger = logging.getLogger(__name__)
@@ -149,15 +156,17 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         # Fill credentials
         try:
             email_locator = self.page.locator("input[name='email']")
-            email_locator.wait_for(state="visible", timeout=5000)
+            email_locator.wait_for(state="visible", timeout=PLAYWRIGHT_SELECTOR_TIMEOUT_MS)
             email_locator.fill(self.email)
             self.page.fill("input[name='password']", self.password)
             self.page.click("button[type='submit']")
         except PlaywrightError as exc:
             logger.warning("Notice during form fill: %s", exc)
 
-        logger.info("Waiting for login to complete (this may take up to 30 seconds)...")
-        for _ in range(30):
+        logger.info(
+            "Waiting for login to complete (this may take up to %d seconds)...", PLAYWRIGHT_LOGIN_TIMEOUT_SECONDS
+        )
+        for _ in range(PLAYWRIGHT_LOGIN_TIMEOUT_SECONDS):
             sleep(1)
             # Check for error container
             if self.page.locator("#error-container").count() > 0 and self.page.locator("#error-container").is_visible():
@@ -197,7 +206,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                     if "interrupted by another navigation" in str(exc).lower():
                         logger.debug("Navigation interrupted by redirect. Awaiting settled load state: %s", exc)
                         try:
-                            self.page.wait_for_load_state("domcontentloaded", timeout=15000)
+                            self.page.wait_for_load_state("domcontentloaded", timeout=PLAYWRIGHT_NAVIGATION_TIMEOUT_MS)
                         except PlaywrightError:
                             pass
                     else:
@@ -207,7 +216,7 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                 try:
                     self.page.wait_for_selector(
                         "div.available-content, h1.post-title, h2.paywall-title, body > pre",
-                        timeout=20000,
+                        timeout=PLAYWRIGHT_CONTENT_RENDER_TIMEOUT_MS,
                     )
                 except PlaywrightTimeoutError:
                     logger.warning("Timeout waiting for post content to render: %s", url)
@@ -216,26 +225,16 @@ class PremiumSubstackScraper(BaseSubstackScraper):
                 # client-side hydration evaluates session auth. Wait for hydration if present.
                 if self.page.locator("h2.paywall-title").count() > 0:
                     try:
-                        self.page.wait_for_selector("h2.paywall-title", state="detached", timeout=5000)
+                        self.page.wait_for_selector(
+                            "h2.paywall-title", state="detached", timeout=PLAYWRIGHT_HYDRATION_TIMEOUT_MS
+                        )
                     except PlaywrightTimeoutError:
                         pass
 
                 html_content = self.page.content()
                 soup = BeautifulSoup(html_content, "html.parser")
 
-                pre = soup.select_one("body > pre")
-                if pre and "too many requests" in pre.text.lower():
-                    if attempt == max_attempts:
-                        raise RuntimeError(f"Max attempts reached for URL: {url}. Too many requests.")
-                    base = 2**attempt
-                    delay = base + random.uniform(-0.2 * base, 0.2 * base)
-                    logger.warning(
-                        "[%s/%s] Too many requests. Retrying in %.2f seconds...",
-                        attempt,
-                        max_attempts,
-                        delay,
-                    )
-                    sleep(delay)
+                if self._handle_rate_limit(soup, attempt, max_attempts, url):
                     continue
 
                 if soup.find("h2", class_="paywall-title"):

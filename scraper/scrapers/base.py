@@ -2,16 +2,18 @@ import html
 import json
 import logging
 import os
+import random
 import re
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
+from time import sleep
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
 import mdformat
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from tqdm import tqdm
 
 from ..config import (
@@ -539,6 +541,55 @@ class BaseSubstackScraper(ABC):
 
         return frontmatter + body + "\n"
 
+    @staticmethod
+    def _is_rate_limited(soup: BeautifulSoup) -> bool:
+        """Check whether the parsed DOM indicates a rate-limiting error."""
+        pre = soup.select_one("body > pre") or soup.find("pre")
+        return bool(pre and "too many requests" in pre.text.lower())
+
+    @staticmethod
+    def _compute_backoff_delay(attempt: int, jitter_ratio: float = 0.2) -> float:
+        """Compute exponential backoff with jitter for a retry attempt."""
+        base_delay = 2.0**attempt
+        jitter_range = jitter_ratio * base_delay
+        return base_delay + random.uniform(-jitter_range, jitter_range)
+
+    @classmethod
+    def _handle_rate_limit(
+        cls,
+        soup: BeautifulSoup,
+        attempt: int,
+        max_attempts: int,
+        url: str,
+    ) -> bool:
+        """Check for rate limits and sleep with jittered exponential backoff if detected."""
+        if not cls._is_rate_limited(soup):
+            return False
+
+        if attempt == max_attempts:
+            raise RuntimeError(f"Max attempts reached for URL: {url}. Too many requests.")
+
+        delay = cls._compute_backoff_delay(attempt)
+        logger.warning(
+            "[%s/%s] Too many requests. Retrying in %.2f seconds...",
+            attempt,
+            max_attempts,
+            delay,
+        )
+        sleep(delay)
+        return True
+
+    @staticmethod
+    def _extract_post_body_element(soup: BeautifulSoup) -> Tag | None:
+        """Locate the main post body element using available selectors with fallbacks."""
+        return soup.select_one("div.available-content, div.body.markup, article.single-post")
+
+    @classmethod
+    def _extract_post_body_html(cls, soup: BeautifulSoup) -> str:
+        """Extract the post body HTML from parsed DOM using available selectors."""
+        element = cls._extract_post_body_element(soup)
+        return str(element) if element else ""
+
     def extract_post_data(
         self,
         soup: BeautifulSoup,
@@ -593,14 +644,14 @@ class BaseSubstackScraper(ABC):
             date = "Date not found"
 
         preloaded = self._extract_preloaded_post_data(str(soup))
-        post_id = preloaded.get("post_id") or self._extract_post_id(str(soup))
+        post_id = preloaded.get("post_id")
         tags = preloaded.get("tags", [])
         description = preloaded.get("description", "") or subtitle
         wordcount = preloaded.get("wordcount")
         audience = preloaded.get("audience", "everyone")
         canonical_url = preloaded.get("canonical_url", "") or url
 
-        content_element = soup.select_one("div.available-content")
+        content_element = self._extract_post_body_element(soup)
         content_html = str(content_element) if content_element else ""
         md = self.html_to_md(content_html, clean_content=self.clean_content)
 
@@ -844,13 +895,13 @@ class BaseSubstackScraper(ABC):
         if isinstance(extracted, tuple):
             title, subtitle, author, date, cover_image = extracted[0:5]
             raw_body = extracted[6] if len(extracted) > 6 else extracted[5]
-            preloads = self._extract_preloaded_post_data(str(soup))
-            post_id = self._extract_post_id(str(soup))
-            tags = preloads.get("tags", [])
-            description = preloads.get("description") or subtitle
-            wordcount = preloads.get("wordcount") or (len(raw_body.split()) if raw_body else 0)
-            audience = preloads.get("audience", "everyone")
-            canonical_url = preloads.get("canonical_url", url)
+            preloaded = self._extract_preloaded_post_data(str(soup))
+            post_id = preloaded.get("post_id")
+            tags = preloaded.get("tags", [])
+            description = preloaded.get("description") or subtitle
+            wordcount = preloaded.get("wordcount") or (len(raw_body.split()) if raw_body else 0)
+            audience = preloaded.get("audience", "everyone")
+            canonical_url = preloaded.get("canonical_url", url)
         else:
             title = extracted["title"]
             subtitle = extracted["subtitle"]
@@ -865,7 +916,7 @@ class BaseSubstackScraper(ABC):
             audience = extracted.get("audience", "everyone")
             canonical_url = extracted.get("canonical_url", url)
 
-        content_element = soup.select_one("div.available-content")
+        content_element = self._extract_post_body_element(soup)
         if title == "Untitled" or content_element is None:
             skip_message = (
                 f"[SKIP] Extraction failed for {url} "

@@ -254,8 +254,10 @@ def main() -> None:
     )
 
     # Allow monkeypatched globals from the scraper package/module
-    ss = sys.modules.get("scraper")
-    base_content_dir = getattr(ss, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if ss else BASE_CONTENT_DIR
+    scraper_module = sys.modules.get("scraper")
+    base_content_dir = (
+        getattr(scraper_module, "BASE_CONTENT_DIR", BASE_CONTENT_DIR) if scraper_module else BASE_CONTENT_DIR
+    )
 
     if args.directory is None:
         args.directory = base_content_dir
